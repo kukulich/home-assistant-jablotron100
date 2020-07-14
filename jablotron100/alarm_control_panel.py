@@ -44,7 +44,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	def update_state(self, state: str) -> None:
 		if self._arming_in_progress == True:
 			if state == STATE_ALARM_DISARMED:
-				# Ignore first update with DISARMED state because it's probably outdated
+				# Ignore update with DISARMED state because it's probably outdated
 				return
 
 			self._arming_in_progress = False
