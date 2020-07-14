@@ -234,6 +234,11 @@ class Jablotron():
 				1: b"\xa0",
 				2: b"\xa1",
 				3: b"\xa2",
+				4: b"\xa3",
+				5: b"\xa4",
+				6: b"\xa5",
+				7: b"\xa6",
+				8: b"\xa7",
 			}
 
 			state_packet = sections[section]
@@ -243,6 +248,11 @@ class Jablotron():
 				1: b"\xb0",
 				2: b"\xb1",
 				3: b"\xb2",
+				4: b"\xb3",
+				5: b"\xb4",
+				6: b"\xb5",
+				7: b"\xb6",
+				8: b"\xb7",
 			}
 
 			state_packet = sections[section]
@@ -252,6 +262,11 @@ class Jablotron():
 				1: b"\x90",
 				2: b"\x91",
 				3: b"\x92",
+				4: b"\x93",
+				5: b"\x94",
+				6: b"\x95",
+				7: b"\x96",
+				8: b"\x97",
 			}
 
 			state_packet = sections[section]
