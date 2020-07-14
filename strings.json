@@ -1,0 +1,31 @@
+{
+	"config": {
+		"step": {
+			"user": {
+				"title": "Jablotron 100",
+				"data": {
+					"serial_port": "Serial port",
+					"password": "Code"
+				}
+			}
+		},
+		"error": {
+			"service_unavailable": "Jablotron is not available",
+			"model_not_detected": "Model of Jablotron not detected"
+		},
+		"abort": {
+			"already_configured": "Jablotron is already configured"
+		}
+	},
+	"options": {
+		"step": {
+			"init": {
+				"title": "Options",
+				"data": {
+					"require_code_to_arm": "Require code to arm",
+					"require_code_to_disarm": "Require code to disarm"
+				}
+			}
+		}
+	}
+}
