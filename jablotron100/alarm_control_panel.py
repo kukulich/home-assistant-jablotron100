@@ -2,14 +2,14 @@ from homeassistant import config_entries, core
 from homeassistant.const import (
 	STATE_ALARM_DISARMED,
 	STATE_ALARM_ARMED_AWAY,
-	STATE_ALARM_ARMED_HOME,
+	STATE_ALARM_ARMED_NIGHT,
 	STATE_ALARM_ARMING,
 )
 from homeassistant.components.alarm_control_panel import (
 	AlarmControlPanelEntity,
 	FORMAT_NUMBER,
 	SUPPORT_ALARM_ARM_AWAY,
-	SUPPORT_ALARM_ARM_HOME,
+	SUPPORT_ALARM_ARM_NIGHT,
 )
 from typing import Optional
 from .const import DATA_JABLOTRON, DOMAIN
@@ -39,7 +39,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 	@property
 	def supported_features(self) -> int:
-		return SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_HOME
+		return SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_NIGHT
 
 	def update_state(self, state: str) -> None:
 		if self._arming_in_progress == True:
@@ -67,10 +67,10 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self.update_state(STATE_ALARM_ARMING)
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
-	async def async_alarm_arm_home(self, code: Optional[str] = None) -> None:
-		if code is None and self._jablotron.is_code_required_for_state(STATE_ALARM_ARMED_HOME):
+	async def async_alarm_arm_night(self, code: Optional[str] = None) -> None:
+		if code is None and self._jablotron.is_code_required_for_state(STATE_ALARM_ARMED_NIGHT):
 			return
 
 		self._arming_in_progress = True
 		self.update_state(STATE_ALARM_ARMING)
-		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_HOME, code)
+		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_NIGHT, code)

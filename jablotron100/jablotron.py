@@ -5,7 +5,7 @@ from homeassistant.const import (
 	EVENT_HOMEASSISTANT_STOP,
 	STATE_ALARM_DISARMED,
 	STATE_ALARM_ARMED_AWAY,
-	STATE_ALARM_ARMED_HOME,
+	STATE_ALARM_ARMED_NIGHT,
 	STATE_ALARM_ARMING,
 )
 from homeassistant.helpers.entity import Entity
@@ -243,7 +243,7 @@ class Jablotron():
 
 			state_packet = sections[section]
 
-		elif state == STATE_ALARM_ARMED_HOME:
+		elif state == STATE_ALARM_ARMED_NIGHT:
 			sections = {
 				1: b"\xb0",
 				2: b"\xb1",
@@ -370,7 +370,7 @@ class Jablotron():
 			return STATE_ALARM_ARMED_AWAY
 
 		if state == JABLOTRON_ALARM_STATE_ARMED_PARTIALLY:
-			return STATE_ALARM_ARMED_HOME
+			return STATE_ALARM_ARMED_NIGHT
 
 		if state == JABLOTRON_ALARM_STATE_ARMING_FULL or state == JABLOTRON_ALARM_STATE_ARMING_PARTIALLY:
 			return STATE_ALARM_ARMING
