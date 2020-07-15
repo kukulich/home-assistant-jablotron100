@@ -36,9 +36,11 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	return True
 
 
-async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> None:
+async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> bool:
 	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 	jablotron.shutdown()
+
+	return True
 
 
 async def options_update_listener(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> None:
