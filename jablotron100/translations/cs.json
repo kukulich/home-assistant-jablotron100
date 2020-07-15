@@ -22,8 +22,8 @@
 			"init": {
 				"title": "Nastaven\u00ed",
 				"data": {
-					"require_code_to_arm": "Vy\u017eadovat k\u00f3d k aktivaci",
-					"require_code_to_disarm": "Vy\u017eadovat k\u00f3d k deaktivaci"
+					"require_code_to_arm": "Vy\u017eadovat k\u00f3d k zabezpe\u010den\u00ed",
+					"require_code_to_disarm": "Vy\u017eadovat k\u00f3d k odbezpe\u010den\u00ed"
 				}
 			}
 		}
