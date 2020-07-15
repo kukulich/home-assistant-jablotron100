@@ -36,9 +36,9 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	@property
 	def code_format(self) -> Optional[str]:
 		if self.state == STATE_ALARM_DISARMED:
-			code_required = self._jablotron.is_code_required_for_state(STATE_ALARM_ARMED_AWAY)
+			code_required = self._jablotron.is_code_required_for_arm()
 		else:
-			code_required = self._jablotron.is_code_required_for_state(STATE_ALARM_DISARMED)
+			code_required = self._jablotron.is_code_required_for_disarm()
 
 		return FORMAT_NUMBER if code_required == True else None
 
@@ -57,7 +57,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		super().update_state(state)
 
 	async def async_alarm_disarm(self, code: Optional[str] = None) -> None:
-		if code is None and self._jablotron.is_code_required_for_state(STATE_ALARM_DISARMED):
+		if code is None and self._jablotron.is_code_required_for_disarm():
 			return
 
 		self._arming_in_progress = False
@@ -65,7 +65,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self.update_state(STATE_ALARM_DISARMED)
 
 	async def async_alarm_arm_away(self, code: Optional[str] = None) -> None:
-		if code is None and self._jablotron.is_code_required_for_state(STATE_ALARM_ARMED_AWAY):
+		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
 		self._arming_in_progress = True
@@ -73,7 +73,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
 	async def async_alarm_arm_night(self, code: Optional[str] = None) -> None:
-		if code is None and self._jablotron.is_code_required_for_state(STATE_ALARM_ARMED_NIGHT):
+		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
 		self._arming_in_progress = True
