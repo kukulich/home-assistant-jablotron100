@@ -153,7 +153,7 @@ class Jablotron():
 		self._options: Dict[str, Any] = options
 
 		self._central_unit: Optional[JablotronCentralUnit] = None
-		self._alarm_control_panels: Dict[str, JablotronAlarmControlPanel] = {}
+		self._alarm_control_panels: List[JablotronAlarmControlPanel] = []
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
@@ -254,11 +254,7 @@ class Jablotron():
 		self._send_packet(b"\x80\x02\x0d" + state_packet)
 
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
-		alarm_control_panels = []
-		for alarm_control_panel in self._alarm_control_panels.values():
-			alarm_control_panels.append(alarm_control_panel)
-
-		return alarm_control_panels
+		return self._alarm_control_panels
 
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
@@ -367,12 +363,12 @@ class Jablotron():
 		for section, section_state in section_states.items():
 			section_id = Jablotron._create_section_id(section)
 
-			self._alarm_control_panels[section_id] = JablotronAlarmControlPanel(
+			self._alarm_control_panels.append(JablotronAlarmControlPanel(
 				self._central_unit,
 				section,
 				self._create_section_name(section),
 				section_id,
-			)
+			))
 
 			self.states[section_id] = section_state
 
