@@ -32,10 +32,12 @@ from .errors import (
 )
 
 MAX_WORKERS = 5
-TIMEOUT = 30
+TIMEOUT = 10
+PACKET_READ_SIZE = 64
 
 JABLOTRON_PACKET_INFO = b"\x30\x01\x01\x30\x01\x02\x30\x01\x03\x30\x01\x04\x30\x01\x05\x30\x01\x08\x30\x01\x09\x30\x01\x0A\x30\x01\x0B\x30\x01\x0C\x30\x01\x11\x52\x03\x1A\x01\x00\x3C\x01\x01\x00"
 JABLOTRON_PACKET_GET_STATES = b"\x80\x01\x01\x52\x01\x0e"
+JABLOTRON_PACKET_STATES_PREFIX = b"\x51\x22"
 
 JABLOTRON_ALARM_STATE_DISARMED = b"\x01"
 JABLOTRON_ALARM_STATE_ARMING_FULL = b"\x83"
@@ -67,27 +69,28 @@ def decode_bytes(value: bytes) -> str:
 
 
 def check_serial_port(serial_port: str) -> None:
-	try:
-		def reader_loop() -> Optional[str]:
-			stream = open(serial_port, "rb")
+	stop_event = threading.Event()
+	thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-			model = None
+	def reader_thread() -> Optional[str]:
+		model = None
 
-			read_packets = 0
-			while read_packets < 2:
-				packet = stream.read(64)
+		stream = open(serial_port, "rb")
 
-				read_packets += 1
+		try:
+			while not stop_event.is_set():
+				packet = stream.read(PACKET_READ_SIZE)
 
 				if packet[3:6] == b"\x4a\x41\x2d":
 					model = decode_bytes(packet[3:16])
 					break
-
+		finally:
 			stream.close()
 
-			return model
+		return model
 
-		def writer_loop() -> None:
+	def writer_thread() -> None:
+		while not stop_event.is_set():
 			stream = open(serial_port, "wb")
 
 			stream.write(JABLOTRON_PACKET_INFO)
@@ -95,13 +98,13 @@ def check_serial_port(serial_port: str) -> None:
 
 			stream.close()
 
-		executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-		reader = executor.submit(reader_loop)
-		executor.submit(writer_loop)
+			time.sleep(1)
+
+	try:
+		reader = thread_pool_executor.submit(reader_thread)
+		thread_pool_executor.submit(writer_thread)
 
 		model = reader.result(TIMEOUT)
-
-		executor.shutdown()
 
 		if model is None:
 			raise ModelNotDetected
@@ -111,6 +114,10 @@ def check_serial_port(serial_port: str) -> None:
 
 	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError):
 		raise ServiceUnavailable
+
+	finally:
+		stop_event.set()
+		thread_pool_executor.shutdown()
 
 
 class JablotronCentralUnit:
@@ -150,13 +157,12 @@ class Jablotron():
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
-		self._thread_pool_executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-
-		self._state_checker_data_updating_event: threading.Event = threading.Event()
+		self._state_checker_thread_pool_executor: Optional[ThreadPoolExecutor] = None
 		self._state_checker_stop_event: threading.Event = threading.Event()
+		self._state_checker_data_updating_event: threading.Event = threading.Event()
 
 		self.states: Dict[str, str] = {}
-		self.last_update_success: bool = True
+		self.last_update_success: bool = False
 
 	def update_options(self, options: Dict[str, Any]) -> None:
 		self._options = options
@@ -168,59 +174,24 @@ class Jablotron():
 		return self._options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM)
 
 	def initialize(self) -> None:
-		try:
-			def reader_loop() -> JablotronCentralUnit:
-				model = None
-				hardware_version = None
-				firmware_version = None
-
-				stream = open(self._config[CONF_SERIAL_PORT], "rb")
-
-				read_packets = 0
-				while read_packets < 10:
-					packet = stream.read(64)
-
-					read_packets += 1
-
-					if packet[3:6] == b"\x4a\x41\x2d":
-						model = decode_bytes(packet[3:16])
-					elif packet[3:6] == b"\x4c\x4a\x36":
-						hardware_version = decode_bytes(packet[3:13])
-					elif packet[3:6] == b"\x4c\x4a\x31":
-						firmware_version = decode_bytes(packet[3:11])
-
-				stream.close()
-
-				return JablotronCentralUnit(self._config[CONF_SERIAL_PORT], model, hardware_version, firmware_version)
-
-			def writer_loop() -> None:
-				self._send_packet(JABLOTRON_PACKET_INFO)
-
-			reader = self._thread_pool_executor.submit(reader_loop)
-			self._thread_pool_executor.submit(writer_loop)
-
-			self._central_unit = reader.result(TIMEOUT)
-
-			self._thread_pool_executor.shutdown()
-
-		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError):
-			raise ServiceUnavailable
-
-		self._thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-		self._thread_pool_executor.submit(self._read_state)
-		self._thread_pool_executor.submit(self._get_states)
-
-		# Require for the first time
-		self._send_packet(JABLOTRON_PACKET_GET_STATES)
-
-		# Magic timeout to get states
-		time.sleep(5)
-
 		self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, self.shutdown)
+
+		self._detect_central_unit()
+		self._detect_sections()
+
+		# Initialize states checker
+		self._state_checker_thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+		self._state_checker_thread_pool_executor.submit(self._read_state)
+		self._state_checker_thread_pool_executor.submit(self._get_states)
 
 	def shutdown(self) -> None:
 		self._state_checker_stop_event.set()
-		self._thread_pool_executor.shutdown()
+
+		# Send packet so read thread can finish
+		self._send_packet(JABLOTRON_PACKET_GET_STATES)
+
+		if self._state_checker_thread_pool_executor is not None:
+			self._state_checker_thread_pool_executor.shutdown()
 
 	def substribe_entity_for_updates(self, control_id: str, entity) -> None:
 		self._entities[control_id] = entity
@@ -280,14 +251,143 @@ class Jablotron():
 		self._send_packet(b"\x80\x02\x0d" + state_packet)
 
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
-		if len(self._alarm_control_panels) == 0:
-			raise ShouldNotHappen
-
 		alarm_control_panels = []
 		for alarm_control_panel in self._alarm_control_panels.values():
 			alarm_control_panels.append(alarm_control_panel)
 
 		return alarm_control_panels
+
+	def _detect_central_unit(self) -> None:
+		stop_event = threading.Event()
+		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+
+		def reader_thread() -> Optional[JablotronCentralUnit]:
+			model = None
+			hardware_version = None
+			firmware_version = None
+
+			stream = open(self._config[CONF_SERIAL_PORT], "rb")
+
+			try:
+				while not stop_event.is_set():
+					packet = stream.read(PACKET_READ_SIZE)
+
+					try:
+						if packet[3:6] == b"\x4a\x41\x2d":
+							model = decode_bytes(packet[3:16])
+						elif packet[3:6] == b"\x4c\x4a\x36":
+							hardware_version = decode_bytes(packet[3:13])
+						elif packet[3:6] == b"\x4c\x4a\x31":
+							firmware_version = decode_bytes(packet[3:11])
+					except UnicodeDecodeError:
+						# Bad packet - try again
+						pass
+
+					if model is not None and hardware_version is not None and firmware_version is not None:
+						break
+			finally:
+				stream.close()
+
+			if model is None or hardware_version is None or firmware_version is None:
+				return None
+
+			return JablotronCentralUnit(self._config[CONF_SERIAL_PORT], model, hardware_version, firmware_version)
+
+		def writer_thread() -> None:
+			while not stop_event.is_set():
+				self._send_packet(JABLOTRON_PACKET_INFO)
+				time.sleep(1)
+
+		try:
+			reader = thread_pool_executor.submit(reader_thread)
+			thread_pool_executor.submit(writer_thread)
+
+			self._central_unit = reader.result(TIMEOUT)
+
+		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
+			LOGGER.error(format(ex))
+			raise ServiceUnavailable
+
+		finally:
+			stop_event.set()
+			thread_pool_executor.shutdown()
+
+		if self._central_unit is None:
+			raise ShouldNotHappen
+
+	def _detect_sections(self) -> None:
+		stop_event = threading.Event()
+		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+
+		def reader_thread() -> Optional[Dict[int, str]]:
+			section_states = None
+
+			stream = open(self._config[CONF_SERIAL_PORT], "rb")
+
+			try:
+				while not stop_event.is_set():
+					packet = stream.read(PACKET_READ_SIZE)
+
+					if packet[:2] == JABLOTRON_PACKET_STATES_PREFIX:
+						section_states = self._parse_state_packet(packet)
+						break
+			finally:
+				stream.close()
+
+			if section_states is None:
+				return None
+
+			return section_states
+
+		def writer_thread() -> None:
+			while not stop_event.is_set():
+				self._send_packet(JABLOTRON_PACKET_GET_STATES)
+				time.sleep(1)
+
+		try:
+			reader = thread_pool_executor.submit(reader_thread)
+			thread_pool_executor.submit(writer_thread)
+
+			section_states = reader.result(TIMEOUT)
+
+		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
+			LOGGER.error(format(ex))
+			raise ServiceUnavailable
+
+		finally:
+			stop_event.set()
+			thread_pool_executor.shutdown()
+
+		if section_states is None:
+			raise ShouldNotHappen
+
+		for section, section_state in section_states.items():
+			section_id = Jablotron._create_section_id(section)
+
+			self._alarm_control_panels[section_id] = JablotronAlarmControlPanel(
+				self._central_unit,
+				section,
+				self._create_section_name(section),
+				section_id,
+			)
+
+			self.states[section_id] = section_state
+
+		self.last_update_success = True
+
+	def _parse_state_packet(self, packet: bytes) -> Dict[int, str]:
+		section_states = {}
+
+		for section in range(1, 8):
+			state_offset = section * 2
+			state = packet[state_offset:(state_offset + 1)]
+
+			if state == JABLOTRON_ALARM_STATE_OFF:
+				break
+
+			section_states[section] = self._convert_alarm_jablotron_state_to_hass_state(state)
+
+		return section_states
 
 	def _read_state(self) -> None:
 		while not self._state_checker_stop_event.is_set():
@@ -300,40 +400,26 @@ class Jablotron():
 
 					self._state_checker_data_updating_event.clear()
 
-					packet = stream.read(64)
+					packet = stream.read(PACKET_READ_SIZE)
 
 					self._state_checker_data_updating_event.set()
 
 					if not packet:
 						self.last_update_success = False
-						return
+						break
 
-					if packet[:2] == b"\x51\x22":
+					if packet[:2] == JABLOTRON_PACKET_STATES_PREFIX:
 						self.last_update_success = True
 
-						for number in range(1, 8):
-							state_offset = number * 2
-							state = packet[state_offset:(state_offset + 1)]
+						section_states = self._parse_state_packet(packet)
 
-							if state == JABLOTRON_ALARM_STATE_OFF:
-								break
-
-							section_id = self._create_section_id(number)
-
-							if section_id not in self._alarm_control_panels:
-								self._alarm_control_panels[section_id] = JablotronAlarmControlPanel(
-									self._central_unit,
-									number,
-									self._create_section_name(number),
-									section_id,
-								)
-
-							hass_state = self._convert_alarm_jablotron_state_to_hass_state(state)
+						for section, section_state in section_states.items():
+							section_id = Jablotron._create_section_id(section)
 
 							if section_id in self._entities:
-								self._entities[section_id].update_state(hass_state)
+								self._entities[section_id].update_state(section_state)
 							else:
-								self.states[section_id] = hass_state
+								self.states[section_id] = section_state
 
 						break
 
@@ -411,13 +497,9 @@ class JablotronEntity(Entity):
 
 	@property
 	def device_info(self) -> Dict[str, str]:
-		name = self._control.central_unit.model
-		if self._control.central_unit.hardware_version is not None:
-			name += " ({})".format(self._control.central_unit.hardware_version)
-
 		return {
 			"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
-			"name": name,
+			"name": "{} ({})".format(self._control.central_unit.model, self._control.central_unit.hardware_version),
 			"manufacturer": "Jablotron",
 			"sw_version": self._control.central_unit.firmware_version,
 		}
