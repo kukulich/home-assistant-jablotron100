@@ -37,6 +37,9 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 
 
 async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> bool:
+	options_update_unsubscriber = hass.data[DOMAIN][config_entry.entry_id][DATA_OPTIONS_UPDATE_UNSUBSCRIBER]
+	options_update_unsubscriber()
+
 	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 	jablotron.shutdown()
 
@@ -44,8 +47,5 @@ async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entr
 
 
 async def options_update_listener(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> None:
-	options_update_unsubscriber = hass.data[DOMAIN][config_entry.entry_id][DATA_OPTIONS_UPDATE_UNSUBSCRIBER]
-	options_update_unsubscriber()
-
 	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 	jablotron.update_options(config_entry.options)
