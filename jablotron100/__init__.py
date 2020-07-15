@@ -2,6 +2,7 @@
 
 from homeassistant import config_entries, core
 from homeassistant.components.alarm_control_panel import DOMAIN as PLATFORM_ALARM_CONTROL_PANEL
+from homeassistant.components.binary_sensor import DOMAIN as PLATFORM_BINARY_SENSOR
 
 from .const import (
 	DATA_JABLOTRON,
@@ -28,7 +29,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 		DATA_OPTIONS_UPDATE_UNSUBSCRIBER: config_entry.add_update_listener(options_update_listener),
 	}
 
-	for platform in [PLATFORM_ALARM_CONTROL_PANEL]:
+	for platform in [PLATFORM_ALARM_CONTROL_PANEL, PLATFORM_BINARY_SENSOR]:
 		hass.async_create_task(
 			hass.config_entries.async_forward_entry_setup(config_entry, platform)
 		)

@@ -9,6 +9,8 @@ from homeassistant.const import (
 	STATE_ALARM_ARMING,
 	STATE_ALARM_PENDING,
 	STATE_ALARM_TRIGGERED,
+	STATE_OFF,
+	STATE_ON,
 )
 from homeassistant.helpers.entity import Entity
 import re
@@ -40,10 +42,13 @@ JABLOTRON_PACKET_GET_STATES = b"\x80\x01\x01\x52\x01\x0e"
 JABLOTRON_PACKET_STATES_PREFIX = b"\x51\x22"
 
 JABLOTRON_ALARM_STATE_DISARMED = b"\x01"
+JABLOTRON_ALARM_STATE_DISARMED_WITH_PROBLEM = b"\x21"
 JABLOTRON_ALARM_STATE_ARMING_FULL = b"\x83"
 JABLOTRON_ALARM_STATE_ARMING_PARTIALLY = b"\x82"
 JABLOTRON_ALARM_STATE_ARMED_FULL = b"\x03"
+JABLOTRON_ALARM_STATE_ARMED_FULL_WITH_PROBLEM = b"\x23"
 JABLOTRON_ALARM_STATE_ARMED_PARTIALLY = b"\x02"
+JABLOTRON_ALARM_STATE_ARMED_PARTIALLY_WITH_PROBLEM = b"\x22"
 JABLOTRON_ALARM_STATE_PENDING_FULL = b"\x43"
 JABLOTRON_ALARM_STATE_PENDING_PARTIALLY = b"\x42"
 JABLOTRON_ALARM_STATE_TRIGGERED_FULL = b"\x1b"
@@ -154,6 +159,7 @@ class Jablotron():
 
 		self._central_unit: Optional[JablotronCentralUnit] = None
 		self._alarm_control_panels: List[JablotronAlarmControlPanel] = []
+		self._section_problem_sensors: List[JablotronControl] = []
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
@@ -256,6 +262,9 @@ class Jablotron():
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
 		return self._alarm_control_panels
 
+	def section_problem_sensors(self) -> List[JablotronControl]:
+		return self._section_problem_sensors
+
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
@@ -318,7 +327,7 @@ class Jablotron():
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-		def reader_thread() -> Optional[Dict[int, str]]:
+		def reader_thread() -> Optional[Dict[int, bytes]]:
 			section_states = None
 
 			stream = open(self._config[CONF_SERIAL_PORT], "rb")
@@ -361,20 +370,29 @@ class Jablotron():
 			raise ShouldNotHappen
 
 		for section, section_state in section_states.items():
-			section_id = Jablotron._create_section_id(section)
+			section_name = self._create_section_name(section)
+
+			section_alarm_id = Jablotron._create_section_alarm_id(section)
+			section_problem_sensor_id = Jablotron._create_section_problem_sensor_id(section)
 
 			self._alarm_control_panels.append(JablotronAlarmControlPanel(
 				self._central_unit,
 				section,
-				self._create_section_name(section),
-				section_id,
+				section_name,
+				section_alarm_id,
+			))
+			self._section_problem_sensors.append(JablotronControl(
+				self._central_unit,
+				section_name,
+				section_problem_sensor_id,
 			))
 
-			self.states[section_id] = section_state
+			self.states[section_alarm_id] = Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state)
+			self.states[section_problem_sensor_id] = Jablotron._convert_alarm_jablotron_alarm_state_to_problem_sensor_state(section_state)
 
 		self.last_update_success = True
 
-	def _parse_state_packet(self, packet: bytes) -> Dict[int, str]:
+	def _parse_state_packet(self, packet: bytes) -> Dict[int, bytes]:
 		section_states = {}
 
 		for section in range(1, 8):
@@ -384,11 +402,17 @@ class Jablotron():
 			if state == JABLOTRON_ALARM_STATE_OFF:
 				break
 
-			section_states[section] = self._convert_alarm_jablotron_state_to_hass_state(state)
+			section_states[section] = state
 
 		return section_states
 
 	def _read_state(self) -> None:
+		def update_entity_or_state(id: str, state: str) -> None:
+			if id in self._entities:
+				self._entities[id].update_state(state)
+			else:
+				self.states[id] = state
+
 		while not self._state_checker_stop_event.is_set():
 			stream = None
 
@@ -413,12 +437,15 @@ class Jablotron():
 						section_states = self._parse_state_packet(packet)
 
 						for section, section_state in section_states.items():
-							section_id = Jablotron._create_section_id(section)
+							update_entity_or_state(
+								Jablotron._create_section_alarm_id(section),
+								Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state),
+							)
 
-							if section_id in self._entities:
-								self._entities[section_id].update_state(section_state)
-							else:
-								self.states[section_id] = section_state
+							update_entity_or_state(
+								Jablotron._create_section_problem_sensor_id(section),
+								Jablotron._convert_alarm_jablotron_alarm_state_to_problem_sensor_state(section_state),
+							)
 
 						break
 
@@ -452,15 +479,19 @@ class Jablotron():
 		return "Section {}".format(section)
 
 	@staticmethod
-	def _create_section_id(section: int) -> str:
+	def _create_section_alarm_id(section: int) -> str:
 		return "section_{}".format(section)
 
 	@staticmethod
-	def _convert_alarm_jablotron_state_to_hass_state(state: bytes) -> str:
-		if state == JABLOTRON_ALARM_STATE_ARMED_FULL:
+	def _create_section_problem_sensor_id(section: int) -> str:
+		return "section_problem_sensor_{}".format(section)
+
+	@staticmethod
+	def _convert_jablotron_alarm_state_to_alarm_state(state: bytes) -> str:
+		if state == JABLOTRON_ALARM_STATE_ARMED_FULL or state == JABLOTRON_ALARM_STATE_ARMED_FULL_WITH_PROBLEM:
 			return STATE_ALARM_ARMED_AWAY
 
-		if state == JABLOTRON_ALARM_STATE_ARMED_PARTIALLY:
+		if state == JABLOTRON_ALARM_STATE_ARMED_PARTIALLY or state == JABLOTRON_ALARM_STATE_ARMED_PARTIALLY_WITH_PROBLEM:
 			return STATE_ALARM_ARMED_NIGHT
 
 		if state == JABLOTRON_ALARM_STATE_ARMING_FULL or state == JABLOTRON_ALARM_STATE_ARMING_PARTIALLY:
@@ -474,6 +505,16 @@ class Jablotron():
 
 		return STATE_ALARM_DISARMED
 
+	@staticmethod
+	def _convert_alarm_jablotron_alarm_state_to_problem_sensor_state(state: bytes) -> str:
+		if (
+			state == JABLOTRON_ALARM_STATE_ARMED_FULL_WITH_PROBLEM
+			or state == JABLOTRON_ALARM_STATE_ARMED_PARTIALLY_WITH_PROBLEM
+			or state == JABLOTRON_ALARM_STATE_DISARMED_WITH_PROBLEM
+		):
+			return STATE_ON
+
+		return STATE_OFF
 
 class JablotronEntity(Entity):
 	_state: str
