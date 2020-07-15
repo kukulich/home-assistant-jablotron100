@@ -167,6 +167,9 @@ class Jablotron():
 	def update_options(self, options: Dict[str, Any]) -> None:
 		self._options = options
 
+		for entity in self._entities.values():
+			entity.async_write_ha_state()
+
 	def is_code_required_for_disarm(self) -> bool:
 		return self._options.get(CONF_REQUIRE_CODE_TO_DISARM, DEFAULT_CONF_REQUIRE_CODE_TO_DISARM)
 
