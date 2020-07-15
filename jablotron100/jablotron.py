@@ -64,7 +64,7 @@ JABLOTRON_NUMBERS = {
 }
 
 
-def decode_bytes(value: bytes) -> str:
+def decode_info_bytes(value: bytes) -> str:
 	return value.strip(b"\x00").decode().strip("@")
 
 
@@ -82,7 +82,7 @@ def check_serial_port(serial_port: str) -> None:
 				packet = stream.read(PACKET_READ_SIZE)
 
 				if packet[3:6] == b"\x4a\x41\x2d":
-					model = decode_bytes(packet[3:16])
+					model = decode_info_bytes(packet[3:16])
 					break
 		finally:
 			stream.close()
@@ -274,11 +274,11 @@ class Jablotron():
 
 					try:
 						if packet[3:6] == b"\x4a\x41\x2d":
-							model = decode_bytes(packet[3:16])
+							model = decode_info_bytes(packet[3:16])
 						elif packet[3:6] == b"\x4c\x4a\x36":
-							hardware_version = decode_bytes(packet[3:13])
+							hardware_version = decode_info_bytes(packet[3:13])
 						elif packet[3:6] == b"\x4c\x4a\x31":
-							firmware_version = decode_bytes(packet[3:11])
+							firmware_version = decode_info_bytes(packet[3:11])
 					except UnicodeDecodeError:
 						# Bad packet - try again
 						pass
@@ -499,7 +499,8 @@ class JablotronEntity(Entity):
 	def device_info(self) -> Dict[str, str]:
 		return {
 			"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
-			"name": "{} ({})".format(self._control.central_unit.model, self._control.central_unit.hardware_version),
+			"name": "Jablotron 100",
+			"model": "{} ({})".format(self._control.central_unit.model, self._control.central_unit.hardware_version),
 			"manufacturer": "Jablotron",
 			"sw_version": self._control.central_unit.firmware_version,
 		}
