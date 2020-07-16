@@ -183,7 +183,10 @@ class Jablotron():
 		return self._options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM)
 
 	def initialize(self) -> None:
-		self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, self.shutdown)
+		def shutdown_event(_):
+			self.shutdown()
+
+		self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, shutdown_event)
 
 		self._detect_central_unit()
 		self._detect_sections()
