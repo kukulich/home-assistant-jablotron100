@@ -202,10 +202,6 @@ class Jablotron():
 		if code is None:
 			code = self._config[CONF_PASSWORD]
 
-		code_packet = b""
-		for code_number in code:
-			code_packet += Jablotron._int_to_bytes(48 + int(code_number))
-
 		int_packets = {
 			STATE_ALARM_DISARMED: 143,
 			STATE_ALARM_ARMED_AWAY: 159,
@@ -214,7 +210,7 @@ class Jablotron():
 
 		state_packet = Jablotron._int_to_bytes(int_packets[state] + section)
 
-		self._send_packet(b"\x80\x08\x03\x39\x39\x39" + code_packet + b"\x80\x02\x0d" + state_packet)
+		self._send_packet(Jablotron._create_code_packet(code) + b"\x80\x02\x0d" + state_packet)
 
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
 		return self._alarm_control_panels
@@ -433,6 +429,14 @@ class Jablotron():
 		time.sleep(0.1)
 
 		stream.close()
+
+	@staticmethod
+	def _create_code_packet(code: str) -> bytes:
+		code_packet = b""
+		for code_number in code:
+			code_packet += Jablotron._int_to_bytes(48 + int(code_number))
+
+		return b"\x80\x08\x03\x39\x39\x39" + code_packet
 
 	@staticmethod
 	def _int_to_bytes(number: int) -> bytes:
