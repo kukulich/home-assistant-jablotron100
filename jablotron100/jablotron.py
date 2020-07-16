@@ -407,11 +407,11 @@ class Jablotron():
 		return section_states
 
 	def _read_state(self) -> None:
-		def update_entity_or_state(id: str, state: str) -> None:
+		def update_state(id: str, state: str) -> None:
+			self.states[id] = state
+
 			if id in self._entities:
-				self._entities[id].update_state(state)
-			else:
-				self.states[id] = state
+				self._entities[id].async_write_ha_state()
 
 		while not self._state_checker_stop_event.is_set():
 			stream = None
@@ -437,12 +437,12 @@ class Jablotron():
 						section_states = self._parse_state_packet(packet)
 
 						for section, section_state in section_states.items():
-							update_entity_or_state(
+							update_state(
 								Jablotron._create_section_alarm_id(section),
 								Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state),
 							)
 
-							update_entity_or_state(
+							update_state(
 								Jablotron._create_section_problem_sensor_id(section),
 								Jablotron._convert_alarm_jablotron_alarm_state_to_problem_sensor_state(section_state),
 							)
