@@ -58,19 +58,6 @@ JABLOTRON_ALARM_STATE_TRIGGERED_FULL = b"\x1b"
 JABLOTRON_ALARM_STATE_TRIGGERED_PARTIALLY = b"\x12"
 JABLOTRON_ALARM_STATE_OFF = b"\x07"
 
-JABLOTRON_NUMBERS = {
-	'0': b'\x30',
-	'1': b'\x31',
-	'2': b'\x32',
-	'3': b'\x33',
-	'4': b'\x34',
-	'5': b'\x35',
-	'6': b'\x36',
-	'7': b'\x37',
-	'8': b'\x38',
-	'9': b'\x39',
-}
-
 
 def decode_info_bytes(value: bytes) -> str:
 	return value.strip(b"\x00").decode().strip("@")
@@ -217,7 +204,7 @@ class Jablotron():
 
 		code_packet = b""
 		for code_number in code:
-			code_packet += JABLOTRON_NUMBERS[code_number]
+			code_packet += Jablotron._int_to_bytes(48 + int(code_number))
 
 		int_packets = {
 			STATE_ALARM_DISARMED: 143,
@@ -225,7 +212,7 @@ class Jablotron():
 			STATE_ALARM_ARMED_NIGHT: 175,
 		}
 
-		state_packet = int.to_bytes(int_packets[state] + section, 1, byteorder=sys.byteorder)
+		state_packet = Jablotron._int_to_bytes(int_packets[state] + section)
 
 		self._send_packet(b"\x80\x08\x03\x39\x39\x39" + code_packet + b"\x80\x02\x0d" + state_packet)
 
@@ -446,6 +433,10 @@ class Jablotron():
 		time.sleep(0.1)
 
 		stream.close()
+
+	@staticmethod
+	def _int_to_bytes(number: int) -> bytes:
+		return int.to_bytes(number, 1, byteorder=sys.byteorder)
 
 	@staticmethod
 	def _create_section_name(section: int) -> str:
