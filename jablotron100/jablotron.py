@@ -416,11 +416,16 @@ class Jablotron():
 			time.sleep(0.5)
 
 	def _get_states(self):
+		counter = 0
 		while not self._state_checker_stop_event.is_set():
-			if not self._state_checker_data_updating_event.wait(0.5):
-				self._send_packet(JABLOTRON_PACKET_GET_STATES)
-			else:
-				time.sleep(30)
+			if counter == 0:
+				if not self._state_checker_data_updating_event.wait(0.5):
+					self._send_packet(JABLOTRON_PACKET_GET_STATES)
+
+			time.sleep(1)
+			counter += 1
+			if counter == 30:
+				counter = 0
 
 	def _send_packet(self, packet) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "wb")
