@@ -14,6 +14,7 @@ from homeassistant.const import (
 )
 from homeassistant.helpers.entity import Entity
 import re
+import sys
 import threading
 import time
 from typing import Any, Dict, List, Optional
@@ -36,6 +37,8 @@ from .errors import (
 MAX_WORKERS = 5
 TIMEOUT = 10
 PACKET_READ_SIZE = 64
+
+JABLOTRON_MAX_SECTIONS = 16
 
 JABLOTRON_PACKET_INFO = b"\x30\x01\x01\x30\x01\x02\x30\x01\x03\x30\x01\x04\x30\x01\x05\x30\x01\x08\x30\x01\x09\x30\x01\x0A\x30\x01\x0B\x30\x01\x0C\x30\x01\x11\x52\x03\x1A\x01\x00\x3C\x01\x01\x00"
 JABLOTRON_PACKET_GET_STATES = b"\x80\x01\x01\x52\x01\x0e"
@@ -216,51 +219,15 @@ class Jablotron():
 		for code_number in code:
 			code_packet += JABLOTRON_NUMBERS[code_number]
 
-		self._send_packet(b"\x80\x08\x03\x39\x39\x39" + code_packet)
+		int_packets = {
+			STATE_ALARM_DISARMED: 143,
+			STATE_ALARM_ARMED_AWAY: 159,
+			STATE_ALARM_ARMED_NIGHT: 175,
+		}
 
-		if state == STATE_ALARM_ARMED_AWAY:
-			sections = {
-				1: b"\xa0",
-				2: b"\xa1",
-				3: b"\xa2",
-				4: b"\xa3",
-				5: b"\xa4",
-				6: b"\xa5",
-				7: b"\xa6",
-				8: b"\xa7",
-			}
+		state_packet = int.to_bytes(int_packets[state] + section, 1, byteorder=sys.byteorder)
 
-			state_packet = sections[section]
-
-		elif state == STATE_ALARM_ARMED_NIGHT:
-			sections = {
-				1: b"\xb0",
-				2: b"\xb1",
-				3: b"\xb2",
-				4: b"\xb3",
-				5: b"\xb4",
-				6: b"\xb5",
-				7: b"\xb6",
-				8: b"\xb7",
-			}
-
-			state_packet = sections[section]
-
-		else:
-			sections = {
-				1: b"\x90",
-				2: b"\x91",
-				3: b"\x92",
-				4: b"\x93",
-				5: b"\x94",
-				6: b"\x95",
-				7: b"\x96",
-				8: b"\x97",
-			}
-
-			state_packet = sections[section]
-
-		self._send_packet(b"\x80\x02\x0d" + state_packet)
+		self._send_packet(b"\x80\x08\x03\x39\x39\x39" + code_packet + b"\x80\x02\x0d" + state_packet)
 
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
 		return self._alarm_control_panels
@@ -398,7 +365,7 @@ class Jablotron():
 	def _parse_state_packet(self, packet: bytes) -> Dict[int, bytes]:
 		section_states = {}
 
-		for section in range(1, 8):
+		for section in range(1, JABLOTRON_MAX_SECTIONS):
 			state_offset = section * 2
 			state = packet[state_offset:(state_offset + 1)]
 
