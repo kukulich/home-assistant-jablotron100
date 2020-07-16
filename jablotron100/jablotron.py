@@ -411,6 +411,9 @@ class Jablotron():
 
 	def _read_state(self) -> None:
 		def update_state(id: str, state: str) -> None:
+			if id in self.states and state == self.states[id]:
+				return
+
 			self.states[id] = state
 
 			if id in self._entities:
