@@ -1,3 +1,4 @@
+import binascii
 from concurrent.futures import ThreadPoolExecutor
 from homeassistant import core
 from homeassistant.const import (
@@ -380,6 +381,7 @@ class Jablotron():
 					self._state_checker_data_updating_event.clear()
 
 					packet = stream.read(PACKET_READ_SIZE)
+					# LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
 
 					self._state_checker_data_updating_event.set()
 
