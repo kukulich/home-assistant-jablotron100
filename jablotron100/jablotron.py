@@ -76,6 +76,7 @@ def check_serial_port(serial_port: str) -> None:
 		try:
 			while not stop_event.is_set():
 				packet = stream.read(PACKET_READ_SIZE)
+				LOGGER.debug(packet)
 
 				if packet[3:6] == b"\x4a\x41\x2d":
 					model = decode_info_bytes(packet[3:16])
