@@ -97,7 +97,7 @@ def check_serial_port(serial_port: str) -> None:
 		try:
 			while not stop_event.is_set():
 				packet = stream.read(PACKET_READ_SIZE)
-				LOGGER.debug(packet)
+				LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
 
 				if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX and packet[2:3] == JABLOTRON_INFO_MODEL:
 					model = decode_info_bytes(packet[3:])
