@@ -41,9 +41,20 @@ PACKET_READ_SIZE = 64
 
 JABLOTRON_MAX_SECTIONS = 16
 
-JABLOTRON_PACKET_INFO = b"\x30\x01\x01\x30\x01\x02\x30\x01\x03\x30\x01\x04\x30\x01\x05\x30\x01\x08\x30\x01\x09\x30\x01\x0A\x30\x01\x0B\x30\x01\x0C\x30\x01\x11\x52\x03\x1A\x01\x00\x3C\x01\x01\x00"
+# x02 model
+# x08 hardware version
+# x09 firmware version
+# x0a registration code
+# x0b name of the installation
+JABLOTRON_PACKET_GET_INFO = b"\x30\x01\x02\x30\x01\x08\x30\x01\x09"
 JABLOTRON_PACKET_GET_STATES = b"\x80\x01\x01\x52\x01\x0e"
 JABLOTRON_PACKET_STATES_PREFIX = b"\x51\x22"
+JABLOTRON_PACKET_INFO_PREFIX = b"\x40"
+JABLOTRON_INFO_MODEL = b"\x02"
+JABLOTRON_INFO_HARDWARE_VERSION = b"\x08"
+JABLOTRON_INFO_FIRMWARE_VERSION = b"\x09"
+JABLOTRON_INFO_REGISTRATION_CODE = b"\x0a"
+JABLOTRON_INFO_INSTALLATION_NAME = b"\x0b"
 
 JABLOTRON_ALARM_STATE_DISARMED = b"\x01"
 JABLOTRON_ALARM_STATE_DISARMED_WITH_PROBLEM = b"\x21"
@@ -61,7 +72,17 @@ JABLOTRON_ALARM_STATE_OFF = b"\x07"
 
 
 def decode_info_bytes(value: bytes) -> str:
-	return value.strip(b"\x00").decode().strip("@")
+	info = ""
+
+	for i in range(0, len(value) - 1):
+		letter = value[i:(i + 1)]
+
+		if letter == b"\x00":
+			break
+
+		info += letter.decode()
+
+	return info
 
 
 def check_serial_port(serial_port: str) -> None:
@@ -78,8 +99,8 @@ def check_serial_port(serial_port: str) -> None:
 				packet = stream.read(PACKET_READ_SIZE)
 				LOGGER.debug(packet)
 
-				if packet[3:6] == b"\x4a\x41\x2d":
-					model = decode_info_bytes(packet[3:16])
+				if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX and packet[2:3] == JABLOTRON_INFO_MODEL:
+					model = decode_info_bytes(packet[3:])
 					break
 		finally:
 			stream.close()
@@ -90,7 +111,7 @@ def check_serial_port(serial_port: str) -> None:
 		while not stop_event.is_set():
 			stream = open(serial_port, "wb")
 
-			stream.write(JABLOTRON_PACKET_INFO)
+			stream.write(JABLOTRON_PACKET_GET_INFO)
 			time.sleep(0.1)
 
 			stream.close()
@@ -235,16 +256,13 @@ class Jablotron():
 				while not stop_event.is_set():
 					packet = stream.read(PACKET_READ_SIZE)
 
-					try:
-						if packet[3:6] == b"\x4a\x41\x2d":
-							model = decode_info_bytes(packet[3:16])
-						elif packet[3:6] == b"\x4c\x4a\x36":
-							hardware_version = decode_info_bytes(packet[3:13])
-						elif packet[3:6] == b"\x4c\x4a\x31":
-							firmware_version = decode_info_bytes(packet[3:11])
-					except UnicodeDecodeError:
-						# Bad packet - try again
-						pass
+					if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX:
+						if packet[2:3] == JABLOTRON_INFO_MODEL:
+							model = decode_info_bytes(packet[3:])
+						elif packet[2:3] == JABLOTRON_INFO_HARDWARE_VERSION:
+							hardware_version = decode_info_bytes(packet[3:])
+						elif packet[2:3] == JABLOTRON_INFO_FIRMWARE_VERSION:
+							firmware_version = decode_info_bytes(packet[3:])
 
 					if model is not None and hardware_version is not None and firmware_version is not None:
 						break
@@ -258,7 +276,7 @@ class Jablotron():
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
-				self._send_packet(JABLOTRON_PACKET_INFO)
+				self._send_packet(JABLOTRON_PACKET_GET_INFO)
 				time.sleep(1)
 
 		try:
