@@ -46,6 +46,7 @@ JABLOTRON_MAX_SECTIONS = 16
 # x09 firmware version
 # x0a registration code
 # x0b name of the installation
+JABLOTRON_PACKET_GET_MODEL = b"\x30\x01\x02"
 JABLOTRON_PACKET_GET_INFO = b"\x30\x01\x02\x30\x01\x08\x30\x01\x09"
 JABLOTRON_PACKET_GET_STATES = b"\x80\x01\x01\x52\x01\x0e"
 JABLOTRON_PACKET_STATES_PREFIX = b"\x51\x22"
@@ -84,7 +85,6 @@ def decode_info_bytes(value: bytes) -> str:
 
 	return info
 
-
 def check_serial_port(serial_port: str) -> None:
 	stop_event = threading.Event()
 	thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
@@ -100,8 +100,12 @@ def check_serial_port(serial_port: str) -> None:
 				LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
 
 				if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX and packet[2:3] == JABLOTRON_INFO_MODEL:
-					model = decode_info_bytes(packet[3:])
-					break
+					try:
+						model = decode_info_bytes(packet[3:])
+						break
+					except UnicodeDecodeError:
+						# Try again
+						pass
 		finally:
 			stream.close()
 
@@ -111,7 +115,7 @@ def check_serial_port(serial_port: str) -> None:
 		while not stop_event.is_set():
 			stream = open(serial_port, "wb")
 
-			stream.write(JABLOTRON_PACKET_GET_INFO)
+			stream.write(JABLOTRON_PACKET_GET_MODEL)
 			time.sleep(0.1)
 
 			stream.close()
@@ -257,12 +261,16 @@ class Jablotron():
 					packet = stream.read(PACKET_READ_SIZE)
 
 					if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX:
-						if packet[2:3] == JABLOTRON_INFO_MODEL:
-							model = decode_info_bytes(packet[3:])
-						elif packet[2:3] == JABLOTRON_INFO_HARDWARE_VERSION:
-							hardware_version = decode_info_bytes(packet[3:])
-						elif packet[2:3] == JABLOTRON_INFO_FIRMWARE_VERSION:
-							firmware_version = decode_info_bytes(packet[3:])
+						try:
+							if packet[2:3] == JABLOTRON_INFO_MODEL:
+								model = decode_info_bytes(packet[3:])
+							elif packet[2:3] == JABLOTRON_INFO_HARDWARE_VERSION:
+								hardware_version = decode_info_bytes(packet[3:])
+							elif packet[2:3] == JABLOTRON_INFO_FIRMWARE_VERSION:
+								firmware_version = decode_info_bytes(packet[3:])
+						except UnicodeDecodeError:
+							# Try again
+							pass
 
 					if model is not None and hardware_version is not None and firmware_version is not None:
 						break
