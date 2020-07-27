@@ -79,3 +79,9 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._arming_in_progress = True
 		self.update_state(STATE_ALARM_ARMING)
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_NIGHT, code)
+
+	def _device_id(self) -> str:
+		return self._control.name
+
+	def _device_name(self) -> str:
+		return self._control.name

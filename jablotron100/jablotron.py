@@ -213,6 +213,9 @@ class Jablotron():
 		self._state_checker_thread_pool_executor.submit(self._read_state)
 		self._state_checker_thread_pool_executor.submit(self._get_states)
 
+	def central_unit(self) -> JablotronCentralUnit:
+		return self._central_unit
+
 	def shutdown(self) -> None:
 		self._state_checker_stop_event.set()
 
@@ -537,14 +540,23 @@ class JablotronEntity(Entity):
 	def available(self) -> bool:
 		return self._jablotron.last_update_success
 
+	def _device_id(self) -> Optional[str]:
+		return None
+
+	def _device_name(self) -> Optional[str]:
+		return None
+
 	@property
-	def device_info(self) -> Dict[str, str]:
+	def device_info(self) -> Optional[Dict[str, str]]:
+		device_id = self._device_id()
+
+		if device_id is None:
+			return None
+
 		return {
-			"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
-			"name": "Jablotron 100",
-			"model": "{} ({})".format(self._control.central_unit.model, self._control.central_unit.hardware_version),
-			"manufacturer": "Jablotron",
-			"sw_version": self._control.central_unit.firmware_version,
+			"identifiers": {(DOMAIN, device_id)},
+			"name": self._device_name(),
+			"via_device": (DOMAIN, self._control.central_unit.serial_port),
 		}
 
 	@property

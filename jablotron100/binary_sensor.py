@@ -23,3 +23,9 @@ class JablotronBinarySensorEntity(JablotronEntity, BinarySensorEntity):
 	@property
 	def device_class(self) -> str:
 		return DEVICE_CLASS_PROBLEM
+
+	def _device_id(self) -> str:
+		return self._control.name
+
+	def _device_name(self) -> str:
+		return self._control.name
