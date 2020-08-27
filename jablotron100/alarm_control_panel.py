@@ -57,6 +57,9 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		super().update_state(state)
 
 	async def async_alarm_disarm(self, code: Optional[str] = None) -> None:
+		if self.state == STATE_ALARM_DISARMED:
+			return
+
 		if code is None and self._jablotron.is_code_required_for_disarm():
 			return
 
@@ -65,6 +68,9 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self.update_state(STATE_ALARM_DISARMED)
 
 	async def async_alarm_arm_away(self, code: Optional[str] = None) -> None:
+		if self.state == STATE_ALARM_ARMED_AWAY:
+			return
+
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
@@ -73,6 +79,9 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
 	async def async_alarm_arm_night(self, code: Optional[str] = None) -> None:
+		if self.state == STATE_ALARM_ARMED_NIGHT or self.state == STATE_ALARM_ARMED_AWAY:
+			return
+
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
