@@ -400,11 +400,11 @@ class Jablotron():
 			if id in self._entities:
 				self._entities[id].async_write_ha_state()
 
+		stream = open(self._config[CONF_SERIAL_PORT], "rb")
+
 		while not self._state_checker_stop_event.is_set():
-			stream = None
 
 			try:
-				stream = open(self._config[CONF_SERIAL_PORT], "rb")
 
 				while True:
 
@@ -441,11 +441,10 @@ class Jablotron():
 				LOGGER.error(format(ex))
 				self.last_update_success = False
 
-			finally:
-				if stream is not None:
-					stream.close()
-
 			time.sleep(0.5)
+
+		stream.close()
+
 
 	def _get_states(self):
 		counter = 0
