@@ -4,26 +4,26 @@
 			"user": {
 				"title": "Jablotron 100",
 				"data": {
-					"serial_port": "S\u00e9riov\u00fd port",
-					"password": "K\u00f3d"
+					"serial_port": "Sériový port",
+					"password": "Kód"
 				}
 			}
 		},
 		"error": {
-			"service_unavailable": "Jablotron nen\u00ed dostupn\u00fd",
-			"model_not_detected": "Typ \u00f9st\u0158edny Jablotron nebyl rozpozn\u00e1n"
+			"service_unavailable": "Jablotron není dostupný",
+			"model_not_detected": "Typ ústředny Jablotron nebyl rozpoznán"
 		},
 		"abort": {
-			"already_configured": "Jablotron je ji\u017e nakonfigurov\u00e1n"
+			"already_configured": "Jablotron je již nakonfigurován"
 		}
 	},
 	"options": {
 		"step": {
 			"init": {
-				"title": "Nastaven\u00ed",
+				"title": "Nastavení",
 				"data": {
-					"require_code_to_arm": "Vy\u017eadovat k\u00f3d k zabezpe\u010den\u00ed",
-					"require_code_to_disarm": "Vy\u017eadovat k\u00f3d k odbezpe\u010den\u00ed"
+					"require_code_to_arm": "Vyžadovat kód k zabezpečení",
+					"require_code_to_disarm": "Vyžadovat kód k odbezpečení"
 				}
 			}
 		}
