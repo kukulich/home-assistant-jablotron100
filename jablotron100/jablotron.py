@@ -84,7 +84,7 @@ JABLOTRON_ALARM_STATE_OFF = b"\x07"
 def decode_info_bytes(value: bytes) -> str:
 	info = ""
 
-	for i in range(0, len(value) - 1):
+	for i in range(len(value)):
 		letter = value[i:(i + 1)]
 
 		if letter == b"\x00":
@@ -554,7 +554,7 @@ class Jablotron():
 	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
 		section_states = {}
 
-		for section in range(1, MAX_SECTIONS):
+		for section in range(1, MAX_SECTIONS + 1):
 			state_offset = section * 2
 			state = packet[state_offset:(state_offset + 1)]
 
