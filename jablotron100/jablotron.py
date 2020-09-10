@@ -20,13 +20,21 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 from .const import (
+	CONF_DEVICES,
+	CONF_NUMBER_OF_DEVICES,
 	CONF_SERIAL_PORT,
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
+	DEVICES,
+	DEVICE_KEYPAD,
+	DEVICE_SIREN,
+	DEVICE_OTHER,
 	DOMAIN,
 	LOGGER,
+	MAX_DEVICES,
+	MAX_SECTIONS,
 )
 from .errors import (
 	ModelNotDetected,
@@ -39,8 +47,6 @@ MAX_WORKERS = 5
 TIMEOUT = 10
 PACKET_READ_SIZE = 64
 
-JABLOTRON_MAX_SECTIONS = 16
-
 # x02 model
 # x08 hardware version
 # x09 firmware version
@@ -48,8 +54,12 @@ JABLOTRON_MAX_SECTIONS = 16
 # x0b name of the installation
 JABLOTRON_PACKET_GET_MODEL = b"\x30\x01\x02"
 JABLOTRON_PACKET_GET_INFO = b"\x30\x01\x02\x30\x01\x08\x30\x01\x09"
-JABLOTRON_PACKET_GET_STATES = b"\x80\x01\x01\x52\x01\x0e"
-JABLOTRON_PACKET_STATES_PREFIX = b"\x51\x22"
+JABLOTRON_PACKET_GET_SECTIONS_STATES = b"\x80\x01\x01\x52\x01\x0e"
+JABLOTRON_PACKET_SECTIONS_STATES_PREFIX = b"\x51\x22"
+JABLOTRON_PACKET_DEVICES_STATES_PREFIX = b"\xd8\x05"
+JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2 = b"\xd8\x08"
+JABLOTRON_PACKET_WIRED_DEVICE_STATE_PREFIX = b"\x55\x08"
+JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX = b"\x55\x09"
 JABLOTRON_PACKET_INFO_PREFIX = b"\x40"
 JABLOTRON_INFO_MODEL = b"\x02"
 JABLOTRON_INFO_HARDWARE_VERSION = b"\x08"
@@ -70,7 +80,6 @@ JABLOTRON_ALARM_STATE_PENDING_PARTIALLY = b"\x42"
 JABLOTRON_ALARM_STATE_TRIGGERED_FULL = b"\x1b"
 JABLOTRON_ALARM_STATE_TRIGGERED_PARTIALLY = b"\x12"
 JABLOTRON_ALARM_STATE_OFF = b"\x07"
-
 
 def decode_info_bytes(value: bytes) -> str:
 	info = ""
@@ -159,6 +168,14 @@ class JablotronControl:
 		self.id: str = id
 
 
+class JablotronDevice(JablotronControl):
+
+	def __init__(self, central_unit: JablotronCentralUnit, name: str, id: str, type: str):
+		self.type: str = type
+
+		super().__init__(central_unit, name, id)
+
+
 class JablotronAlarmControlPanel(JablotronControl):
 
 	def __init__(self, central_unit: JablotronCentralUnit, section: int, name: str, id: str):
@@ -169,14 +186,15 @@ class JablotronAlarmControlPanel(JablotronControl):
 
 class Jablotron():
 
-	def __init__(self, hass: core.HomeAssistant, config: Dict[str, str], options: Dict[str, Any]) -> None:
+	def __init__(self, hass: core.HomeAssistant, config: Dict[str, Any], options: Dict[str, Any]) -> None:
 		self._hass: core.HomeAssistant = hass
-		self._config: Dict[str, str] = config
+		self._config: Dict[str, Any] = config
 		self._options: Dict[str, Any] = options
 
 		self._central_unit: Optional[JablotronCentralUnit] = None
 		self._alarm_control_panels: List[JablotronAlarmControlPanel] = []
 		self._section_problem_sensors: List[JablotronControl] = []
+		self._device_sensors: List[JablotronDevice] = []
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
@@ -207,11 +225,14 @@ class Jablotron():
 
 		self._detect_central_unit()
 		self._detect_sections()
+		self._create_devices()
 
 		# Initialize states checker
 		self._state_checker_thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 		self._state_checker_thread_pool_executor.submit(self._read_state)
-		self._state_checker_thread_pool_executor.submit(self._get_states)
+		self._state_checker_thread_pool_executor.submit(self._keepalive)
+
+		self.last_update_success = True
 
 	def central_unit(self) -> JablotronCentralUnit:
 		return self._central_unit
@@ -220,7 +241,7 @@ class Jablotron():
 		self._state_checker_stop_event.set()
 
 		# Send packet so read thread can finish
-		self._send_packet(JABLOTRON_PACKET_GET_STATES)
+		self._send_packet(JABLOTRON_PACKET_GET_SECTIONS_STATES)
 
 		if self._state_checker_thread_pool_executor is not None:
 			self._state_checker_thread_pool_executor.shutdown()
@@ -247,6 +268,9 @@ class Jablotron():
 
 	def section_problem_sensors(self) -> List[JablotronControl]:
 		return self._section_problem_sensors
+
+	def device_sensors(self) -> List[JablotronDevice]:
+		return self._device_sensors
 
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
@@ -320,8 +344,8 @@ class Jablotron():
 				while not stop_event.is_set():
 					packet = stream.read(PACKET_READ_SIZE)
 
-					if packet[:2] == JABLOTRON_PACKET_STATES_PREFIX:
-						section_states = self._parse_state_packet(packet)
+					if packet[:2] == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
+						section_states = Jablotron._parse_sections_states_packet(packet)
 						break
 			finally:
 				stream.close()
@@ -333,7 +357,7 @@ class Jablotron():
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
-				self._send_packet(JABLOTRON_PACKET_GET_STATES)
+				self._send_packet(JABLOTRON_PACKET_GET_SECTIONS_STATES)
 				time.sleep(1)
 
 		try:
@@ -374,21 +398,30 @@ class Jablotron():
 			self.states[section_alarm_id] = Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state)
 			self.states[section_problem_sensor_id] = Jablotron._convert_alarm_jablotron_alarm_state_to_problem_sensor_state(section_state)
 
-		self.last_update_success = True
+	def _create_devices(self) -> None:
+		for i in range(self._config[CONF_NUMBER_OF_DEVICES]):
+			type = self._config[CONF_DEVICES][i]
 
-	def _parse_state_packet(self, packet: bytes) -> Dict[int, bytes]:
-		section_states = {}
+			if (
+					type == DEVICE_KEYPAD
+					or type == DEVICE_SIREN
+					or type == DEVICE_OTHER
+			):
+				continue
 
-		for section in range(1, JABLOTRON_MAX_SECTIONS):
-			state_offset = section * 2
-			state = packet[state_offset:(state_offset + 1)]
+			number = i + 1
 
-			if state == JABLOTRON_ALARM_STATE_OFF:
-				break
+			name = Jablotron._create_device_sensor_name(type, number)
+			id = Jablotron._create_device_sensor_id(number)
 
-			section_states[section] = state
+			self._device_sensors.append(JablotronDevice(
+				self._central_unit,
+				name,
+				id,
+				type,
+			))
 
-		return section_states
+			self.states[id] = STATE_OFF
 
 	def _read_state(self) -> None:
 		def update_state(id: str, state: str) -> None:
@@ -399,6 +432,21 @@ class Jablotron():
 
 			if id in self._entities:
 				self._entities[id].async_write_ha_state()
+
+		def is_device_state_packet(prefix) -> bool:
+			return prefix == JABLOTRON_PACKET_WIRED_DEVICE_STATE_PREFIX or prefix == JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX
+
+		def parse_device_state_packet(packet: bytes) -> None:
+			device_number = Jablotron._parse_device_number_from_state_packet(packet)
+			device_state = Jablotron._parse_device_state_from_state_packet(packet, device_number)
+
+			if device_state is not None:
+				update_state(
+					Jablotron._create_device_sensor_id(device_number),
+					device_state,
+				)
+			else:
+				LOGGER.error("Unknown device state packet: {}".format(str(binascii.hexlify(packet), "utf-8")))
 
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")
 
@@ -419,10 +467,12 @@ class Jablotron():
 						self.last_update_success = False
 						break
 
-					if packet[:2] == JABLOTRON_PACKET_STATES_PREFIX:
-						self.last_update_success = True
+					self.last_update_success = True
 
-						section_states = self._parse_state_packet(packet)
+					prefix = packet[:2]
+
+					if prefix == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
+						section_states = Jablotron._parse_sections_states_packet(packet)
 
 						for section, section_state in section_states.items():
 							update_state(
@@ -437,6 +487,39 @@ class Jablotron():
 
 						break
 
+					if (is_device_state_packet(prefix)):
+						parse_device_state_packet(packet)
+						break
+
+					if (
+						prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX
+						or prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2
+					):
+						if (
+							prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX
+							and is_device_state_packet(packet[7:9])
+						):
+							parse_device_state_packet(packet[7:])
+							break
+
+						if (
+							prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2
+							and is_device_state_packet(packet[10:12])
+						):
+							parse_device_state_packet(packet[10:])
+							break
+
+						states = Jablotron._hex_to_bin(packet[3:5])
+
+						for i in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
+							device_state = STATE_ON if states[i:(i + 1)] == "1" else STATE_OFF
+							update_state(
+								Jablotron._create_device_sensor_id(i),
+								device_state,
+							)
+
+						break
+
 			except Exception as ex:
 				LOGGER.error(format(ex))
 				self.last_update_success = False
@@ -445,17 +528,18 @@ class Jablotron():
 
 		stream.close()
 
-
-	def _get_states(self):
+	def _keepalive(self):
 		counter = 0
 		while not self._state_checker_stop_event.is_set():
-			if counter == 0:
-				if not self._state_checker_data_updating_event.wait(0.5):
-					self._send_packet(JABLOTRON_PACKET_GET_STATES)
+			if not self._state_checker_data_updating_event.wait(0.5):
+				if counter == 0:
+					self._send_packet(Jablotron._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
+				elif counter % 10 == 0:
+					self._send_packet(b"\x52\x01\x02")
 
 			time.sleep(1)
 			counter += 1
-			if counter == 30:
+			if counter == 60:
 				counter = 0
 
 	def _send_packet(self, packet) -> None:
@@ -465,6 +549,43 @@ class Jablotron():
 		time.sleep(0.1)
 
 		stream.close()
+
+	@staticmethod
+	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
+		section_states = {}
+
+		for section in range(1, MAX_SECTIONS):
+			state_offset = section * 2
+			state = packet[state_offset:(state_offset + 1)]
+
+			if state == JABLOTRON_ALARM_STATE_OFF:
+				break
+
+			section_states[section] = state
+
+		return section_states
+
+	@staticmethod
+	def _parse_device_number_from_state_packet(packet: bytes) -> int:
+		return int(int.from_bytes(packet[4:6], byteorder=sys.byteorder) / 64)
+
+	@staticmethod
+	def _parse_device_state_from_state_packet(packet: bytes, device_number: int) -> Optional[str]:
+		state = int.from_bytes(packet[3:4], byteorder=sys.byteorder)
+
+		device_states_offset = 104 + (device_number * 4)
+
+		on_state = device_states_offset
+		on_state_2 = device_states_offset + 1
+		off_state = device_states_offset + 2
+
+		if state == off_state:
+			return STATE_OFF
+
+		if (state == on_state or state == on_state_2):
+			return STATE_ON
+
+		return None
 
 	@staticmethod
 	def _create_code_packet(code: str) -> bytes:
@@ -479,6 +600,14 @@ class Jablotron():
 		return int.to_bytes(number, 1, byteorder=sys.byteorder)
 
 	@staticmethod
+	def _hex_to_bin(hex):
+		dec = int.from_bytes(hex, byteorder=sys.byteorder)
+		bin_dec = bin(dec)
+		bin_string = bin_dec[2:]
+		bin_string = bin_string.zfill(MAX_DEVICES + 1)
+		return bin_string[::-1]
+
+	@staticmethod
 	def _create_section_name(section: int) -> str:
 		return "Section {}".format(section)
 
@@ -489,6 +618,14 @@ class Jablotron():
 	@staticmethod
 	def _create_section_problem_sensor_id(section: int) -> str:
 		return "section_problem_sensor_{}".format(section)
+
+	@staticmethod
+	def _create_device_sensor_name(type: str, number: int) -> str:
+		return "{} (device {})".format(DEVICES[type], number)
+
+	@staticmethod
+	def _create_device_sensor_id(number: int) -> str:
+		return "device_sensor_{}".format(number)
 
 	@staticmethod
 	def _convert_jablotron_alarm_state_to_alarm_state(state: bytes) -> str:

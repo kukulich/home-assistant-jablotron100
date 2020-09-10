@@ -3,9 +3,53 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
+				"description": "Pro sledování stavu periferií je třeba kód administrátora a zadání počtu periferií",
 				"data": {
 					"serial_port": "Sériový port",
-					"password": "Kód"
+					"password": "Kód",
+					"number_of_devices": "Počet periferií"
+				}
+			},
+			"devices": {
+				"title": "Jablotron 100 / Periferie",
+				"description": "Prosím nastavte typ všech periferií",
+				"data": {
+					"device_1": "Periferie 1",
+					"device_2": "Periferie 2",
+					"device_3": "Periferie 3",
+					"device_4": "Periferie 4",
+					"device_5": "Periferie 5",
+					"device_6": "Periferie 6",
+					"device_7": "Periferie 7",
+					"device_8": "Periferie 8",
+					"device_9": "Periferie 9",
+					"device_10": "Periferie 10",
+					"device_11": "Periferie 11",
+					"device_12": "Periferie 12",
+					"device_13": "Periferie 13",
+					"device_14": "Periferie 14",
+					"device_15": "Periferie 15",
+					"device_16": "Periferie 16",
+					"device_17": "Periferie 17",
+					"device_18": "Periferie 18",
+					"device_19": "Periferie 19",
+					"device_20": "Periferie 20",
+					"device_21": "Periferie 21",
+					"device_22": "Periferie 22",
+					"device_23": "Periferie 23",
+					"device_24": "Periferie 24",
+					"device_25": "Periferie 25",
+					"device_26": "Periferie 26",
+					"device_27": "Periferie 27",
+					"device_28": "Periferie 28",
+					"device_29": "Periferie 29",
+					"device_30": "Periferie 30",
+					"device_31": "Periferie 31",
+					"device_32": "Periferie 32",
+					"device_33": "Periferie 33",
+					"device_34": "Periferie 34",
+					"device_35": "Periferie 35",
+					"device_36": "Periferie 36"
 				}
 			}
 		},
