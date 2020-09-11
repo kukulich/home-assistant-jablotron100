@@ -34,7 +34,7 @@ DEVICE_OTHER = "other"
 DEVICES = {
 	DEVICE_KEYPAD: "Keypad",
 	DEVICE_SIREN: "Siren",
-	DEVICE_MOTION_DETECTOR: "Motion_detector",
+	DEVICE_MOTION_DETECTOR: "Motion detector",
 	DEVICE_WINDOW_OPENING_DETECTOR: "Window opening detector",
 	DEVICE_DOOR_OPENING_DETECTOR: "Door opening detector",
 	DEVICE_GLASS_BREAK_DETECTOR: "Glass break detector",
