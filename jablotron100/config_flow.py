@@ -103,8 +103,8 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				devices_by_names = {value:key for key, value in DEVICES.items()}
 
 				devices = []
-				for device_name in user_input.values():
-					devices.append(devices_by_names[device_name])
+				for device_number in sorted(user_input):
+					devices.append(devices_by_names[user_input[device_number]])
 
 				self._config[CONF_DEVICES] = devices
 
@@ -118,7 +118,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 		fields = OrderedDict()
 
 		for i in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
-			fields[vol.Required("device_{}".format(i))] = vol.In(list(DEVICES.values()))
+			fields[vol.Required("device_{:02}".format(i))] = vol.In(list(DEVICES.values()))
 
 		return self.async_show_form(
 			step_id="devices",
