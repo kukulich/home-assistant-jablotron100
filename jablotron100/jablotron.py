@@ -67,19 +67,18 @@ JABLOTRON_INFO_FIRMWARE_VERSION = b"\x09"
 JABLOTRON_INFO_REGISTRATION_CODE = b"\x0a"
 JABLOTRON_INFO_INSTALLATION_NAME = b"\x0b"
 
-JABLOTRON_ALARM_STATE_DISARMED = b"\x01"
-JABLOTRON_ALARM_STATE_DISARMED_WITH_PROBLEM = b"\x21"
-JABLOTRON_ALARM_STATE_ARMING_FULL = b"\x83"
-JABLOTRON_ALARM_STATE_ARMING_PARTIALLY = b"\x82"
-JABLOTRON_ALARM_STATE_ARMED_FULL = b"\x03"
-JABLOTRON_ALARM_STATE_ARMED_FULL_WITH_PROBLEM = b"\x23"
-JABLOTRON_ALARM_STATE_ARMED_PARTIALLY = b"\x02"
-JABLOTRON_ALARM_STATE_ARMED_PARTIALLY_WITH_PROBLEM = b"\x22"
-JABLOTRON_ALARM_STATE_PENDING_FULL = b"\x43"
-JABLOTRON_ALARM_STATE_PENDING_PARTIALLY = b"\x42"
-JABLOTRON_ALARM_STATE_TRIGGERED_FULL = b"\x1b"
-JABLOTRON_ALARM_STATE_TRIGGERED_PARTIALLY = b"\x12"
-JABLOTRON_ALARM_STATE_OFF = b"\x07"
+JABLOTRON_PRIMARY_STATE_DISARMED = 1
+JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY = 2
+JABLOTRON_PRIMARY_STATE_ARMED_FULL = 3
+
+JABLOTRON_SECONDARY_STATE_OK = 0
+JABLOTRON_SECONDARY_STATE_TRIGGERED = 1
+JABLOTRON_SECONDARY_STATE_PROBLEM = 2
+JABLOTRON_SECONDARY_STATE_PENDING = 4
+JABLOTRON_SECONDARY_STATE_ARMING = 8
+
+JABLOTRON_TERTIARY_STATE_OFF = 0
+JABLOTRON_TERTIARY_STATE_ON = 1
 
 def decode_info_bytes(value: bytes) -> str:
 	info = ""
@@ -396,7 +395,7 @@ class Jablotron():
 			))
 
 			self.states[section_alarm_id] = Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state)
-			self.states[section_problem_sensor_id] = Jablotron._convert_alarm_jablotron_alarm_state_to_problem_sensor_state(section_state)
+			self.states[section_problem_sensor_id] = Jablotron._convert_jablotron_alarm_state_to_problem_sensor_state(section_state)
 
 	def _create_devices(self) -> None:
 		for i in range(self._config[CONF_NUMBER_OF_DEVICES]):
@@ -482,7 +481,7 @@ class Jablotron():
 
 							update_state(
 								Jablotron._create_section_problem_sensor_id(section),
-								Jablotron._convert_alarm_jablotron_alarm_state_to_problem_sensor_state(section_state),
+								Jablotron._convert_jablotron_alarm_state_to_problem_sensor_state(section_state),
 							)
 
 						break
@@ -556,9 +555,10 @@ class Jablotron():
 
 		for section in range(1, MAX_SECTIONS + 1):
 			state_offset = section * 2
-			state = packet[state_offset:(state_offset + 1)]
+			state = packet[state_offset:(state_offset + 2)]
 
-			if state == JABLOTRON_ALARM_STATE_OFF:
+			# Unused section
+			if state == b"\x07\x00":
 				break
 
 			section_states[section] = state
@@ -567,11 +567,11 @@ class Jablotron():
 
 	@staticmethod
 	def _parse_device_number_from_state_packet(packet: bytes) -> int:
-		return int(int.from_bytes(packet[4:6], byteorder=sys.byteorder) / 64)
+		return int(Jablotron._bytes_to_int(packet[4:6]) / 64)
 
 	@staticmethod
 	def _parse_device_state_from_state_packet(packet: bytes, device_number: int) -> Optional[str]:
-		state = int.from_bytes(packet[3:4], byteorder=sys.byteorder)
+		state = Jablotron._bytes_to_int(packet[3:4])
 
 		device_states_offset = 104 + (device_number * 4)
 
@@ -600,8 +600,12 @@ class Jablotron():
 		return int.to_bytes(number, 1, byteorder=sys.byteorder)
 
 	@staticmethod
+	def _bytes_to_int(packet: bytes) -> int:
+		return int.from_bytes(packet, byteorder=sys.byteorder)
+
+	@staticmethod
 	def _hex_to_bin(hex):
-		dec = int.from_bytes(hex, byteorder=sys.byteorder)
+		dec = Jablotron._bytes_to_int(hex)
 		bin_dec = bin(dec)
 		bin_string = bin_dec[2:]
 		bin_string = bin_string.zfill(MAX_DEVICES + 1)
@@ -628,34 +632,54 @@ class Jablotron():
 		return "device_sensor_{}".format(number)
 
 	@staticmethod
-	def _convert_jablotron_alarm_state_to_alarm_state(state: bytes) -> str:
-		if state == JABLOTRON_ALARM_STATE_ARMED_FULL or state == JABLOTRON_ALARM_STATE_ARMED_FULL_WITH_PROBLEM:
-			return STATE_ALARM_ARMED_AWAY
+	def _convert_jablotron_alarm_state_to_alarm_state(packet: bytes) -> str:
+		state = Jablotron._parse_jablotron_alarm_state(packet)
 
-		if state == JABLOTRON_ALARM_STATE_ARMED_PARTIALLY or state == JABLOTRON_ALARM_STATE_ARMED_PARTIALLY_WITH_PROBLEM:
-			return STATE_ALARM_ARMED_NIGHT
-
-		if state == JABLOTRON_ALARM_STATE_ARMING_FULL or state == JABLOTRON_ALARM_STATE_ARMING_PARTIALLY:
+		if state["secondary"] == JABLOTRON_SECONDARY_STATE_ARMING:
 			return STATE_ALARM_ARMING
 
-		if state == JABLOTRON_ALARM_STATE_PENDING_FULL or state == JABLOTRON_ALARM_STATE_PENDING_PARTIALLY:
+		if state["secondary"] == JABLOTRON_SECONDARY_STATE_PENDING:
 			return STATE_ALARM_PENDING
 
-		if state == JABLOTRON_ALARM_STATE_TRIGGERED_FULL or state == JABLOTRON_ALARM_STATE_TRIGGERED_PARTIALLY:
+		if state["secondary"] == JABLOTRON_SECONDARY_STATE_TRIGGERED:
 			return STATE_ALARM_TRIGGERED
+
+		if state["primary"] == JABLOTRON_PRIMARY_STATE_ARMED_FULL:
+			if state["tertiary"] == JABLOTRON_TERTIARY_STATE_ON:
+				return STATE_ALARM_TRIGGERED
+			else:
+				return STATE_ALARM_ARMED_AWAY
+
+		if state["primary"] == JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY:
+			return STATE_ALARM_ARMED_NIGHT
 
 		return STATE_ALARM_DISARMED
 
 	@staticmethod
-	def _convert_alarm_jablotron_alarm_state_to_problem_sensor_state(state: bytes) -> str:
-		if (
-			state == JABLOTRON_ALARM_STATE_ARMED_FULL_WITH_PROBLEM
-			or state == JABLOTRON_ALARM_STATE_ARMED_PARTIALLY_WITH_PROBLEM
-			or state == JABLOTRON_ALARM_STATE_DISARMED_WITH_PROBLEM
-		):
-			return STATE_ON
+	def _convert_jablotron_alarm_state_to_problem_sensor_state(packet: bytes) -> str:
+		state = Jablotron._parse_jablotron_alarm_state(packet)
 
-		return STATE_OFF
+		return STATE_ON if state["secondary"] == JABLOTRON_SECONDARY_STATE_PROBLEM else STATE_OFF
+
+	@staticmethod
+	def _parse_jablotron_alarm_state(packet: bytes) -> Dict[str, int]:
+		first_packet = packet[0:1]
+
+		# Strange packet - converted to something that makes more sense
+		if first_packet == "\x1b":
+			first_packet = "\x13"
+
+		number = Jablotron._bytes_to_int(first_packet)
+
+		primary_state = number % 16
+		secondary_state = int((number - primary_state) / 16)
+
+		return {
+			"primary": primary_state,
+			"secondary": secondary_state,
+			"tertiary": Jablotron._bytes_to_int(packet[1:2]),
+		}
+
 
 class JablotronEntity(Entity):
 	_state: str
