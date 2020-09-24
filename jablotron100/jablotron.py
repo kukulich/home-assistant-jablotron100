@@ -33,7 +33,6 @@ from .const import (
 	DEVICE_OTHER,
 	DOMAIN,
 	LOGGER,
-	MAX_DEVICES,
 	MAX_SECTIONS,
 )
 from .errors import (
@@ -494,21 +493,17 @@ class Jablotron():
 						prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX
 						or prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2
 					):
-						if (
-							prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX
-							and is_device_state_packet(packet[7:9])
-						):
-							parse_device_state_packet(packet[7:])
-							break
+						if prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX:
+							if is_device_state_packet(packet[7:9]):
+								parse_device_state_packet(packet[7:])
 
-						if (
-							prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2
-							and is_device_state_packet(packet[10:12])
-						):
-							parse_device_state_packet(packet[10:])
-							break
+							states = Jablotron._hex_to_bin(packet[3:7])
 
-						states = Jablotron._hex_to_bin(packet[3:5])
+						elif prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2:
+							if is_device_state_packet(packet[10:12]):
+								parse_device_state_packet(packet[10:])
+
+							states = Jablotron._hex_to_bin(packet[3:10])
 
 						for i in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
 							device_state = STATE_ON if states[i:(i + 1)] == "1" else STATE_OFF
@@ -608,7 +603,7 @@ class Jablotron():
 		dec = Jablotron._bytes_to_int(hex)
 		bin_dec = bin(dec)
 		bin_string = bin_dec[2:]
-		bin_string = bin_string.zfill(MAX_DEVICES + 1)
+		bin_string = bin_string.zfill(len(hex) * 8)
 		return bin_string[::-1]
 
 	@staticmethod
