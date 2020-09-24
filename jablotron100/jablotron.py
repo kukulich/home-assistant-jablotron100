@@ -55,8 +55,7 @@ JABLOTRON_PACKET_GET_MODEL = b"\x30\x01\x02"
 JABLOTRON_PACKET_GET_INFO = b"\x30\x01\x02\x30\x01\x08\x30\x01\x09"
 JABLOTRON_PACKET_GET_SECTIONS_STATES = b"\x80\x01\x01\x52\x01\x0e"
 JABLOTRON_PACKET_SECTIONS_STATES_PREFIX = b"\x51\x22"
-JABLOTRON_PACKET_DEVICES_STATES_PREFIX = b"\xd8\x05"
-JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2 = b"\xd8\x08"
+JABLOTRON_PACKET_DEVICES_STATES_PREFIX = b"\xd8"
 JABLOTRON_PACKET_WIRED_DEVICE_STATE_PREFIX = b"\x55\x08"
 JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX = b"\x55\x09"
 JABLOTRON_PACKET_INFO_PREFIX = b"\x40"
@@ -489,21 +488,14 @@ class Jablotron():
 						parse_device_state_packet(packet)
 						break
 
-					if (
-						prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX
-						or prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2
-					):
-						if prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX:
-							if is_device_state_packet(packet[7:9]):
-								parse_device_state_packet(packet[7:])
+					if packet[:1] == JABLOTRON_PACKET_DEVICES_STATES_PREFIX:
+						states_start_packet = 3
+						triggered_device_start_packet = states_start_packet + Jablotron._bytes_to_int(packet[1:2]) - 1
 
-							states = Jablotron._hex_to_bin(packet[3:7])
+						states = Jablotron._hex_to_bin(packet[states_start_packet:triggered_device_start_packet])
 
-						elif prefix == JABLOTRON_PACKET_DEVICES_STATES_PREFIX_2:
-							if is_device_state_packet(packet[10:12]):
-								parse_device_state_packet(packet[10:])
-
-							states = Jablotron._hex_to_bin(packet[3:10])
+						if is_device_state_packet(packet[triggered_device_start_packet:(triggered_device_start_packet + 2)]):
+							parse_device_state_packet(packet[triggered_device_start_packet:])
 
 						for i in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
 							device_state = STATE_ON if states[i:(i + 1)] == "1" else STATE_OFF
