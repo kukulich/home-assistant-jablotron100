@@ -528,7 +528,7 @@ class Jablotron():
 			if not self._state_checker_data_updating_event.wait(0.5):
 				if counter == 0:
 					self._send_packet(Jablotron._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
-				elif counter % 10 == 0:
+				else:
 					self._send_packet(b"\x52\x01\x02")
 
 			time.sleep(1)
