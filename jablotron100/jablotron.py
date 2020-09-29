@@ -14,7 +14,6 @@ from homeassistant.const import (
 	STATE_ON,
 )
 from homeassistant.helpers.entity import Entity
-import math
 import re
 import sys
 import threading
