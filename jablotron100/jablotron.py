@@ -204,9 +204,7 @@ class Jablotron():
 
 	def update_options(self, options: Dict[str, Any]) -> None:
 		self._options = options
-
-		for entity in self._entities.values():
-			entity.async_write_ha_state()
+		self._update_all_entities()
 
 	def is_code_required_for_disarm(self) -> bool:
 		return self._options.get(CONF_REQUIRE_CODE_TO_DISARM, DEFAULT_CONF_REQUIRE_CODE_TO_DISARM)
@@ -268,6 +266,10 @@ class Jablotron():
 
 	def device_sensors(self) -> List[JablotronDevice]:
 		return self._device_sensors
+
+	def _update_all_entities(self) -> None:
+		for entity in self._entities.values():
+			entity.async_write_ha_state()
 
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
@@ -462,6 +464,7 @@ class Jablotron():
 
 					if not packet:
 						self.last_update_success = False
+						self._update_all_entities()
 						break
 
 					self.last_update_success = True
@@ -507,8 +510,9 @@ class Jablotron():
 						break
 
 			except Exception as ex:
-				LOGGER.error(format(ex))
+				LOGGER.error("Read error: {}".format(format(ex)))
 				self.last_update_success = False
+				self._update_all_entities()
 
 			time.sleep(0.5)
 
@@ -518,10 +522,13 @@ class Jablotron():
 		counter = 0
 		while not self._state_checker_stop_event.is_set():
 			if not self._state_checker_data_updating_event.wait(0.5):
-				if counter == 0:
-					self._send_packet(self._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
-				else:
-					self._send_packet(b"\x52\x01\x02")
+				try:
+					if counter == 0:
+						self._send_packet(self._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
+					else:
+						self._send_packet(b"\x52\x01\x02")
+				except Exception as ex:
+					LOGGER.error("Write error: {}".format(format(ex)))
 
 			time.sleep(1)
 			counter += 1
