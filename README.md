@@ -1,9 +1,12 @@
-Installation
----
+# Jablotron 100+
+
+Home Assistant custom component for JABLOTRON 100+ alarm system
+
+## Preparation
 
 1. Connect the USB cable to Jablotron central unit
 2. Restart the Home Assistant OS
-3. Use the following command line to identify the appropriate device:
+3. Use the following command line to identify the port:
 
     ```
     $ dmesg | grep usb
@@ -12,10 +15,16 @@ Installation
 
     The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
 
-4. [Download integration](https://github.com/kukulich/home-assistant-jablotron100/archive/master.zip)
-5. Create folder `custom_components` in your config directory
-6. Copy the folder `jablotron100` from the zip to this folder
-7. Restart Home Assistant
-8. Jablotron integration should be available in the integrations UI
-9. Use the port found in step 3
+## Installation
 
+### HACS
+
+1. Just use [HACS](https://hacs.xyz/) (Home Assistant Community Store)  
+    <small>*HACS is a third party community store and is not included in Home Assistant out of the box.*</small>
+
+### Manual
+
+1. [Download integration](https://github.com/kukulich/home-assistant-jablotron100/archive/master.zip)
+2. Copy the folder `custom_components/jablotron100` from the zip to your config directory
+3. Restart Home Assistant
+4. Jablotron integration should be available in the integrations UI
