@@ -1,9 +1,10 @@
 {
 	"domain": "jablotron100",
 	"name": "Jablotron 100",
-	"documentation": "https://github.com/kukulich/home-assistant-jablotron100",
 	"config_flow": true,
+	"documentation": "https://github.com/kukulich/home-assistant-jablotron100",
+	"issue_tracker": "https://github.com/kukulich/home-assistant-jablotron100/issues",
 	"dependencies": [],
-	"codeowners": [],
+	"codeowners": ["@kukulich"],
 	"requirements": []
 }
