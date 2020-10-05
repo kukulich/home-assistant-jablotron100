@@ -27,8 +27,10 @@ from typing import Optional
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
 	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronProblemSensorEntity(jablotron, control) for control in jablotron.section_problem_sensors()), True)
 	async_add_entities((JablotronDeviceSensorEntity(jablotron, control) for control in jablotron.device_sensors()), True)
+
+	async_add_entities((JablotronProblemSensorEntity(jablotron, control) for control in jablotron.section_problem_sensors()), True)
+	async_add_entities((JablotronProblemSensorEntity(jablotron, control) for control in jablotron.device_problem_sensors()), True)
 
 
 class JablotronProblemSensorEntity(JablotronEntity, BinarySensorEntity):

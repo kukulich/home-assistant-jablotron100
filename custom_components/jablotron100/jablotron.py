@@ -159,10 +159,11 @@ class JablotronCentralUnit:
 
 class JablotronControl:
 
-	def __init__(self, central_unit: JablotronCentralUnit, name: str, id: str):
+	def __init__(self, central_unit: JablotronCentralUnit, name: str, id: str, friendly_name: Optional[str] = None):
 		self.central_unit: JablotronCentralUnit = central_unit
 		self.name: str = name
 		self.id: str = id
+		self.friendly_name: Optional[str] = friendly_name
 
 
 class JablotronDevice(JablotronControl):
@@ -192,6 +193,7 @@ class Jablotron():
 		self._alarm_control_panels: List[JablotronAlarmControlPanel] = []
 		self._section_problem_sensors: List[JablotronControl] = []
 		self._device_sensors: List[JablotronDevice] = []
+		self._device_problem_sensors: List[JablotronControl] = []
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
@@ -266,6 +268,9 @@ class Jablotron():
 
 	def device_sensors(self) -> List[JablotronDevice]:
 		return self._device_sensors
+
+	def device_problem_sensors(self) -> List[JablotronControl]:
+		return self._device_problem_sensors
 
 	def _update_all_entities(self) -> None:
 		for entity in self._entities.values():
@@ -410,17 +415,25 @@ class Jablotron():
 
 			number = i + 1
 
-			name = Jablotron._create_device_sensor_name(type, number)
-			id = Jablotron._create_device_sensor_id(number)
+			device_name = Jablotron._create_device_sensor_name(type, number)
+			device_id = Jablotron._create_device_sensor_id(number)
+			device_problem_sensor_id = Jablotron._create_device_problem_sensor_id(number)
 
 			self._device_sensors.append(JablotronDevice(
 				self._central_unit,
-				name,
-				id,
+				device_name,
+				device_id,
 				type,
 			))
+			self._device_problem_sensors.append(JablotronControl(
+				self._central_unit,
+				device_name,
+				device_problem_sensor_id,
+				Jablotron._create_device_problem_sensor_name(type, number),
+			))
 
-			self.states[id] = STATE_OFF
+			self.states[device_id] = STATE_OFF
+			self.states[device_problem_sensor_id] = STATE_OFF
 
 	def _read_packets(self) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")
@@ -518,7 +531,13 @@ class Jablotron():
 
 	def _parse_device_state_packet(self, packet: bytes) -> None:
 		device_number = Jablotron._parse_device_number_from_state_packet(packet)
-		device_state = Jablotron._parse_device_state_from_state_packet(packet, device_number)
+		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, device_number)
+		device_problem_sensor_state = Jablotron._convert_jablotron_device_state_to_problem_sensor_state(packet)
+
+		self._update_state(
+			Jablotron._create_device_problem_sensor_id(device_number),
+			device_problem_sensor_state,
+		)
 
 		if device_state is not None:
 			self._update_state(
@@ -580,7 +599,7 @@ class Jablotron():
 		return int(Jablotron._bytes_to_int(packet[4:6]) / 64)
 
 	@staticmethod
-	def _parse_device_state_from_state_packet(packet: bytes, device_number: int) -> Optional[str]:
+	def _convert_jablotron_device_state_to_state(packet: bytes, device_number: int) -> Optional[str]:
 		state = Jablotron._bytes_to_int(packet[3:4])
 
 		if device_number <= 32:
@@ -637,8 +656,16 @@ class Jablotron():
 		return "{} (device {})".format(DEVICES[type], number)
 
 	@staticmethod
+	def _create_device_problem_sensor_name(type: str, number: int) -> str:
+		return "Problem of {} (device {})".format(DEVICES[type].lower(), number)
+
+	@staticmethod
 	def _create_device_sensor_id(number: int) -> str:
 		return "device_sensor_{}".format(number)
+
+	@staticmethod
+	def _create_device_problem_sensor_id(number: int) -> str:
+		return "device_problem_sensor_{}".format(number)
 
 	@staticmethod
 	def _convert_jablotron_alarm_state_to_alarm_state(packet: bytes) -> str:
@@ -669,6 +696,11 @@ class Jablotron():
 		state = Jablotron._parse_jablotron_alarm_state(packet)
 
 		return STATE_ON if state["secondary"] == JABLOTRON_SECONDARY_STATE_PROBLEM else STATE_OFF
+
+	@staticmethod
+	def _convert_jablotron_device_state_to_problem_sensor_state(packet: bytes) -> str:
+		# I did not find better detection
+		return STATE_ON if packet[2:3] in [b"\x05", b"\x06", b"\x86", b"\xa8"] else STATE_OFF
 
 	@staticmethod
 	def _parse_jablotron_alarm_state(packet: bytes) -> Dict[str, int]:
@@ -730,6 +762,9 @@ class JablotronEntity(Entity):
 
 	@property
 	def name(self) -> str:
+		if self._control.friendly_name is not None:
+			return self._control.friendly_name
+
 		return self._control.name
 
 	@property
