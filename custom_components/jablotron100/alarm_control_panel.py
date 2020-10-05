@@ -91,6 +91,3 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 	def _device_id(self) -> str:
 		return self._control.name
-
-	def _device_name(self) -> str:
-		return self._control.name

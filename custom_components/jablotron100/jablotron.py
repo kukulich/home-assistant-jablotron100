@@ -744,9 +744,6 @@ class JablotronEntity(Entity):
 	def _device_id(self) -> Optional[str]:
 		return None
 
-	def _device_name(self) -> Optional[str]:
-		return None
-
 	@property
 	def device_info(self) -> Optional[Dict[str, str]]:
 		device_id = self._device_id()
@@ -756,7 +753,7 @@ class JablotronEntity(Entity):
 
 		return {
 			"identifiers": {(DOMAIN, device_id)},
-			"name": self._device_name(),
+			"name": self._device_id(),
 			"via_device": (DOMAIN, self._control.central_unit.serial_port),
 		}
 

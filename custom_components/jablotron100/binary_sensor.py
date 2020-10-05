@@ -46,9 +46,6 @@ class JablotronProblemSensorEntity(JablotronEntity, BinarySensorEntity):
 	def _device_id(self) -> str:
 		return self._control.name
 
-	def _device_name(self) -> str:
-		return self._control.name
-
 
 class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 
@@ -86,7 +83,4 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 		return None
 
 	def _device_id(self) -> str:
-		return self._control.name
-
-	def _device_name(self) -> str:
 		return self._control.name
