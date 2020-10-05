@@ -1,0 +1,75 @@
+{
+	"config": {
+		"step": {
+			"user": {
+				"title": "Jablotron 100",
+				"description": "For å legge til må du bruke en administratorkode og det totale antallet enheter",
+				"data": {
+					"serial_port": "Serial port",
+					"password": "Kode",
+					"number_of_devices": "Antall enheter"
+				}
+			},
+			"devices": {
+				"title": "Jablotron 100 / Devices",
+				"description": "Velg enhetstype",
+				"data": {
+					"device_01": "Enhet 1",
+					"device_02": "Enhet 2",
+					"device_03": "Enhet 3",
+					"device_04": "Enhet 4",
+					"device_05": "Enhet 5",
+					"device_06": "Enhet 6",
+					"device_07": "Enhet 7",
+					"device_08": "Enhet 8",
+					"device_09": "Enhet 9",
+					"device_10": "Enhet 10",
+					"device_11": "Enhet 11",
+					"device_12": "Enhet 12",
+					"device_13": "Enhet 13",
+					"device_14": "Enhet 14",
+					"device_15": "Enhet 15",
+					"device_16": "Enhet 16",
+					"device_17": "Enhet 17",
+					"device_18": "Enhet 18",
+					"device_19": "Enhet 19",
+					"device_20": "Enhet 20",
+					"device_21": "Enhet 21",
+					"device_22": "Enhet 22",
+					"device_23": "Enhet 23",
+					"device_24": "Enhet 24",
+					"device_25": "Enhet 25",
+					"device_26": "Enhet 26",
+					"device_27": "Enhet 27",
+					"device_28": "Enhet 28",
+					"device_29": "Enhet 29",
+					"device_30": "Enhet 30",
+					"device_31": "Enhete 31",
+					"device_32": "Enhet 32",
+					"device_33": "Enhet 33",
+					"device_34": "Enhet 34",
+					"device_35": "Enhet 35",
+					"device_36": "Enhet 36"
+				}
+			}
+		},
+		"error": {
+			"service_unavailable": "Jablotron er ikke tilgjengelig",
+			"model_not_detected": "Jablotron-modellen ble ikke funnet"
+		},
+		"abort": {
+			"already_configured": "Jablotron er allerede konfigurert"
+		}
+	},
+	"options": {
+		"step": {
+			"init": {
+				"title": "Alternativer",
+				"data": {
+					"require_code_to_arm": "Krever kode for å koble til",
+					"require_code_to_disarm": "Krever kode for å koble fra"
+				}
+			}
+		}
+	}
+}
