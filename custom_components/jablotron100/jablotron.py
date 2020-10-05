@@ -137,7 +137,7 @@ def check_serial_port(serial_port: str) -> None:
 		if model is None:
 			raise ModelNotDetected
 
-		if not re.match(r"^JA-10[16]", model):
+		if not re.match(r"^JA-10[136]", model):
 			raise ModelNotSupported("Model {} not supported".format(model))
 
 	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError):
@@ -544,18 +544,15 @@ class Jablotron():
 		stream.close()
 
 	def _create_code_packet(self, code: str) -> bytes:
-		code_packet = b"\x80\x08\x03\x39\x39\x39" if self._is101() else b"\x80\x08\x03\x30"
+		code_packet = b"\x80\x08\x03\x39\x39\x39" if self._is_small_central_unit() else b"\x80\x08\x03\x30"
 
 		for code_number in code:
 			code_packet += Jablotron._int_to_bytes(48 + int(code_number))
 
 		return code_packet
 
-	def _is101(self) -> bool:
-		return re.match(r"^JA-101", self._central_unit.model) is not None
-
-	def _is106(self) -> bool:
-		return re.match(r"^JA-106", self._central_unit.model) is not None
+	def _is_small_central_unit(self) -> bool:
+		return re.match(r"^JA-10[13]", self._central_unit.model) is not None
 
 	@staticmethod
 	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
