@@ -383,20 +383,18 @@ class Jablotron():
 			raise ShouldNotHappen
 
 		for section, section_state in section_states.items():
-			section_name = self._create_section_name(section)
-
 			section_alarm_id = Jablotron._create_section_alarm_id(section)
 			section_problem_sensor_id = Jablotron._create_section_problem_sensor_id(section)
 
 			self._alarm_control_panels.append(JablotronAlarmControlPanel(
 				self._central_unit,
 				section,
-				section_name,
+				self._create_section_name(section),
 				section_alarm_id,
 			))
 			self._section_problem_sensors.append(JablotronControl(
 				self._central_unit,
-				section_name,
+				self._create_section_problem_sensor_name(section),
 				section_problem_sensor_id,
 			))
 
@@ -651,6 +649,10 @@ class Jablotron():
 	@staticmethod
 	def _create_section_problem_sensor_id(section: int) -> str:
 		return "section_problem_sensor_{}".format(section)
+
+	@staticmethod
+	def _create_section_problem_sensor_name(section: int) -> str:
+		return "Problem of section {}".format(section)
 
 	@staticmethod
 	def _create_device_sensor_name(type: str, number: int) -> str:
