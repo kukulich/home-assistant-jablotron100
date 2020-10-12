@@ -52,7 +52,7 @@ PACKET_READ_SIZE = 64
 # x0a registration code
 # x0b name of the installation
 JABLOTRON_PACKET_GET_MODEL = b"\x30\x01\x02"
-JABLOTRON_PACKET_GET_INFO = b"\x30\x01\x02\x30\x01\x08\x30\x01\x09"
+JABLOTRON_PACKET_GET_INFO = b"\x30\x01\x01\x30\x01\x02\x30\x01\x03\x30\x01\x04\x30\x01\x05\x30\x01\x08\x30\x01\x09\x30\x01\x0a\x30\x01\x0b\x30\x01\x0c\x30\x01\x11"
 JABLOTRON_PACKET_GET_SECTIONS_STATES = b"\x80\x01\x01\x52\x01\x0e"
 JABLOTRON_PACKET_SECTIONS_STATES_PREFIX = b"\x51\x22"
 JABLOTRON_PACKET_DEVICES_STATES_PREFIX = b"\xd8"
@@ -84,7 +84,7 @@ def decode_info_bytes(value: bytes) -> str:
 	for i in range(len(value)):
 		letter = value[i:(i + 1)]
 
-		if letter == b"\x00":
+		if letter == b"\x00" or letter == JABLOTRON_PACKET_INFO_PREFIX:
 			break
 
 		info += letter.decode()
@@ -137,7 +137,7 @@ def check_serial_port(serial_port: str) -> None:
 		if model is None:
 			raise ModelNotDetected
 
-		if not re.match(r"^JA-10[136]", model):
+		if not re.match(r"^JA-10[1367]", model):
 			raise ModelNotSupported("Model {} not supported".format(model))
 
 	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError):
@@ -293,16 +293,25 @@ class Jablotron():
 					LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
 
 					if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX:
-						try:
-							if packet[2:3] == JABLOTRON_INFO_MODEL:
-								model = decode_info_bytes(packet[3:])
-							elif packet[2:3] == JABLOTRON_INFO_HARDWARE_VERSION:
-								hardware_version = decode_info_bytes(packet[3:])
-							elif packet[2:3] == JABLOTRON_INFO_FIRMWARE_VERSION:
-								firmware_version = decode_info_bytes(packet[3:])
-						except UnicodeDecodeError:
-							# Try again
-							pass
+						info_packets = []
+
+						for i in range(len(packet)):
+							prefix = packet[i:(i + 1)]
+
+							if prefix == JABLOTRON_PACKET_INFO_PREFIX:
+								info_packets.append(packet[i:])
+
+						for info_packet in info_packets:
+							try:
+								if info_packet[2:3] == JABLOTRON_INFO_MODEL:
+									model = decode_info_bytes(info_packet[3:])
+								elif info_packet[2:3] == JABLOTRON_INFO_HARDWARE_VERSION:
+									hardware_version = decode_info_bytes(info_packet[3:])
+								elif info_packet[2:3] == JABLOTRON_INFO_FIRMWARE_VERSION:
+									firmware_version = decode_info_bytes(info_packet[3:])
+							except UnicodeDecodeError:
+								# Try again
+								pass
 
 					if model is not None and hardware_version is not None and firmware_version is not None:
 						break
@@ -563,15 +572,22 @@ class Jablotron():
 			)
 
 	def _create_code_packet(self, code: str) -> bytes:
-		code_packet = b"\x80\x08\x03\x39\x39\x39" if self._is_small_central_unit() else b"\x80\x08\x03\x30"
+		code_packet = b"\x80\x08\x03\x39\x39\x39"
 
-		for code_number in code:
-			code_packet += Jablotron._int_to_bytes(48 + int(code_number))
+		for i in range(0, 4):
+			j = i + 4
+
+			first_number = code[j:(j + 1)]
+			second_number = code[i:(i + 1)]
+
+			if first_number == "":
+				code_number = 48 + int(second_number)
+			else:
+				code_number = int(f"{first_number}{second_number}", 16)
+
+			code_packet += Jablotron._int_to_bytes(code_number)
 
 		return code_packet
-
-	def _is_small_central_unit(self) -> bool:
-		return re.match(r"^JA-10[13]", self._central_unit.model) is not None
 
 	@staticmethod
 	def _is_device_state_packet(prefix) -> bool:
