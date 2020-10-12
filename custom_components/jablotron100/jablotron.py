@@ -290,6 +290,7 @@ class Jablotron():
 			try:
 				while not stop_event.is_set():
 					packet = stream.read(PACKET_READ_SIZE)
+					LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
 
 					if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX:
 						try:
