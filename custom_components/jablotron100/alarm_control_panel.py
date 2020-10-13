@@ -60,6 +60,8 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if self.state == STATE_ALARM_DISARMED:
 			return
 
+		code = JablotronAlarmControlPanelEntity._clean_code(code)
+
 		if code is None and self._jablotron.is_code_required_for_disarm():
 			return
 
@@ -70,6 +72,8 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	async def async_alarm_arm_away(self, code: Optional[str] = None) -> None:
 		if self.state == STATE_ALARM_ARMED_AWAY:
 			return
+
+		code = JablotronAlarmControlPanelEntity._clean_code(code)
 
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
@@ -82,6 +86,8 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if self.state == STATE_ALARM_ARMED_NIGHT or self.state == STATE_ALARM_ARMED_AWAY:
 			return
 
+		code = JablotronAlarmControlPanelEntity._clean_code(code)
+
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
@@ -91,3 +97,10 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 	def _device_id(self) -> str:
 		return self._control.name
+
+	@staticmethod
+	def _clean_code(code: Optional[str]) -> Optional[str]:
+		return None if code == "" else code
+
+
+
