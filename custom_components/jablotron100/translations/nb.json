@@ -11,7 +11,7 @@
 				}
 			},
 			"devices": {
-				"title": "Jablotron 100 / Devices",
+				"title": "Jablotron 100 / Enheter",
 				"description": "Velg enhetstype",
 				"data": {
 					"device_001": "Enhet 1",
