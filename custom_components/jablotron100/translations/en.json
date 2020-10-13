@@ -1,0 +1,75 @@
+{
+	"config": {
+		"step": {
+			"user": {
+				"title": "Jablotron 100",
+				"description": "To enable devices support insert administrator's code and total number of devices",
+				"data": {
+					"serial_port": "Serial port",
+					"password": "Code",
+					"number_of_devices": "Number of devices"
+				}
+			},
+			"devices": {
+				"title": "Jablotron 100 / Devices",
+				"description": "Please set type for each device",
+				"data": {
+					"device_01": "Device 1",
+					"device_02": "Device 2",
+					"device_03": "Device 3",
+					"device_04": "Device 4",
+					"device_05": "Device 5",
+					"device_06": "Device 6",
+					"device_07": "Device 7",
+					"device_08": "Device 8",
+					"device_09": "Device 9",
+					"device_10": "Device 10",
+					"device_11": "Device 11",
+					"device_12": "Device 12",
+					"device_13": "Device 13",
+					"device_14": "Device 14",
+					"device_15": "Device 15",
+					"device_16": "Device 16",
+					"device_17": "Device 17",
+					"device_18": "Device 18",
+					"device_19": "Device 19",
+					"device_20": "Device 20",
+					"device_21": "Device 21",
+					"device_22": "Device 22",
+					"device_23": "Device 23",
+					"device_24": "Device 24",
+					"device_25": "Device 25",
+					"device_26": "Device 26",
+					"device_27": "Device 27",
+					"device_28": "Device 28",
+					"device_29": "Device 29",
+					"device_30": "Device 30",
+					"device_31": "Device 31",
+					"device_32": "Device 32",
+					"device_33": "Device 33",
+					"device_34": "Device 34",
+					"device_35": "Device 35",
+					"device_36": "Device 36"
+				}
+			}
+		},
+		"error": {
+			"service_unavailable": "Jablotron is not available",
+			"model_not_detected": "Model of Jablotron not detected"
+		},
+		"abort": {
+			"already_configured": "Jablotron is already configured"
+		}
+	},
+	"options": {
+		"step": {
+			"init": {
+				"title": "Options",
+				"data": {
+					"require_code_to_arm": "Require code to arm",
+					"require_code_to_disarm": "Require code to disarm"
+				}
+			}
+		}
+	}
+}
