@@ -139,7 +139,8 @@
 		},
 		"error": {
 			"service_unavailable": "Jablotron není dostupný",
-			"model_not_detected": "Typ ústředny Jablotron nebyl rozpoznán"
+			"model_not_detected": "Typ ústředny Jablotron nebyl rozpoznán",
+			"model_not_supported": "Typ ústředny Jablotron není podporován"
 		},
 		"abort": {
 			"already_configured": "Jablotron je již nakonfigurován"

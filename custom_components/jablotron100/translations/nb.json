@@ -139,7 +139,8 @@
 		},
 		"error": {
 			"service_unavailable": "Jablotron er ikke tilgjengelig",
-			"model_not_detected": "Jablotron-modellen ble ikke funnet"
+			"model_not_detected": "Jablotron-modellen ble ikke funnet",
+			"model_not_supported": "Jablotron-modellen støttes ikke"
 		},
 		"abort": {
 			"already_configured": "Jablotron er allerede konfigurert"

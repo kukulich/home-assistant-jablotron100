@@ -139,7 +139,8 @@
 		},
 		"error": {
 			"service_unavailable": "Jablotron is not available",
-			"model_not_detected": "Model of Jablotron not detected"
+			"model_not_detected": "Model of Jablotron not detected",
+			"model_not_supported": "Model of Jablotron not supported"
 		},
 		"abort": {
 			"already_configured": "Jablotron is already configured"
