@@ -138,6 +138,7 @@ def check_serial_port(serial_port: str) -> None:
 			raise ModelNotDetected
 
 		if not re.match(r"^JA-10[1367]", model):
+			LOGGER.debug("Unsupported model: {}", model)
 			raise ModelNotSupported("Model {} not supported".format(model))
 
 	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError):
