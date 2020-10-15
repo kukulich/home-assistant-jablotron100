@@ -492,7 +492,7 @@ class Jablotron():
 		while not self._state_checker_stop_event.is_set():
 			if not self._state_checker_data_updating_event.wait(0.5):
 				try:
-					if counter == 0:
+					if counter == 0 and not self._is_alarm_active():
 						self._send_packet(self._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
 					else:
 						self._send_packet(b"\x52\x01\x02")
@@ -522,6 +522,18 @@ class Jablotron():
 
 		if id in self._entities:
 			self._entities[id].async_write_ha_state()
+
+	def _is_alarm_active(self) -> bool:
+		for alarm_control_panel in self._alarm_control_panels:
+			section_alarm_id = Jablotron._create_section_alarm_id(alarm_control_panel.section)
+
+			if (
+				self.states[section_alarm_id] == STATE_ALARM_TRIGGERED
+				or self.states[section_alarm_id] == STATE_ALARM_PENDING
+			):
+				return True
+
+		return False
 
 	def _get_device_type(self, number: int) -> str:
 		return self._config[CONF_DEVICES][number - 1]
