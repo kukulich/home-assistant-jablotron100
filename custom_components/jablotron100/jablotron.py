@@ -413,16 +413,12 @@ class Jablotron():
 
 	def _create_devices(self) -> None:
 		for i in range(self._config[CONF_NUMBER_OF_DEVICES]):
-			type = self._config[CONF_DEVICES][i]
+			number = i + 1
 
-			if (
-					type == DEVICE_KEYPAD
-					or type == DEVICE_SIREN
-					or type == DEVICE_OTHER
-			):
+			if self._is_device_ignored(number):
 				continue
 
-			number = i + 1
+			type = self._get_device_type(number)
 
 			device_name = Jablotron._create_device_sensor_name(type, number)
 			device_id = Jablotron._create_device_sensor_id(number)
@@ -524,6 +520,18 @@ class Jablotron():
 		if id in self._entities:
 			self._entities[id].async_write_ha_state()
 
+	def _get_device_type(self, number: int) -> str:
+		return self._config[CONF_DEVICES][number - 1]
+
+	def _is_device_ignored(self, number: int) -> bool:
+		type = self._get_device_type(number)
+
+		return (
+			type == DEVICE_KEYPAD
+			or type == DEVICE_SIREN
+			or type == DEVICE_OTHER
+		)
+
 	def _parse_section_states_packet(self, packet: bytes) -> None:
 		section_states = Jablotron._parse_sections_states_packet(packet)
 
@@ -540,6 +548,19 @@ class Jablotron():
 
 	def _parse_device_state_packet(self, packet: bytes) -> None:
 		device_number = Jablotron._parse_device_number_from_state_packet(packet)
+
+		if device_number == 0:
+			LOGGER.debug("State packet of central unit: {}".format(Jablotron.format_packet_to_string(packet)))
+			return
+
+		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
+			LOGGER.debug("State packet of unknown device: {}".format(Jablotron.format_packet_to_string(packet)))
+			return
+
+		if self._is_device_ignored(device_number):
+			LOGGER.debug("State packet of {}: {}".format(DEVICES[self._get_device_type(device_number)].lower(), Jablotron.format_packet_to_string(packet)))
+			return
+
 		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, device_number)
 		device_problem_sensor_state = Jablotron._convert_jablotron_device_state_to_problem_sensor_state(packet)
 
@@ -554,7 +575,7 @@ class Jablotron():
 				device_state,
 			)
 		else:
-			LOGGER.error("Unknown device state packet: {}".format(Jablotron.format_packet_to_string(packet)))
+			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
 
 	def _parse_devices_states_packet(self, packet: bytes) -> None:
 		states_start_packet = 3
