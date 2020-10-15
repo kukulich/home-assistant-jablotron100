@@ -103,7 +103,7 @@ def check_serial_port(serial_port: str) -> None:
 		try:
 			while not stop_event.is_set():
 				packet = stream.read(PACKET_READ_SIZE)
-				LOGGER.debug(Jablotron.format_packet_to_string(packet))
+				LOGGER.debug("Info packet: {}".format(Jablotron.format_packet_to_string(packet)))
 
 				if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX and packet[2:3] == JABLOTRON_INFO_MODEL:
 					try:
@@ -291,9 +291,10 @@ class Jablotron():
 			try:
 				while not stop_event.is_set():
 					packet = stream.read(PACKET_READ_SIZE)
-					LOGGER.debug(Jablotron.format_packet_to_string(packet))
 
 					if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX:
+						LOGGER.debug("Info packet: {}".format(Jablotron.format_packet_to_string(packet)))
+
 						info_packets = []
 
 						for i in range(len(packet)):
