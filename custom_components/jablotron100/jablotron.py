@@ -103,7 +103,7 @@ def check_serial_port(serial_port: str) -> None:
 		try:
 			while not stop_event.is_set():
 				packet = stream.read(PACKET_READ_SIZE)
-				LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
+				LOGGER.debug(Jablotron.format_packet_to_string(packet))
 
 				if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX and packet[2:3] == JABLOTRON_INFO_MODEL:
 					try:
@@ -291,7 +291,7 @@ class Jablotron():
 			try:
 				while not stop_event.is_set():
 					packet = stream.read(PACKET_READ_SIZE)
-					LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
+					LOGGER.debug(Jablotron.format_packet_to_string(packet))
 
 					if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX:
 						info_packets = []
@@ -456,7 +456,7 @@ class Jablotron():
 					self._state_checker_data_updating_event.clear()
 
 					packet = stream.read(PACKET_READ_SIZE)
-					# LOGGER.debug(str(binascii.hexlify(packet), "utf-8"))
+					# LOGGER.debug(Jablotron.format_packet_to_string(packet))
 
 					self._state_checker_data_updating_event.set()
 
@@ -554,7 +554,7 @@ class Jablotron():
 				device_state,
 			)
 		else:
-			LOGGER.error("Unknown device state packet: {}".format(str(binascii.hexlify(packet), "utf-8")))
+			LOGGER.error("Unknown device state packet: {}".format(Jablotron.format_packet_to_string(packet)))
 
 	def _parse_devices_states_packet(self, packet: bytes) -> None:
 		states_start_packet = 3
@@ -740,6 +740,10 @@ class Jablotron():
 			"secondary": secondary_state,
 			"tertiary": Jablotron._bytes_to_int(packet[1:2]),
 		}
+
+	@staticmethod
+	def format_packet_to_string(packet: bytes) -> str:
+		return str(binascii.hexlify(packet), "utf-8")
 
 
 class JablotronEntity(Entity):
