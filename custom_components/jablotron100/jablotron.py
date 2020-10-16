@@ -71,15 +71,31 @@ JABLOTRON_INFO_INSTALLATION_NAME = b"\x0b"
 JABLOTRON_PRIMARY_STATE_DISARMED = 1
 JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY = 2
 JABLOTRON_PRIMARY_STATE_ARMED_FULL = 3
+JABLOTRON_PRIMARY_STATES = [
+	JABLOTRON_PRIMARY_STATE_DISARMED,
+	JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY,
+	JABLOTRON_PRIMARY_STATE_ARMED_FULL,
+]
 
 JABLOTRON_SECONDARY_STATE_OK = 0
 JABLOTRON_SECONDARY_STATE_TRIGGERED = 1
 JABLOTRON_SECONDARY_STATE_PROBLEM = 2
 JABLOTRON_SECONDARY_STATE_PENDING = 4
 JABLOTRON_SECONDARY_STATE_ARMING = 8
+JABLOTRON_SECONDARY_STATES = [
+	JABLOTRON_SECONDARY_STATE_OK,
+	JABLOTRON_SECONDARY_STATE_TRIGGERED,
+	JABLOTRON_SECONDARY_STATE_PROBLEM,
+	JABLOTRON_SECONDARY_STATE_PENDING,
+	JABLOTRON_SECONDARY_STATE_ARMING,
+]
 
 JABLOTRON_TERTIARY_STATE_OFF = 0
 JABLOTRON_TERTIARY_STATE_ON = 1
+JABLOTRON_TERTIARY_STATES = [
+	JABLOTRON_TERTIARY_STATE_OFF,
+	JABLOTRON_TERTIARY_STATE_ON,
+]
 
 def decode_info_bytes(value: bytes) -> str:
 	info = ""
@@ -354,8 +370,8 @@ class Jablotron():
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-		def reader_thread() -> Optional[Dict[int, bytes]]:
-			section_states = None
+		def reader_thread() -> Optional[bytes]:
+			states_packet = None
 
 			stream = open(self._config[CONF_SERIAL_PORT], "rb")
 
@@ -364,15 +380,12 @@ class Jablotron():
 					packet = stream.read(PACKET_READ_SIZE)
 
 					if packet[:2] == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
-						section_states = Jablotron._parse_sections_states_packet(packet)
+						states_packet = packet
 						break
 			finally:
 				stream.close()
 
-			if section_states is None:
-				return None
-
-			return section_states
+			return states_packet
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
@@ -383,7 +396,7 @@ class Jablotron():
 			reader = thread_pool_executor.submit(reader_thread)
 			thread_pool_executor.submit(writer_thread)
 
-			section_states = reader.result(TIMEOUT)
+			sections_states_packet = reader.result(TIMEOUT)
 
 		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
 			LOGGER.error(format(ex))
@@ -393,10 +406,12 @@ class Jablotron():
 			stop_event.set()
 			thread_pool_executor.shutdown()
 
-		if section_states is None:
+		if sections_states_packet is None:
 			raise ShouldNotHappen
 
-		for section, section_state in section_states.items():
+		section_states = Jablotron._parse_sections_states_packet(sections_states_packet)
+
+		for section, section_packet in section_states.items():
 			section_alarm_id = Jablotron._create_section_alarm_id(section)
 			section_problem_sensor_id = Jablotron._create_section_problem_sensor_id(section)
 
@@ -411,6 +426,11 @@ class Jablotron():
 				self._create_section_problem_sensor_name(section),
 				section_problem_sensor_id,
 			))
+
+			section_state = Jablotron._parse_jablotron_alarm_state(section_packet)
+
+			if not Jablotron._is_known_section_state(section_state):
+				LOGGER.error("Unknown sections states packet: {}".format(Jablotron.format_packet_to_string(sections_states_packet)))
 
 			self.states[section_alarm_id] = Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state)
 			self.states[section_problem_sensor_id] = Jablotron._convert_jablotron_alarm_state_to_problem_sensor_state(section_state)
@@ -560,16 +580,25 @@ class Jablotron():
 	def _parse_section_states_packet(self, packet: bytes) -> None:
 		section_states = Jablotron._parse_sections_states_packet(packet)
 
-		for section, section_state in section_states.items():
+		for section, section_packet in section_states.items():
+			section_state = Jablotron._parse_jablotron_alarm_state(section_packet)
+
+			if not Jablotron._is_known_section_state(section_state):
+				LOGGER.error("Unknown sections states packet: {}".format(Jablotron.format_packet_to_string(packet)))
+
 			self._update_state(
 				Jablotron._create_section_alarm_id(section),
 				Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state),
 			)
 
-			self._update_state(
-				Jablotron._create_section_problem_sensor_id(section),
-				Jablotron._convert_jablotron_alarm_state_to_problem_sensor_state(section_state),
-			)
+			if (
+				section_state["secondary"] == JABLOTRON_SECONDARY_STATE_OK
+				or section_state["secondary"] == JABLOTRON_SECONDARY_STATE_PROBLEM
+			):
+				self._update_state(
+					Jablotron._create_section_problem_sensor_id(section),
+					Jablotron._convert_jablotron_alarm_state_to_problem_sensor_state(section_state),
+				)
 
 	def _parse_device_state_packet(self, packet: bytes) -> None:
 		device_number = Jablotron._parse_device_number_from_state_packet(packet)
@@ -745,9 +774,15 @@ class Jablotron():
 		return "device_problem_sensor_{}".format(number)
 
 	@staticmethod
-	def _convert_jablotron_alarm_state_to_alarm_state(packet: bytes) -> str:
-		state = Jablotron._parse_jablotron_alarm_state(packet)
+	def _is_known_section_state(state: Dict[str, int]) -> bool:
+		return (
+			state["primary"] in JABLOTRON_PRIMARY_STATES
+			and state["secondary"] in JABLOTRON_SECONDARY_STATES
+			and state["tertiary"] in JABLOTRON_TERTIARY_STATES
+		)
 
+	@staticmethod
+	def _convert_jablotron_alarm_state_to_alarm_state(state: Dict[str, int]) -> str:
 		if state["secondary"] == JABLOTRON_SECONDARY_STATE_ARMING:
 			return STATE_ALARM_ARMING
 
@@ -769,9 +804,7 @@ class Jablotron():
 		return STATE_ALARM_DISARMED
 
 	@staticmethod
-	def _convert_jablotron_alarm_state_to_problem_sensor_state(packet: bytes) -> str:
-		state = Jablotron._parse_jablotron_alarm_state(packet)
-
+	def _convert_jablotron_alarm_state_to_problem_sensor_state(state: Dict[str, int]) -> str:
 		return STATE_ON if state["secondary"] == JABLOTRON_SECONDARY_STATE_PROBLEM else STATE_OFF
 
 	@staticmethod
