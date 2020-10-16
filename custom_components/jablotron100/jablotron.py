@@ -499,8 +499,10 @@ class Jablotron():
 				except Exception as ex:
 					LOGGER.error("Write error: {}".format(format(ex)))
 
-			time.sleep(1)
-			counter += 1
+				counter += 1
+			else:
+				time.sleep(1)
+
 			if counter == 60:
 				counter = 0
 
