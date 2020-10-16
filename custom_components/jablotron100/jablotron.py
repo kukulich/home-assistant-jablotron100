@@ -97,6 +97,7 @@ JABLOTRON_TERTIARY_STATES = [
 	JABLOTRON_TERTIARY_STATE_ON,
 ]
 
+
 def decode_info_bytes(value: bytes) -> str:
 	info = ""
 
@@ -110,12 +111,13 @@ def decode_info_bytes(value: bytes) -> str:
 
 	return info
 
+
 def check_serial_port(serial_port: str) -> None:
 	stop_event = threading.Event()
 	thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 	def reader_thread() -> Optional[str]:
-		model = None
+		detected_model = None
 
 		stream = open(serial_port, "rb")
 
@@ -126,7 +128,7 @@ def check_serial_port(serial_port: str) -> None:
 
 				if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX and packet[2:3] == JABLOTRON_INFO_MODEL:
 					try:
-						model = decode_info_bytes(packet[3:])
+						detected_model = decode_info_bytes(packet[3:])
 						break
 					except UnicodeDecodeError:
 						# Try again
@@ -134,7 +136,7 @@ def check_serial_port(serial_port: str) -> None:
 		finally:
 			stream.close()
 
-		return model
+		return detected_model
 
 	def writer_thread() -> None:
 		while not stop_event.is_set():
@@ -202,7 +204,7 @@ class JablotronAlarmControlPanel(JablotronControl):
 		super().__init__(central_unit, name, id)
 
 
-class Jablotron():
+class Jablotron:
 
 	def __init__(self, hass: core.HomeAssistant, config: Dict[str, Any], options: Dict[str, Any]) -> None:
 		self._hass: core.HomeAssistant = hass
@@ -278,7 +280,7 @@ class Jablotron():
 
 		state_packet = Jablotron._int_to_bytes(int_packets[state] + section)
 
-		self._send_packet(self._create_code_packet(code) + b"\x80\x02\x0d" + state_packet)
+		self._send_packet(Jablotron._create_code_packet(code) + b"\x80\x02\x0d" + state_packet)
 
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
 		return self._alarm_control_panels
@@ -500,7 +502,7 @@ class Jablotron():
 						self._parse_section_states_packet(packet)
 						break
 
-					if (Jablotron._is_device_state_packet(prefix)):
+					if Jablotron._is_device_state_packet(prefix):
 						self._parse_device_state_packet(packet)
 						break
 
@@ -523,7 +525,7 @@ class Jablotron():
 			if not self._state_checker_data_updating_event.wait(0.5):
 				try:
 					if counter == 0 and not self._is_alarm_active():
-						self._send_packet(self._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
+						self._send_packet(Jablotron._create_code_packet(self._config[CONF_PASSWORD]) + b"\x52\x02\x13\x05\x9a")
 					else:
 						self._send_packet(b"\x52\x01\x02")
 				except Exception as ex:
@@ -650,7 +652,8 @@ class Jablotron():
 				device_state,
 			)
 
-	def _create_code_packet(self, code: str) -> bytes:
+	@staticmethod
+	def _create_code_packet(code: str) -> bytes:
 		code_packet = b"\x80\x08\x03\x39\x39\x39"
 
 		for i in range(0, 4):
@@ -720,7 +723,7 @@ class Jablotron():
 		if state == off_state:
 			return STATE_OFF
 
-		if (state == on_state or state == on_state_2):
+		if state == on_state or state == on_state_2:
 			return STATE_ON
 
 		return None
