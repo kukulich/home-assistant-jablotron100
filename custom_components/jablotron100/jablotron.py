@@ -1,5 +1,6 @@
 import binascii
 from concurrent.futures import ThreadPoolExecutor
+import datetime
 from homeassistant import core
 from homeassistant.const import (
 	CONF_PASSWORD,
@@ -443,12 +444,19 @@ class Jablotron():
 
 	def _read_packets(self) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")
+		last_restarted_at_hour = datetime.datetime.now().hour
 
 		while not self._state_checker_stop_event.is_set():
 
 			try:
 
 				while True:
+
+					actual_hour = datetime.datetime.now().hour
+					if last_restarted_at_hour != actual_hour:
+						stream.close()
+						stream = open(self._config[CONF_SERIAL_PORT], "rb")
+						last_restarted_at_hour = actual_hour
 
 					self._state_checker_data_updating_event.clear()
 
