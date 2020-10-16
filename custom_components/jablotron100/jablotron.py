@@ -60,6 +60,8 @@ JABLOTRON_PACKET_DEVICES_STATES_PREFIX = b"\xd8"
 JABLOTRON_PACKET_WIRED_DEVICE_STATE_PREFIX = b"\x55\x08"
 JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX = b"\x55\x09"
 JABLOTRON_PACKET_INFO_PREFIX = b"\x40"
+JABLOTRON_PACKETS_DEVICE_ACTIVITY = [b"\x00", b"\x01", b"\x81", b"\xa3"]
+JABLOTRON_PACKETS_DEVICE_SABOTAGE = [b"\x05", b"\x06", b"\x86", b"\xa8"]
 JABLOTRON_INFO_MODEL = b"\x02"
 JABLOTRON_INFO_HARDWARE_VERSION = b"\x08"
 JABLOTRON_INFO_FIRMWARE_VERSION = b"\x09"
@@ -585,16 +587,19 @@ class Jablotron():
 			return
 
 		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, device_number)
-		device_problem_sensor_state = Jablotron._convert_jablotron_device_state_to_problem_sensor_state(packet)
 
-		self._update_state(
-			Jablotron._create_device_problem_sensor_id(device_number),
-			device_problem_sensor_state,
-		)
+		if device_state is None:
+			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
+			return
 
-		if device_state is not None:
+		if Jablotron._is_device_state_packet_for_activity(packet):
 			self._update_state(
 				Jablotron._create_device_sensor_id(device_number),
+				device_state,
+			)
+		elif Jablotron._is_device_state_packet_for_sabotage(packet):
+			self._update_state(
+				Jablotron._create_device_problem_sensor_id(device_number),
 				device_state,
 			)
 		else:
@@ -637,6 +642,14 @@ class Jablotron():
 	@staticmethod
 	def _is_device_state_packet(prefix) -> bool:
 		return prefix == JABLOTRON_PACKET_WIRED_DEVICE_STATE_PREFIX or prefix == JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX
+
+	@staticmethod
+	def _is_device_state_packet_for_activity(packet: bytes) -> bool:
+		return packet[2:3] in JABLOTRON_PACKETS_DEVICE_ACTIVITY
+
+	@staticmethod
+	def _is_device_state_packet_for_sabotage(packet: bytes) -> bool:
+		return packet[2:3] in JABLOTRON_PACKETS_DEVICE_SABOTAGE
 
 	@staticmethod
 	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
@@ -760,11 +773,6 @@ class Jablotron():
 		state = Jablotron._parse_jablotron_alarm_state(packet)
 
 		return STATE_ON if state["secondary"] == JABLOTRON_SECONDARY_STATE_PROBLEM else STATE_OFF
-
-	@staticmethod
-	def _convert_jablotron_device_state_to_problem_sensor_state(packet: bytes) -> str:
-		# I did not find better detection
-		return STATE_ON if packet[2:3] in [b"\x05", b"\x06", b"\x86", b"\xa8"] else STATE_OFF
 
 	@staticmethod
 	def _parse_jablotron_alarm_state(packet: bytes) -> Dict[str, int]:
