@@ -48,11 +48,11 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 	def update_state(self, state: str) -> None:
 		if self._arming_in_progress == True:
-			if state == STATE_ALARM_DISARMED:
-				# Ignore update with DISARMED state because it's probably outdated
-				return
-
 			self._arming_in_progress = False
+
+			if state == STATE_ALARM_DISARMED:
+				# Ignore first update with DISARMED state because it's probably outdated
+				return
 
 		super().update_state(state)
 
@@ -78,8 +78,8 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
-		self._arming_in_progress = True
 		self.update_state(STATE_ALARM_ARMING)
+		self._arming_in_progress = True
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
 	async def async_alarm_arm_night(self, code: Optional[str] = None) -> None:
@@ -91,8 +91,8 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
-		self._arming_in_progress = True
 		self.update_state(STATE_ALARM_ARMING)
+		self._arming_in_progress = True
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_NIGHT, code)
 
 	def _device_id(self) -> str:
