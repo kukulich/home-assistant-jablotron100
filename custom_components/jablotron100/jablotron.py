@@ -432,7 +432,7 @@ class Jablotron:
 			section_state = Jablotron._parse_jablotron_alarm_state(section_packet)
 
 			if not Jablotron._is_known_section_state(section_state):
-				LOGGER.error("Unknown sections states packet: {}".format(Jablotron.format_packet_to_string(sections_states_packet)))
+				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(sections_states_packet)))
 
 			self.states[section_alarm_id] = Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state)
 			self.states[section_problem_sensor_id] = Jablotron._convert_jablotron_alarm_state_to_problem_sensor_state(section_state)
@@ -586,7 +586,7 @@ class Jablotron:
 			section_state = Jablotron._parse_jablotron_alarm_state(section_packet)
 
 			if not Jablotron._is_known_section_state(section_state):
-				LOGGER.error("Unknown sections states packet: {}".format(Jablotron.format_packet_to_string(packet)))
+				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(packet)))
 
 			self._update_state(
 				Jablotron._create_section_alarm_id(section),
