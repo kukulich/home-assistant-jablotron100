@@ -72,10 +72,12 @@ JABLOTRON_INFO_INSTALLATION_NAME = b"\x0b"
 JABLOTRON_PRIMARY_STATE_DISARMED = 1
 JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY = 2
 JABLOTRON_PRIMARY_STATE_ARMED_FULL = 3
+JABLOTRON_PRIMARY_STATE_TRIGGERED = 11
 JABLOTRON_PRIMARY_STATES = [
 	JABLOTRON_PRIMARY_STATE_DISARMED,
 	JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY,
 	JABLOTRON_PRIMARY_STATE_ARMED_FULL,
+	JABLOTRON_PRIMARY_STATE_TRIGGERED,
 ]
 
 JABLOTRON_SECONDARY_STATE_OK = 0
@@ -794,14 +796,17 @@ class Jablotron:
 
 	@staticmethod
 	def _convert_jablotron_alarm_state_to_alarm_state(state: Dict[str, int]) -> str:
+		if (
+			state["primary"] == JABLOTRON_PRIMARY_STATE_TRIGGERED
+			or state["secondary"] == JABLOTRON_SECONDARY_STATE_TRIGGERED
+		):
+			return STATE_ALARM_TRIGGERED
+
 		if state["secondary"] == JABLOTRON_SECONDARY_STATE_ARMING:
 			return STATE_ALARM_ARMING
 
 		if state["secondary"] == JABLOTRON_SECONDARY_STATE_PENDING:
 			return STATE_ALARM_PENDING
-
-		if state["secondary"] == JABLOTRON_SECONDARY_STATE_TRIGGERED:
-			return STATE_ALARM_TRIGGERED
 
 		if state["primary"] == JABLOTRON_PRIMARY_STATE_ARMED_FULL:
 			if state["tertiary"] == JABLOTRON_TERTIARY_STATE_ON:
@@ -821,10 +826,6 @@ class Jablotron:
 	@staticmethod
 	def _parse_jablotron_alarm_state(packet: bytes) -> Dict[str, int]:
 		first_packet = packet[0:1]
-
-		# Strange packet - converted to something that makes more sense
-		if first_packet == "\x1b":
-			first_packet = "\x13"
 
 		number = Jablotron._bytes_to_int(first_packet)
 
