@@ -62,6 +62,7 @@ JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX = b"\x55\x09"
 JABLOTRON_PACKET_INFO_PREFIX = b"\x40"
 JABLOTRON_PACKETS_DEVICE_ACTIVITY = [b"\x00", b"\x01", b"\x81", b"\xa3"]
 JABLOTRON_PACKETS_DEVICE_SABOTAGE = [b"\x05", b"\x06", b"\x86", b"\xa8"]
+JABLOTRON_PACKETS_DEVICE_FAULT = [b"\x07", b"\x08", b"\x88", b"\xaa"]
 JABLOTRON_INFO_MODEL = b"\x02"
 JABLOTRON_INFO_HARDWARE_VERSION = b"\x08"
 JABLOTRON_INFO_FIRMWARE_VERSION = b"\x09"
@@ -628,7 +629,10 @@ class Jablotron:
 				Jablotron._create_device_sensor_id(device_number),
 				device_state,
 			)
-		elif Jablotron._is_device_state_packet_for_sabotage(packet):
+		elif (
+			Jablotron._is_device_state_packet_for_sabotage(packet)
+			or Jablotron._is_device_state_packet_for_fault(packet)
+		):
 			self._update_state(
 				Jablotron._create_device_problem_sensor_id(device_number),
 				device_state,
@@ -682,6 +686,10 @@ class Jablotron:
 	@staticmethod
 	def _is_device_state_packet_for_sabotage(packet: bytes) -> bool:
 		return packet[2:3] in JABLOTRON_PACKETS_DEVICE_SABOTAGE
+
+	@staticmethod
+	def _is_device_state_packet_for_fault(packet: bytes) -> bool:
+		return packet[2:3] in JABLOTRON_PACKETS_DEVICE_FAULT
 
 	@staticmethod
 	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
