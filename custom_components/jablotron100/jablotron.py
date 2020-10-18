@@ -69,37 +69,37 @@ JABLOTRON_INFO_FIRMWARE_VERSION = b"\x09"
 JABLOTRON_INFO_REGISTRATION_CODE = b"\x0a"
 JABLOTRON_INFO_INSTALLATION_NAME = b"\x0b"
 
-JABLOTRON_PRIMARY_STATE_DISARMED = 1
-JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY = 2
-JABLOTRON_PRIMARY_STATE_ARMED_FULL = 3
-JABLOTRON_PRIMARY_STATE_TRIGGERED = 11
-JABLOTRON_PRIMARY_STATES = [
-	JABLOTRON_PRIMARY_STATE_DISARMED,
-	JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY,
-	JABLOTRON_PRIMARY_STATE_ARMED_FULL,
-	JABLOTRON_PRIMARY_STATE_TRIGGERED,
+JABLOTRON_SECTION_PRIMARY_STATE_DISARMED = 1
+JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY = 2
+JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL = 3
+JABLOTRON_SECTION_PRIMARY_STATE_TRIGGERED = 11
+JABLOTRON_SECTION_PRIMARY_STATES = [
+	JABLOTRON_SECTION_PRIMARY_STATE_DISARMED,
+	JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY,
+	JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL,
+	JABLOTRON_SECTION_PRIMARY_STATE_TRIGGERED,
 ]
 
-JABLOTRON_SECONDARY_STATE_OK = 0
-JABLOTRON_SECONDARY_STATE_TRIGGERED = 1
-JABLOTRON_SECONDARY_STATE_PROBLEM = 2
-JABLOTRON_SECONDARY_STATE_PENDING = 4
-JABLOTRON_SECONDARY_STATE_ARMING = 8
-JABLOTRON_SECONDARY_STATES = [
-	JABLOTRON_SECONDARY_STATE_OK,
-	JABLOTRON_SECONDARY_STATE_TRIGGERED,
-	JABLOTRON_SECONDARY_STATE_PROBLEM,
-	JABLOTRON_SECONDARY_STATE_PENDING,
-	JABLOTRON_SECONDARY_STATE_ARMING,
+JABLOTRON_SECTION_SECONDARY_STATE_OK = 0
+JABLOTRON_SECTION_SECONDARY_STATE_TRIGGERED = 1
+JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM = 2
+JABLOTRON_SECTION_SECONDARY_STATE_PENDING = 4
+JABLOTRON_SECTION_SECONDARY_STATE_ARMING = 8
+JABLOTRON_SECTION_SECONDARY_STATES = [
+	JABLOTRON_SECTION_SECONDARY_STATE_OK,
+	JABLOTRON_SECTION_SECONDARY_STATE_TRIGGERED,
+	JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM,
+	JABLOTRON_SECTION_SECONDARY_STATE_PENDING,
+	JABLOTRON_SECTION_SECONDARY_STATE_ARMING,
 ]
 
-JABLOTRON_TERTIARY_STATE_OFF = 0
-JABLOTRON_TERTIARY_STATE_ON = 1
-JABLOTRON_TERTIARY_STATE_TRIGGERED = 11
-JABLOTRON_TERTIARY_STATES = [
-	JABLOTRON_TERTIARY_STATE_OFF,
-	JABLOTRON_TERTIARY_STATE_ON,
-	JABLOTRON_TERTIARY_STATE_TRIGGERED,
+JABLOTRON_SECTION_TERTIARY_STATE_OFF = 0
+JABLOTRON_SECTION_TERTIARY_STATE_ON = 1
+JABLOTRON_SECTION_TERTIARY_STATE_TRIGGERED = 11
+JABLOTRON_SECTION_TERTIARY_STATES = [
+	JABLOTRON_SECTION_TERTIARY_STATE_OFF,
+	JABLOTRON_SECTION_TERTIARY_STATE_ON,
+	JABLOTRON_SECTION_TERTIARY_STATE_TRIGGERED,
 ]
 
 
@@ -434,13 +434,13 @@ class Jablotron:
 				section_problem_sensor_id,
 			))
 
-			section_state = Jablotron._parse_jablotron_alarm_state(section_packet)
+			section_state = Jablotron._parse_jablotron_section_state(section_packet)
 
 			if not Jablotron._is_known_section_state(section_state):
 				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(sections_states_packet)))
 
-			self.states[section_alarm_id] = Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state)
-			self.states[section_problem_sensor_id] = Jablotron._convert_jablotron_alarm_state_to_problem_sensor_state(section_state)
+			self.states[section_alarm_id] = Jablotron._convert_jablotron_section_state_to_alarm_state(section_state)
+			self.states[section_problem_sensor_id] = Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state)
 
 	def _create_devices(self) -> None:
 		for i in range(self._config[CONF_NUMBER_OF_DEVICES]):
@@ -588,23 +588,23 @@ class Jablotron:
 		section_states = Jablotron._parse_sections_states_packet(packet)
 
 		for section, section_packet in section_states.items():
-			section_state = Jablotron._parse_jablotron_alarm_state(section_packet)
+			section_state = Jablotron._parse_jablotron_section_state(section_packet)
 
 			if not Jablotron._is_known_section_state(section_state):
 				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(packet)))
 
 			self._update_state(
 				Jablotron._create_section_alarm_id(section),
-				Jablotron._convert_jablotron_alarm_state_to_alarm_state(section_state),
+				Jablotron._convert_jablotron_section_state_to_alarm_state(section_state),
 			)
 
 			if (
-				section_state["secondary"] == JABLOTRON_SECONDARY_STATE_OK
-				or section_state["secondary"] == JABLOTRON_SECONDARY_STATE_PROBLEM
+				section_state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_OK
+				or section_state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM
 			):
 				self._update_state(
 					Jablotron._create_section_problem_sensor_id(section),
-					Jablotron._convert_jablotron_alarm_state_to_problem_sensor_state(section_state),
+					Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state),
 				)
 
 	def _parse_device_state_packet(self, packet: bytes) -> None:
@@ -793,42 +793,42 @@ class Jablotron:
 	@staticmethod
 	def _is_known_section_state(state: Dict[str, int]) -> bool:
 		return (
-			state["primary"] in JABLOTRON_PRIMARY_STATES
-			and state["secondary"] in JABLOTRON_SECONDARY_STATES
-			and state["tertiary"] in JABLOTRON_TERTIARY_STATES
+			state["primary"] in JABLOTRON_SECTION_PRIMARY_STATES
+			and state["secondary"] in JABLOTRON_SECTION_SECONDARY_STATES
+			and state["tertiary"] in JABLOTRON_SECTION_TERTIARY_STATES
 		)
 
 	@staticmethod
-	def _convert_jablotron_alarm_state_to_alarm_state(state: Dict[str, int]) -> str:
+	def _convert_jablotron_section_state_to_alarm_state(state: Dict[str, int]) -> str:
 		if (
-			state["primary"] == JABLOTRON_PRIMARY_STATE_TRIGGERED
-			or state["secondary"] == JABLOTRON_SECONDARY_STATE_TRIGGERED
+			state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_TRIGGERED
+			or state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_TRIGGERED
 		):
 			return STATE_ALARM_TRIGGERED
 
-		if state["secondary"] == JABLOTRON_SECONDARY_STATE_ARMING:
+		if state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_ARMING:
 			return STATE_ALARM_ARMING
 
-		if state["secondary"] == JABLOTRON_SECONDARY_STATE_PENDING:
+		if state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_PENDING:
 			return STATE_ALARM_PENDING
 
-		if state["primary"] == JABLOTRON_PRIMARY_STATE_ARMED_FULL:
-			if state["tertiary"] == JABLOTRON_TERTIARY_STATE_ON:
+		if state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL:
+			if state["tertiary"] == JABLOTRON_SECTION_TERTIARY_STATE_ON:
 				return STATE_ALARM_TRIGGERED
 			else:
 				return STATE_ALARM_ARMED_AWAY
 
-		if state["primary"] == JABLOTRON_PRIMARY_STATE_ARMED_PARTIALLY:
+		if state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY:
 			return STATE_ALARM_ARMED_NIGHT
 
 		return STATE_ALARM_DISARMED
 
 	@staticmethod
-	def _convert_jablotron_alarm_state_to_problem_sensor_state(state: Dict[str, int]) -> str:
-		return STATE_ON if state["secondary"] == JABLOTRON_SECONDARY_STATE_PROBLEM else STATE_OFF
+	def _convert_jablotron_section_state_to_problem_sensor_state(state: Dict[str, int]) -> str:
+		return STATE_ON if state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM else STATE_OFF
 
 	@staticmethod
-	def _parse_jablotron_alarm_state(packet: bytes) -> Dict[str, int]:
+	def _parse_jablotron_section_state(packet: bytes) -> Dict[str, int]:
 		first_packet = packet[0:1]
 
 		number = Jablotron._bytes_to_int(first_packet)
