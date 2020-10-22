@@ -20,6 +20,7 @@ DATA_OPTIONS_UPDATE_UNSUBSCRIBER = "options_update_unsubscriber"
 DEFAULT_CONF_REQUIRE_CODE_TO_ARM = False
 DEFAULT_CONF_REQUIRE_CODE_TO_DISARM = True
 
+DEVICE_EMPTY = "empty"
 DEVICE_KEYPAD = "keypad"
 DEVICE_SIREN = "siren"
 DEVICE_MOTION_DETECTOR = "motion_detector"
@@ -42,6 +43,7 @@ DEVICES = {
 	DEVICE_FLOOD_DETECTOR: "Flood detector",
 	DEVICE_GAS_DETECTOR: "Gas detector",
 	DEVICE_OTHER: "Other",
+	DEVICE_EMPTY: "Empty",
 }
 
 MAX_SECTIONS = 15

@@ -29,6 +29,7 @@ from .const import (
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEVICES,
+	DEVICE_EMPTY,
 	DEVICE_KEYPAD,
 	DEVICE_SIREN,
 	DEVICE_OTHER,
@@ -578,11 +579,12 @@ class Jablotron:
 	def _is_device_ignored(self, number: int) -> bool:
 		type = self._get_device_type(number)
 
-		return (
-			type == DEVICE_KEYPAD
-			or type == DEVICE_SIREN
-			or type == DEVICE_OTHER
-		)
+		return type in [
+			DEVICE_KEYPAD,
+			DEVICE_SIREN,
+			DEVICE_OTHER,
+			DEVICE_EMPTY,
+		]
 
 	def _parse_section_states_packet(self, packet: bytes) -> None:
 		section_states = Jablotron._parse_sections_states_packet(packet)
