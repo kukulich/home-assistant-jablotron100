@@ -19,6 +19,7 @@ from .const import (
 	DEVICE_SMOKE_DETECTOR,
 	DEVICE_FLOOD_DETECTOR,
 	DEVICE_GAS_DETECTOR,
+	DEVICE_KEY_FOB,
 	DOMAIN,
 )
 from .jablotron import JablotronEntity
@@ -57,6 +58,9 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 	def icon(self) -> Optional[str]:
 		if self._control.type == DEVICE_GLASS_BREAK_DETECTOR:
 			return "mdi:image-broken-variant" if self.state == STATE_ON else "mdi:rectangle-outline"
+
+		if self._control.type == DEVICE_KEY_FOB:
+			return "mdi:gesture-double-tap" if self.state == STATE_ON else "mdi:circle-double"
 
 		return None
 
