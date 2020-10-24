@@ -31,6 +31,13 @@ Home Assistant custom component for JABLOTRON 100+ alarm system
 3. Restart Home Assistant
 4. Jablotron integration should be available in the integrations UI
 
+## Check
+
+1. Try to arm away/arm night/disarm all sections
+2. Try to activate all devices if possible (open/close door/window, move ahead of motion sensor etc.) and check if Home Assistant see the state changes
+3. Check log - it should be empty when everything works
+4. Does any problem occur? Report [issue](https://github.com/kukulich/home-assistant-jablotron100/issues) or join [Discord](https://discord.gg/bNmaB6n)
+
 ## Credits
 
 Big thanks to [plaksnor](https://github.com/plaksnor/), [Horsi70](https://github.com/Horsi70/) and [Shamshala](https://github.com/Shamshala/) for their work on previous integration.
