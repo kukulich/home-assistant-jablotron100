@@ -26,7 +26,7 @@ Home Assistant custom component for JABLOTRON 100+ alarm system
 
 ### Manual
 
-1. [Download integration](https://github.com/kukulich/home-assistant-jablotron100/archive/master.zip)
+1. [Download integration](https://github.com/kukulich/home-assistant-jablotron100/releases/)
 2. Copy the folder `custom_components/jablotron100` from the zip to your config directory
 3. Restart Home Assistant
 4. Jablotron integration should be available in the integrations UI
