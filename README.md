@@ -38,6 +38,8 @@ Home Assistant custom component for JABLOTRON 100+ alarm system
 3. Check log - it should be empty when everything works
 4. Does any problem occur? Report [issue](https://github.com/kukulich/home-assistant-jablotron100/issues) or join [Discord](https://discord.gg/bNmaB6n)
 
+Even if everything works for you, you can join the Discord. We would be happy if you can test some things so we can make the integration more robust.
+
 ## Credits
 
 Big thanks to [plaksnor](https://github.com/plaksnor/), [Horsi70](https://github.com/Horsi70/) and [Shamshala](https://github.com/Shamshala/) for their work on previous integration.
