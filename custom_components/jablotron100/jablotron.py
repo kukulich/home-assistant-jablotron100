@@ -454,12 +454,14 @@ class Jablotron:
 			device_id = Jablotron._create_device_sensor_id(number)
 			device_problem_sensor_id = Jablotron._create_device_problem_sensor_id(number)
 
-			self._device_sensors.append(JablotronDevice(
-				self._central_unit,
-				device_name,
-				device_id,
-				type,
-			))
+			if self._is_device_with_activity_sensor(number):
+				self._device_sensors.append(JablotronDevice(
+					self._central_unit,
+					device_name,
+					device_id,
+					type,
+				))
+
 			self._device_problem_sensors.append(JablotronControl(
 				self._central_unit,
 				device_name,
@@ -579,9 +581,15 @@ class Jablotron:
 
 		return type in [
 			DEVICE_KEYPAD,
-			DEVICE_SIREN,
 			DEVICE_OTHER,
 			DEVICE_EMPTY,
+		]
+
+	def _is_device_with_activity_sensor(self, number: int) -> bool:
+		type = self._get_device_type(number)
+
+		return type not in [
+			DEVICE_SIREN,
 		]
 
 	def _parse_section_states_packet(self, packet: bytes) -> None:
@@ -628,7 +636,10 @@ class Jablotron:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
 			return
 
-		if Jablotron._is_device_state_packet_for_activity(packet):
+		if (
+			self._is_device_with_activity_sensor(device_number)
+			and Jablotron._is_device_state_packet_for_activity(packet)
+		):
 			self._update_state(
 				Jablotron._create_device_sensor_id(device_number),
 				device_state,
