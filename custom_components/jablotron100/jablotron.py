@@ -721,7 +721,7 @@ class Jablotron:
 	def _convert_jablotron_device_state_to_state(packet: bytes, device_number: int) -> Optional[str]:
 		state = Jablotron._bytes_to_int(packet[3:4])
 
-		if device_number <= 32:
+		if device_number <= 36:
 			high_device_number_offset = 0
 		elif device_number <= 96:
 			high_device_number_offset = -64
