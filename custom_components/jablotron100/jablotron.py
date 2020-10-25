@@ -62,8 +62,6 @@ JABLOTRON_PACKET_WIRED_DEVICE_STATE_PREFIX = b"\x55\x08"
 JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX = b"\x55\x09"
 JABLOTRON_PACKET_INFO_PREFIX = b"\x40"
 JABLOTRON_PACKETS_DEVICE_ACTIVITY = [b"\x00", b"\x01", b"\x0a", b"\x0c", b"\x24", b"\x3e", b"\x80", b"\x81", b"\xa3", b"\xa6", b"\xbe"]
-JABLOTRON_PACKETS_DEVICE_SABOTAGE = [b"\x06", b"\x86"]
-JABLOTRON_PACKETS_DEVICE_FAULT = [b"\x07", b"\x87"]
 JABLOTRON_INFO_MODEL = b"\x02"
 JABLOTRON_INFO_HARDWARE_VERSION = b"\x08"
 JABLOTRON_INFO_FIRMWARE_VERSION = b"\x09"
@@ -693,11 +691,11 @@ class Jablotron:
 
 	@staticmethod
 	def _is_device_state_packet_for_sabotage(packet: bytes) -> bool:
-		return packet[2:3] in JABLOTRON_PACKETS_DEVICE_SABOTAGE
+		return Jablotron._bytes_to_int(packet[2:3]) % 128 == 6
 
 	@staticmethod
 	def _is_device_state_packet_for_fault(packet: bytes) -> bool:
-		return packet[2:3] in JABLOTRON_PACKETS_DEVICE_FAULT
+		return Jablotron._bytes_to_int(packet[2:3]) % 128 == 7
 
 	@staticmethod
 	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
