@@ -31,7 +31,7 @@ from .const import (
 	DEVICES,
 	DEVICE_EMPTY,
 	DEVICE_KEYPAD,
-	DEVICE_SIREN,
+	DEVICE_SIREN_OUTDOOR,
 	DEVICE_OTHER,
 	DOMAIN,
 	LOGGER,
@@ -589,7 +589,7 @@ class Jablotron:
 		type = self._get_device_type(number)
 
 		return type not in [
-			DEVICE_SIREN,
+			DEVICE_SIREN_OUTDOOR,
 		]
 
 	def _parse_section_states_packet(self, packet: bytes) -> None:

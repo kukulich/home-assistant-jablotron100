@@ -20,6 +20,7 @@ from .const import (
 	DEVICE_FLOOD_DETECTOR,
 	DEVICE_GAS_DETECTOR,
 	DEVICE_KEY_FOB,
+	DEVICE_SIREN_INDOOR,
 	DOMAIN,
 )
 from .jablotron import JablotronEntity
@@ -61,6 +62,9 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 
 		if self._control.type == DEVICE_KEY_FOB:
 			return "mdi:gesture-double-tap" if self.state == STATE_ON else "mdi:circle-double"
+
+		if self._control.type == DEVICE_SIREN_INDOOR:
+			return "mdi:gesture-tap-box" if self.state == STATE_ON else "mdi:circle-box-outline"
 
 		return None
 

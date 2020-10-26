@@ -23,7 +23,8 @@ DEFAULT_CONF_REQUIRE_CODE_TO_DISARM = True
 DEVICE_EMPTY = "empty"
 DEVICE_KEY_FOB = "key_fob"
 DEVICE_KEYPAD = "keypad"
-DEVICE_SIREN = "siren"
+DEVICE_SIREN_OUTDOOR = "siren"
+DEVICE_SIREN_INDOOR = "siren_indoor"
 DEVICE_MOTION_DETECTOR = "motion_detector"
 DEVICE_WINDOW_OPENING_DETECTOR = "window_opening_detector"
 DEVICE_DOOR_OPENING_DETECTOR = "door_opening_detector"
@@ -35,7 +36,8 @@ DEVICE_OTHER = "other"
 
 DEVICES = {
 	DEVICE_KEYPAD: "Keypad",
-	DEVICE_SIREN: "Siren",
+	DEVICE_SIREN_OUTDOOR: "Outdoor siren",
+	DEVICE_SIREN_INDOOR: "Indoor siren",
 	DEVICE_MOTION_DETECTOR: "Motion detector",
 	DEVICE_WINDOW_OPENING_DETECTOR: "Window opening detector",
 	DEVICE_DOOR_OPENING_DETECTOR: "Door opening detector",
