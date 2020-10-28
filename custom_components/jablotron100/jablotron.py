@@ -220,6 +220,7 @@ class Jablotron:
 		self._section_problem_sensors: List[JablotronControl] = []
 		self._device_sensors: List[JablotronDevice] = []
 		self._device_problem_sensors: List[JablotronControl] = []
+		self._lan_connection: Optional[JablotronControl] = None
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
@@ -249,6 +250,7 @@ class Jablotron:
 		self._detect_central_unit()
 		self._detect_sections()
 		self._create_devices()
+		self._create_lan_connection()
 
 		# Initialize states checker
 		self._state_checker_thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
@@ -297,6 +299,9 @@ class Jablotron:
 
 	def device_problem_sensors(self) -> List[JablotronControl]:
 		return self._device_problem_sensors
+
+	def lan_connection(self) -> Optional[JablotronControl]:
+		return self._lan_connection
 
 	def _update_all_entities(self) -> None:
 		for entity in self._entities.values():
@@ -472,6 +477,21 @@ class Jablotron:
 			self.states[device_id] = STATE_OFF
 			self.states[device_problem_sensor_id] = STATE_OFF
 
+	def _create_lan_connection(self) -> None:
+		if self._get_lan_connection_device_number() is None:
+			return None
+
+		id = self._create_lan_connection_id()
+		name = self._create_lan_connection_name()
+
+		self._lan_connection = JablotronControl(
+			self._central_unit,
+			name,
+			id,
+		)
+
+		self.states[id] = STATE_ON
+
 	def _read_packets(self) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")
 		last_restarted_at_hour = datetime.datetime.now().hour
@@ -622,13 +642,17 @@ class Jablotron:
 			LOGGER.debug("State packet of central unit: {}".format(Jablotron.format_packet_to_string(packet)))
 			return
 
-		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			LOGGER.debug("State packet of unknown device: {}".format(Jablotron.format_packet_to_string(packet)))
-			return
+		lan_connection_device_number = self._get_lan_connection_device_number()
+		is_lan_connection_device = True if lan_connection_device_number == device_number else False
 
-		if self._is_device_ignored(device_number):
-			LOGGER.debug("State packet of {}: {}".format(DEVICES[self._get_device_type(device_number)].lower(), Jablotron.format_packet_to_string(packet)))
-			return
+		if is_lan_connection_device is False:
+			if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
+				LOGGER.debug("State packet of unknown device: {}".format(Jablotron.format_packet_to_string(packet)))
+				return
+
+			if self._is_device_ignored(device_number):
+				LOGGER.debug("State packet of {}: {}".format(DEVICES[self._get_device_type(device_number)].lower(), Jablotron.format_packet_to_string(packet)))
+				return
 
 		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, device_number)
 
@@ -636,7 +660,12 @@ class Jablotron:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
 			return
 
-		if (
+		if is_lan_connection_device is True:
+			self._update_state(
+				Jablotron._create_lan_connection_id(),
+				STATE_ON if device_state == STATE_OFF else STATE_OFF,
+			)
+		elif (
 			self._is_device_with_activity_sensor(device_number)
 			and Jablotron._is_device_state_packet_for_activity(packet)
 		):
@@ -672,6 +701,12 @@ class Jablotron:
 					Jablotron._create_device_sensor_id(i),
 					device_state,
 				)
+
+	def _get_lan_connection_device_number(self) -> Optional[int]:
+		if self._central_unit.model == "JA-101K-LAN":
+			return 125
+
+		return None
 
 	@staticmethod
 	def _create_code_packet(code: str) -> bytes:
@@ -801,6 +836,14 @@ class Jablotron:
 	@staticmethod
 	def _create_device_problem_sensor_id(number: int) -> str:
 		return "device_problem_sensor_{}".format(number)
+
+	@staticmethod
+	def _create_lan_connection_name() -> str:
+		return "LAN connection"
+
+	@staticmethod
+	def _create_lan_connection_id() -> str:
+		return "lan"
 
 	@staticmethod
 	def _is_known_section_state(state: Dict[str, int]) -> bool:

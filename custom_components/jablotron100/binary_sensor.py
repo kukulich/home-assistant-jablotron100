@@ -1,6 +1,7 @@
 from homeassistant import config_entries, core
 from homeassistant.components.binary_sensor import (
 	BinarySensorEntity,
+	DEVICE_CLASS_CONNECTIVITY,
 	DEVICE_CLASS_DOOR,
 	DEVICE_CLASS_GAS,
 	DEVICE_CLASS_MOISTURE,
@@ -34,6 +35,9 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	async_add_entities((JablotronProblemSensorEntity(jablotron, control) for control in jablotron.section_problem_sensors()), True)
 	async_add_entities((JablotronProblemSensorEntity(jablotron, control) for control in jablotron.device_problem_sensors()), True)
 
+	lan_connection = jablotron.lan_connection()
+	if lan_connection is not None:
+		async_add_entities([JablotronLanConnectionEntity(jablotron, lan_connection)], True)
 
 class JablotronProblemSensorEntity(JablotronEntity, BinarySensorEntity):
 
@@ -92,3 +96,14 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 
 	def _device_id(self) -> str:
 		return self._control.name
+
+
+class JablotronLanConnectionEntity(JablotronEntity, BinarySensorEntity):
+
+	@property
+	def is_on(self) -> bool:
+		return self.state == STATE_ON
+
+	@property
+	def device_class(self) -> str:
+		return DEVICE_CLASS_CONNECTIVITY
