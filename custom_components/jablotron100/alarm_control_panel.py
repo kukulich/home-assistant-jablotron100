@@ -40,14 +40,14 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		else:
 			code_required = self._jablotron.is_code_required_for_disarm()
 
-		return FORMAT_NUMBER if code_required == True else None
+		return FORMAT_NUMBER if code_required is True else None
 
 	@property
 	def supported_features(self) -> int:
 		return SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_NIGHT
 
 	def update_state(self, state: str) -> None:
-		if self._arming_in_progress == True:
+		if self._arming_in_progress is True:
 			self._arming_in_progress = False
 
 			if state == STATE_ALARM_DISARMED:
@@ -98,6 +98,3 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	@staticmethod
 	def _clean_code(code: Optional[str]) -> Optional[str]:
 		return None if code == "" else code
-
-
-

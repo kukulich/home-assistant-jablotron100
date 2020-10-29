@@ -27,6 +27,7 @@ from .const import (
 from .jablotron import JablotronEntity
 from typing import Optional
 
+
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
 	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
@@ -38,6 +39,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	lan_connection = jablotron.lan_connection()
 	if lan_connection is not None:
 		async_add_entities([JablotronLanConnectionEntity(jablotron, lan_connection)], True)
+
 
 class JablotronProblemSensorEntity(JablotronEntity, BinarySensorEntity):
 
