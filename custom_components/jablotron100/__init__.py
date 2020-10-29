@@ -23,7 +23,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	hass.data.setdefault(DOMAIN, {})
 
 	jablotron = Jablotron(hass, config_entry.data, config_entry.options)
-	jablotron.initialize()
+	await jablotron.initialize()
 
 	hass.data[DOMAIN][config_entry.entry_id] = {
 		DATA_JABLOTRON: jablotron,

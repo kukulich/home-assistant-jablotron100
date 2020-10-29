@@ -14,6 +14,7 @@ from homeassistant.const import (
 	STATE_OFF,
 	STATE_ON,
 )
+from homeassistant.helpers import storage
 from homeassistant.helpers.entity import Entity
 import re
 import sys
@@ -47,6 +48,9 @@ from .errors import (
 MAX_WORKERS = 5
 TIMEOUT = 10
 PACKET_READ_SIZE = 64
+
+STORAGE_VERSION = 1
+STORAGE_STATES_KEY = "states"
 
 # x02 model
 # x08 hardware version
@@ -235,6 +239,9 @@ class Jablotron:
 		self._state_checker_stop_event: threading.Event = threading.Event()
 		self._state_checker_data_updating_event: threading.Event = threading.Event()
 
+		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
+		self._stored_data: Optional[dict] = None
+
 		self.states: Dict[str, str] = {}
 		self.last_update_success: bool = False
 
@@ -248,11 +255,13 @@ class Jablotron:
 	def is_code_required_for_arm(self) -> bool:
 		return self._options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM)
 
-	def initialize(self) -> None:
+	async def initialize(self) -> None:
 		def shutdown_event(_):
 			self.shutdown()
 
 		self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, shutdown_event)
+
+		await self._load_stored_data()
 
 		self._detect_central_unit()
 		self._detect_sections()
@@ -313,6 +322,22 @@ class Jablotron:
 	def _update_all_entities(self) -> None:
 		for entity in self._entities.values():
 			entity.async_write_ha_state()
+
+	async def _load_stored_data(self) -> None:
+		self._stored_data = await self._store.async_load()
+
+		if self._stored_data is None:
+			self._stored_data = {}
+
+		serial_port = self._config[CONF_SERIAL_PORT]
+
+		if serial_port not in self._stored_data:
+			return
+
+		if STORAGE_STATES_KEY not in self._stored_data[serial_port]:
+			return
+
+		self.states = self._stored_data[serial_port][STORAGE_STATES_KEY]
 
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
@@ -453,8 +478,8 @@ class Jablotron:
 			if not Jablotron._is_known_section_state(section_state):
 				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(sections_states_packet)))
 
-			self.states[section_alarm_id] = Jablotron._convert_jablotron_section_state_to_alarm_state(section_state)
-			self.states[section_problem_sensor_id] = Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state)
+			self._set_initial_state(section_alarm_id, Jablotron._convert_jablotron_section_state_to_alarm_state(section_state))
+			self._set_initial_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state))
 
 	def _create_devices(self) -> None:
 		for i in range(self._config[CONF_NUMBER_OF_DEVICES]):
@@ -485,8 +510,8 @@ class Jablotron:
 				Jablotron._create_device_problem_sensor_name(type, number),
 			))
 
-			self.states[device_sensor_id] = STATE_OFF
-			self.states[device_problem_sensor_id] = STATE_OFF
+			self._set_initial_state(device_sensor_id, STATE_OFF)
+			self._set_initial_state(device_problem_sensor_id, STATE_OFF)
 
 	def _create_lan_connection(self) -> None:
 		if self._get_lan_connection_device_number() is None:
@@ -501,7 +526,7 @@ class Jablotron:
 			self._create_lan_connection_name(),
 		)
 
-		self.states[id] = STATE_ON
+		self._set_initial_state(id, STATE_ON)
 
 	def _read_packets(self) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")
@@ -590,7 +615,7 @@ class Jablotron:
 
 		stream.close()
 
-	def _update_state(self, id: str, state: str) -> None:
+	def _update_state(self, id: str, state: str, store_state: bool = False) -> None:
 		if id in self.states and state == self.states[id]:
 			return
 
@@ -598,6 +623,9 @@ class Jablotron:
 
 		if id in self._entities:
 			self._entities[id].async_write_ha_state()
+
+		if store_state:
+			self._store_state(id, state)
 
 	def _is_alarm_active(self) -> bool:
 		for alarm_control_panel in self._alarm_control_panels:
@@ -682,6 +710,7 @@ class Jablotron:
 			self._update_state(
 				Jablotron._create_lan_connection_id(),
 				STATE_ON if device_state == STATE_OFF else STATE_OFF,
+				store_state=True,
 			)
 		elif (
 			self._is_device_with_activity_sensor(device_number)
@@ -698,6 +727,7 @@ class Jablotron:
 			self._update_state(
 				Jablotron._create_device_problem_sensor_id(device_number),
 				device_state,
+				store_state=True,
 			)
 		else:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
@@ -725,6 +755,29 @@ class Jablotron:
 			return 125
 
 		return None
+
+	def _set_initial_state(self, id: str, initial_state: str):
+		if id in self.states:
+			# Loaded from stored data
+			return
+
+		self.states[id] = initial_state
+
+	def _store_state(self, id: str, state: str):
+		serial_port = self._config[CONF_SERIAL_PORT]
+
+		if serial_port not in self._stored_data:
+			self._stored_data[serial_port] = {}
+
+		if STORAGE_STATES_KEY not in self._stored_data[serial_port]:
+			self._stored_data[serial_port][STORAGE_STATES_KEY] = {}
+
+		self._stored_data[serial_port][STORAGE_STATES_KEY][id] = state
+		self._store.async_delay_save(self._data_to_store)
+
+	@core.callback
+	def _data_to_store(self) -> dict:
+		return self._stored_data
 
 	@staticmethod
 	def _create_code_packet(code: str) -> bytes:
