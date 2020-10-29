@@ -95,9 +95,6 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._arming_in_progress = True
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_NIGHT, code)
 
-	def _device_id(self) -> str:
-		return self._control.name
-
 	@staticmethod
 	def _clean_code(code: Optional[str]) -> Optional[str]:
 		return None if code == "" else code

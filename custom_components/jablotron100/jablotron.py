@@ -183,29 +183,36 @@ class JablotronCentralUnit:
 		self.firmware_version: str = firmware_version
 
 
+class JablotronHassDevice:
+
+	def __init__(self, id: str, name: str):
+		self.id: str = id
+		self.name: str = name
+
+
 class JablotronControl:
 
-	def __init__(self, central_unit: JablotronCentralUnit, name: str, id: str, friendly_name: Optional[str] = None):
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: Optional[JablotronHassDevice], id: str, name: str):
 		self.central_unit: JablotronCentralUnit = central_unit
-		self.name: str = name
+		self.hass_device: Optional[JablotronHassDevice] = hass_device
 		self.id: str = id
-		self.friendly_name: Optional[str] = friendly_name
+		self.name: str = name
 
 
 class JablotronDevice(JablotronControl):
 
-	def __init__(self, central_unit: JablotronCentralUnit, name: str, id: str, type: str):
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, id: str, name: str, type: str):
 		self.type: str = type
 
-		super().__init__(central_unit, name, id)
+		super().__init__(central_unit, hass_device, id, name)
 
 
 class JablotronAlarmControlPanel(JablotronControl):
 
-	def __init__(self, central_unit: JablotronCentralUnit, section: int, name: str, id: str):
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, id: str, name: str, section: int):
 		self.section: int = section
 
-		super().__init__(central_unit, name, id)
+		super().__init__(central_unit, hass_device, id, name)
 
 
 class Jablotron:
@@ -423,19 +430,22 @@ class Jablotron:
 		section_states = Jablotron._parse_sections_states_packet(sections_states_packet)
 
 		for section, section_packet in section_states.items():
+			section_hass_device = Jablotron._create_section_hass_device(section)
 			section_alarm_id = Jablotron._create_section_alarm_id(section)
 			section_problem_sensor_id = Jablotron._create_section_problem_sensor_id(section)
 
 			self._alarm_control_panels.append(JablotronAlarmControlPanel(
 				self._central_unit,
-				section,
-				self._create_section_name(section),
+				section_hass_device,
 				section_alarm_id,
+				Jablotron._create_section_alarm_name(section),
+				section,
 			))
 			self._section_problem_sensors.append(JablotronControl(
 				self._central_unit,
-				self._create_section_problem_sensor_name(section),
+				section_hass_device,
 				section_problem_sensor_id,
+				Jablotron._create_section_problem_sensor_name(section),
 			))
 
 			section_state = Jablotron._parse_jablotron_section_state(section_packet)
@@ -455,26 +465,27 @@ class Jablotron:
 
 			type = self._get_device_type(number)
 
-			device_name = Jablotron._create_device_sensor_name(type, number)
-			device_id = Jablotron._create_device_sensor_id(number)
+			hass_device = Jablotron._create_device_hass_device(type, number)
+			device_sensor_id = Jablotron._create_device_sensor_id(number)
 			device_problem_sensor_id = Jablotron._create_device_problem_sensor_id(number)
 
 			if self._is_device_with_activity_sensor(number):
 				self._device_sensors.append(JablotronDevice(
 					self._central_unit,
-					device_name,
-					device_id,
+					hass_device,
+					device_sensor_id,
+					Jablotron._create_device_sensor_name(type, number),
 					type,
 				))
 
 			self._device_problem_sensors.append(JablotronControl(
 				self._central_unit,
-				device_name,
+				hass_device,
 				device_problem_sensor_id,
 				Jablotron._create_device_problem_sensor_name(type, number),
 			))
 
-			self.states[device_id] = STATE_OFF
+			self.states[device_sensor_id] = STATE_OFF
 			self.states[device_problem_sensor_id] = STATE_OFF
 
 	def _create_lan_connection(self) -> None:
@@ -482,12 +493,12 @@ class Jablotron:
 			return None
 
 		id = self._create_lan_connection_id()
-		name = self._create_lan_connection_name()
 
 		self._lan_connection = JablotronControl(
 			self._central_unit,
-			name,
+			None,
 			id,
+			self._create_lan_connection_name(),
 		)
 
 		self.states[id] = STATE_ON
@@ -806,12 +817,19 @@ class Jablotron:
 		return bin_string[::-1]
 
 	@staticmethod
-	def _create_section_name(section: int) -> str:
-		return "Section {}".format(section)
+	def _create_section_hass_device(section: int) -> JablotronHassDevice:
+		return JablotronHassDevice(
+			"section_{}".format(section),
+			"Section {}".format(section),
+		)
 
 	@staticmethod
 	def _create_section_alarm_id(section: int) -> str:
 		return "section_{}".format(section)
+
+	@staticmethod
+	def _create_section_alarm_name(section: int) -> str:
+		return "Section {}".format(section)
 
 	@staticmethod
 	def _create_section_problem_sensor_id(section: int) -> str:
@@ -822,28 +840,35 @@ class Jablotron:
 		return "Problem of section {}".format(section)
 
 	@staticmethod
-	def _create_device_sensor_name(type: str, number: int) -> str:
-		return "{} (device {})".format(DEVICES[type], number)
+	def _create_device_hass_device(device_type: str, device_number: int) -> JablotronHassDevice:
+		return JablotronHassDevice(
+			"device_{}".format(device_number),
+			"{} (device {})".format(DEVICES[device_type], device_number),
+		)
 
 	@staticmethod
-	def _create_device_problem_sensor_name(type: str, number: int) -> str:
-		return "Problem of {} (device {})".format(DEVICES[type].lower(), number)
+	def _create_device_sensor_id(device_number: int) -> str:
+		return "device_sensor_{}".format(device_number)
 
 	@staticmethod
-	def _create_device_sensor_id(number: int) -> str:
-		return "device_sensor_{}".format(number)
+	def _create_device_sensor_name(device_type: str, device_number: int) -> str:
+		return "{} (device {})".format(DEVICES[device_type], device_number)
 
 	@staticmethod
-	def _create_device_problem_sensor_id(number: int) -> str:
-		return "device_problem_sensor_{}".format(number)
+	def _create_device_problem_sensor_id(device_number: int) -> str:
+		return "device_problem_sensor_{}".format(device_number)
 
 	@staticmethod
-	def _create_lan_connection_name() -> str:
-		return "LAN connection"
+	def _create_device_problem_sensor_name(device_type: str, device_number: int) -> str:
+		return "Problem of {} (device {})".format(DEVICES[device_type].lower(), device_number)
 
 	@staticmethod
 	def _create_lan_connection_id() -> str:
 		return "lan"
+
+	@staticmethod
+	def _create_lan_connection_name() -> str:
+		return "LAN connection"
 
 	@staticmethod
 	def _is_known_section_state(state: Dict[str, int]) -> bool:
@@ -921,27 +946,21 @@ class JablotronEntity(Entity):
 	def available(self) -> bool:
 		return self._jablotron.last_update_success
 
-	def _device_id(self) -> Optional[str]:
-		return None
-
 	@property
-	def device_info(self) -> Optional[Dict[str, str]]:
-		device_id = self._device_id()
-
-		if device_id is None:
-			return None
+	def device_info(self):
+		if self._control.hass_device is None:
+			return {
+				"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
+			}
 
 		return {
-			"identifiers": {(DOMAIN, device_id)},
-			"name": self._device_id(),
+			"identifiers": {(DOMAIN, self._control.hass_device.id)},
+			"name": self._control.hass_device.name,
 			"via_device": (DOMAIN, self._control.central_unit.serial_port),
 		}
 
 	@property
 	def name(self) -> str:
-		if self._control.friendly_name is not None:
-			return self._control.friendly_name
-
 		return self._control.name
 
 	@property
