@@ -556,7 +556,9 @@ class Jablotron:
 						self._update_all_entities()
 						break
 
-					self.last_update_success = True
+					if self.last_update_success is False:
+						self.last_update_success = True
+						self._update_all_entities()
 
 					prefix = packet[:2]
 
