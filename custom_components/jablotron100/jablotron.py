@@ -624,7 +624,7 @@ class Jablotron:
 		self.states[id] = state
 
 		if id in self._entities:
-			self._entities[id].async_write_ha_state()
+			self._entities[id].update_state(state)
 
 		if store_state:
 			self._store_state(id, state)
