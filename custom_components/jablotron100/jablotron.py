@@ -626,7 +626,7 @@ class Jablotron:
 		if id in self._entities:
 			self._entities[id].update_state(state)
 
-		if store_state:
+		if store_state is True:
 			self._store_state(id, state)
 
 	def _is_alarm_active(self) -> bool:
