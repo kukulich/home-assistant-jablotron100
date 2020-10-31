@@ -31,7 +31,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	) -> None:
 		super().__init__(jablotron, control)
 
-		self._arming_in_progress: bool = False
+		self._state_before_arming: Optional[str] = None
 
 	@property
 	def code_format(self) -> Optional[str]:
@@ -47,12 +47,12 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		return SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_NIGHT
 
 	def update_state(self, state: str) -> None:
-		if self._arming_in_progress is True:
-			self._arming_in_progress = False
+		state_before_arming = self._state_before_arming
+		self._state_before_arming = None
 
-			if state == STATE_ALARM_DISARMED:
-				# Ignore first update with DISARMED state because it's probably outdated
-				return
+		if self.state == STATE_ALARM_ARMING and state_before_arming == state:
+			# Ignore first update because it's probably outdated
+			return
 
 		super().update_state(state)
 
@@ -65,7 +65,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._jablotron.is_code_required_for_disarm():
 			return
 
-		self._arming_in_progress = False
+		self._state_before_arming = None
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_DISARMED, code)
 		self.update_state(STATE_ALARM_DISARMED)
 
@@ -78,8 +78,9 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
+		state_before_arming = self.state
 		self.update_state(STATE_ALARM_ARMING)
-		self._arming_in_progress = True
+		self._state_before_arming = state_before_arming
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
 	async def async_alarm_arm_night(self, code: Optional[str] = None) -> None:
@@ -91,8 +92,9 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
+		state_before_arming = self.state
 		self.update_state(STATE_ALARM_ARMING)
-		self._arming_in_progress = True
+		self._state_before_arming = state_before_arming
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_NIGHT, code)
 
 	@staticmethod
