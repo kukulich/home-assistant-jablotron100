@@ -569,11 +569,8 @@ class Jablotron:
 					if Jablotron._is_device_state_packet(prefix):
 						self._parse_device_state_packet(packet)
 
-						for i in range(len(packet) - 1):
-							possible_sections_states_prefix = packet[i:(i + 2)]
-
-							if possible_sections_states_prefix == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
-								self._parse_section_states_packet(packet[i:])
+						if packet[10:12] == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
+							self._parse_section_states_packet(packet[10:])
 
 						break
 
