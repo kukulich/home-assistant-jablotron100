@@ -614,18 +614,6 @@ class Jablotron:
 
 		stream.close()
 
-	def _update_state(self, id: str, state: str, store_state: bool = False) -> None:
-		if id in self.states and state == self.states[id]:
-			return
-
-		self.states[id] = state
-
-		if id in self._entities:
-			self._entities[id].update_state(state)
-
-		if store_state is True:
-			self._store_state(id, state)
-
 	def _is_alarm_active(self) -> bool:
 		for alarm_control_panel in self._alarm_control_panels:
 			section_alarm_id = Jablotron._create_section_alarm_id(alarm_control_panel.section)
@@ -760,7 +748,19 @@ class Jablotron:
 			# Loaded from stored data
 			return
 
-		self.states[id] = initial_state
+		self._update_state(id, initial_state)
+
+	def _update_state(self, id: str, state: str, store_state: bool = False) -> None:
+		if id in self.states and state == self.states[id]:
+			return
+
+		if id in self._entities:
+			self._entities[id].update_state(state)
+		else:
+			self.states[id] = state
+
+		if store_state is True:
+			self._store_state(id, state)
 
 	def _store_state(self, id: str, state: str):
 		serial_port = self._config[CONF_SERIAL_PORT]
