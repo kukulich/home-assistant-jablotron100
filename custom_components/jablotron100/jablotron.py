@@ -98,11 +98,9 @@ JABLOTRON_SECTION_SECONDARY_STATES = [
 
 JABLOTRON_SECTION_TERTIARY_STATE_OFF = 0
 JABLOTRON_SECTION_TERTIARY_STATE_ON = 1
-JABLOTRON_SECTION_TERTIARY_STATE_TRIGGERED = 17
 JABLOTRON_SECTION_TERTIARY_STATES = [
 	JABLOTRON_SECTION_TERTIARY_STATE_OFF,
 	JABLOTRON_SECTION_TERTIARY_STATE_ON,
-	JABLOTRON_SECTION_TERTIARY_STATE_TRIGGERED,
 ]
 
 
@@ -968,17 +966,17 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_jablotron_section_state(packet: bytes) -> Dict[str, int]:
-		first_packet = packet[0:1]
+		first_number = Jablotron._bytes_to_int(packet[0:1])
+		second_number = Jablotron._bytes_to_int(packet[1:2])
 
-		number = Jablotron._bytes_to_int(first_packet)
-
-		primary_state = number % 16
-		secondary_state = int((number - primary_state) / 16)
+		primary_state = first_number % 16
+		secondary_state = int((first_number - primary_state) / 16)
+		tertiary_state = second_number % 16
 
 		return {
 			"primary": primary_state,
 			"secondary": secondary_state,
-			"tertiary": Jablotron._bytes_to_int(packet[1:2]),
+			"tertiary": tertiary_state,
 		}
 
 	@staticmethod
