@@ -738,7 +738,7 @@ class Jablotron:
 				)
 
 	def _get_lan_connection_device_number(self) -> Optional[int]:
-		if self._central_unit.model == "JA-101K-LAN":
+		if self._central_unit.model in ["JA-101K-LAN", "JA-106K-3G"]:
 			return 125
 
 		return None
