@@ -673,6 +673,10 @@ class Jablotron:
 			LOGGER.debug("State packet of central unit: {}".format(Jablotron.format_packet_to_string(packet)))
 			return
 
+		if device_number == 250:
+			# Mobile application
+			return
+
 		lan_connection_device_number = self._get_lan_connection_device_number()
 		is_lan_connection_device = True if lan_connection_device_number == device_number else False
 
