@@ -75,11 +75,13 @@ JABLOTRON_INFO_INSTALLATION_NAME = b"\x0b"
 JABLOTRON_SECTION_PRIMARY_STATE_DISARMED = 1
 JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY = 2
 JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL = 3
+JABLOTRON_SECTION_PRIMARY_STATE_SERVICE = 5
 JABLOTRON_SECTION_PRIMARY_STATE_TRIGGERED = 11
 JABLOTRON_SECTION_PRIMARY_STATES = [
 	JABLOTRON_SECTION_PRIMARY_STATE_DISARMED,
 	JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY,
 	JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL,
+	JABLOTRON_SECTION_PRIMARY_STATE_SERVICE,
 	JABLOTRON_SECTION_PRIMARY_STATE_TRIGGERED,
 ]
 
@@ -242,6 +244,7 @@ class Jablotron:
 
 		self.states: Dict[str, str] = {}
 		self.last_update_success: bool = False
+		self.in_service = False
 
 	def update_options(self, options: Dict[str, Any]) -> None:
 		self._options = options
@@ -561,7 +564,13 @@ class Jablotron:
 					prefix = packet[:2]
 
 					if prefix == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
+						in_service = self.in_service
+
 						self._parse_section_states_packet(packet)
+
+						if in_service != self.in_service:
+							self._update_all_entities()
+
 						break
 
 					if Jablotron._is_device_state_packet(prefix):
@@ -651,6 +660,11 @@ class Jablotron:
 
 			if not Jablotron._is_known_section_state(section_state):
 				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(packet)))
+
+			if section_state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_SERVICE:
+				# Service is for all sections - we can check only the first
+				self.in_service = True
+				return
 
 			self._update_state(
 				Jablotron._create_section_alarm_id(section),
@@ -1005,6 +1019,9 @@ class JablotronEntity(Entity):
 
 	@property
 	def available(self) -> bool:
+		if self._jablotron.in_service is True:
+			return False
+
 		return self._jablotron.last_update_success
 
 	@property
