@@ -3,6 +3,7 @@
 from homeassistant import config_entries, core
 from homeassistant.components.alarm_control_panel import DOMAIN as PLATFORM_ALARM_CONTROL_PANEL
 from homeassistant.components.binary_sensor import DOMAIN as PLATFORM_BINARY_SENSOR
+from homeassistant.components.sensor import DOMAIN as PLATFORM_SENSOR
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
@@ -43,7 +44,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 		sw_version=central_unit.firmware_version,
 	)
 
-	for platform in [PLATFORM_ALARM_CONTROL_PANEL, PLATFORM_BINARY_SENSOR]:
+	for platform in [PLATFORM_ALARM_CONTROL_PANEL, PLATFORM_BINARY_SENSOR, PLATFORM_SENSOR]:
 		hass.async_create_task(
 			hass.config_entries.async_forward_entry_setup(config_entry, platform)
 		)
