@@ -1025,7 +1025,7 @@ class JablotronEntity(Entity):
 		return self._jablotron.last_update_success
 
 	@property
-	def device_info(self):
+	def device_info(self) -> Optional[Dict[str, Any]]:
 		if self._control.hass_device is None:
 			return {
 				"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
