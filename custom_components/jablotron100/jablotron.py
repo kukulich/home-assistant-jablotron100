@@ -773,7 +773,6 @@ class Jablotron:
 		type = self._get_device_type(number)
 
 		return type in [
-			DEVICE_KEYPAD,
 			DEVICE_OTHER,
 			DEVICE_EMPTY,
 		]
@@ -786,6 +785,7 @@ class Jablotron:
 		type = self._get_device_type(number)
 
 		return type not in [
+			DEVICE_KEYPAD,
 			DEVICE_SIREN_OUTDOOR,
 		]
 
@@ -855,8 +855,10 @@ class Jablotron:
 				LOGGER.debug("State packet of unknown device: {}".format(Jablotron.format_packet_to_string(packet)))
 				return
 
-			if self._is_device_ignored(device_number):
-				LOGGER.debug("State packet of {}: {}".format(DEVICES[self._get_device_type(device_number)].lower(), Jablotron.format_packet_to_string(packet)))
+			device_type = self._get_device_type(device_number)
+
+			if self._is_device_ignored(device_number) or device_type == DEVICE_KEYPAD:
+				LOGGER.debug("State packet of {}: {}".format(DEVICES[device_type].lower(), Jablotron.format_packet_to_string(packet)))
 				return
 
 		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, device_number)
