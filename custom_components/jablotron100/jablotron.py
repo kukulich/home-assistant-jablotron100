@@ -57,7 +57,7 @@ PACKET_READ_SIZE = 64
 STORAGE_VERSION = 1
 STORAGE_STATES_KEY = "states"
 STORAGE_DEVICES_CONNECTIONS_KEY = "devices_connections"
-STORAGE_WIRELESS_DEVICES_BATTERY_LEVELS = "wireless_devices_battery_levels"
+STORAGE_DEVICES_BATTERY_LEVELS_KEY = "devices_battery_levels"
 
 # x02 model
 # x08 hardware version
@@ -258,7 +258,7 @@ class Jablotron:
 		self._stored_data: Optional[dict] = None
 
 		self._devices_connections: Dict[str, str] = {}
-		self._wireless_devices_battery_levels: Dict[str, int] = {}
+		self._devices_battery_levels: Dict[str, int] = {}
 
 		self.states: Dict[str, StateType] = {}
 		self.last_update_success: bool = False
@@ -363,8 +363,8 @@ class Jablotron:
 		if STORAGE_DEVICES_CONNECTIONS_KEY in self._stored_data[serial_port]:
 			self._devices_connections = self._stored_data[serial_port][STORAGE_DEVICES_CONNECTIONS_KEY]
 
-		if STORAGE_WIRELESS_DEVICES_BATTERY_LEVELS in self._stored_data[serial_port]:
-			self._wireless_devices_battery_levels = self._stored_data[serial_port][STORAGE_WIRELESS_DEVICES_BATTERY_LEVELS]
+		if STORAGE_DEVICES_BATTERY_LEVELS_KEY in self._stored_data[serial_port]:
+			self._devices_battery_levels = self._stored_data[serial_port][STORAGE_DEVICES_BATTERY_LEVELS_KEY]
 
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
@@ -579,7 +579,7 @@ class Jablotron:
 				battery_level = Jablotron._parse_device_battery_level_from_device_info_packet(devices_info_packets[device_id])
 
 				if battery_level is not None:
-					self._wireless_devices_battery_levels[device_id] = battery_level
+					self._devices_battery_levels[device_id] = battery_level
 				else:
 					LOGGER.debug("Unknown battery level packet of device {}: {}".format(
 						Jablotron._bytes_to_int(devices_info_packets[device_id][3:4]),
@@ -622,14 +622,14 @@ class Jablotron:
 			))
 			self._set_initial_state(device_problem_sensor_id, STATE_OFF)
 
-			if self._is_wireless_device(device_number):
+			if self._is_device_with_battery(device_number):
 				self._device_battery_level_sensors.append(JablotronControl(
 					self._central_unit,
 					hass_device,
 					device_battery_level_sensor_id,
 					Jablotron._get_device_battery_level_sensor_name(type, device_number),
 				))
-				self._set_initial_state(device_battery_level_sensor_id, self._wireless_devices_battery_levels[device_id])
+				self._set_initial_state(device_battery_level_sensor_id, self._devices_battery_levels[device_id])
 
 	def _create_lan_connection(self) -> None:
 		if self._get_lan_connection_device_number() is None:
@@ -730,7 +730,7 @@ class Jablotron:
 						time_since_last_update = actual_time - last_battery_levels_update
 						if time_since_last_update.total_seconds() > 12 * 3600:
 							for device_number in self._get_numbers_of_not_ignored_devices():
-								if self._is_wireless_device(device_number):
+								if self._is_device_with_battery(device_number):
 									self._send_packet(JABLOTRON_PACKET_GET_DEVICE_INFO_PREFIX + Jablotron._int_to_bytes(device_number))
 
 							last_battery_levels_update = actual_time
@@ -780,6 +780,10 @@ class Jablotron:
 	def _is_wireless_device(self, number: int):
 		device_id = self._get_device_id(number)
 		return self._devices_connections[device_id] == DEVICE_CONNECTION_WIRELESS
+
+	def _is_device_with_battery(self, number: int):
+		device_id = self._get_device_id(number)
+		return device_id in self._devices_battery_levels
 
 	def _is_device_with_activity_sensor(self, number: int) -> bool:
 		type = self._get_device_type(number)
@@ -838,7 +842,7 @@ class Jablotron:
 
 		self._device_hass_devices[device_id].battery_level = battery_level
 
-		self._wireless_devices_battery_levels[device_id] = battery_level
+		self._devices_battery_levels[device_id] = battery_level
 		self._store_devices_data()
 
 	def _parse_device_state_packet(self, packet: bytes) -> None:
@@ -975,7 +979,7 @@ class Jablotron:
 			self._stored_data[serial_port] = {}
 
 		self._stored_data[serial_port][STORAGE_DEVICES_CONNECTIONS_KEY] = self._devices_connections
-		self._stored_data[serial_port][STORAGE_WIRELESS_DEVICES_BATTERY_LEVELS] = self._wireless_devices_battery_levels
+		self._stored_data[serial_port][STORAGE_DEVICES_BATTERY_LEVELS_KEY] = self._devices_battery_levels
 		self._store.async_delay_save(self._data_to_store)
 
 	def _create_device_hass_device(self, device_number: int) -> JablotronHassDevice:
@@ -983,8 +987,8 @@ class Jablotron:
 		device_type = self._get_device_type(device_number)
 
 		battery_level: Optional[int] = None
-		if self._is_wireless_device(device_number):
-			battery_level = self._wireless_devices_battery_levels[device_id]
+		if self._is_device_with_battery(device_number):
+			battery_level = self._devices_battery_levels[device_id]
 
 		return JablotronHassDevice(
 			"device_{}".format(device_number),
