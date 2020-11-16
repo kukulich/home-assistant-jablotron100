@@ -926,6 +926,9 @@ class Jablotron:
 		self._update_state(id, initial_state)
 
 	def _update_state(self, id: str, state: StateType, store_state: bool = False) -> None:
+		if store_state is True:
+			self._store_state(id, state)
+
 		if id in self.states and state == self.states[id]:
 			return
 
@@ -933,9 +936,6 @@ class Jablotron:
 			self._entities[id].update_state(state)
 		else:
 			self.states[id] = state
-
-		if store_state is True:
-			self._store_state(id, state)
 
 	def _store_state(self, id: str, state: StateType):
 		serial_port = self._config[CONF_SERIAL_PORT]
@@ -945,6 +945,12 @@ class Jablotron:
 
 		if STORAGE_STATES_KEY not in self._stored_data[serial_port]:
 			self._stored_data[serial_port][STORAGE_STATES_KEY] = {}
+
+		if (
+			id in self._stored_data[serial_port][STORAGE_STATES_KEY]
+			and self._stored_data[serial_port][STORAGE_STATES_KEY][id] == state
+		):
+			return
 
 		self._stored_data[serial_port][STORAGE_STATES_KEY][id] = state
 		self._store.async_delay_save(self._data_to_store)
