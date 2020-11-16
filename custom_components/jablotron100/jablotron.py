@@ -509,12 +509,8 @@ class Jablotron:
 			self._set_initial_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state))
 
 	def _detect_devices(self) -> None:
-		not_ignored_device_numbers = []
-		for number in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
-			if not self._is_device_ignored(number):
-				not_ignored_device_numbers.append(number)
-
-		not_ignored_devices_count = len(not_ignored_device_numbers)
+		numbers_of_not_ignored_devices = self._get_numbers_of_not_ignored_devices()
+		not_ignored_devices_count = len(numbers_of_not_ignored_devices)
 
 		if not_ignored_devices_count == 0:
 			return
@@ -551,8 +547,8 @@ class Jablotron:
 			self._send_packet(Jablotron._create_code_packet(self._config[CONF_PASSWORD]) + JABLOTRON_PACKET_LOGIN)
 
 			while not stop_event.is_set():
-				for not_ignored_device_number in not_ignored_device_numbers:
-					self._send_packet(JABLOTRON_PACKET_GET_DEVICE_INFO_PREFIX + Jablotron._int_to_bytes(not_ignored_device_number))
+				for number_of_not_ignored_device in numbers_of_not_ignored_devices:
+					self._send_packet(JABLOTRON_PACKET_GET_DEVICE_INFO_PREFIX + Jablotron._int_to_bytes(number_of_not_ignored_device))
 
 				time.sleep(estimated_duration)
 
@@ -585,28 +581,27 @@ class Jablotron:
 		self._store_devices_data()
 
 	def _create_devices(self) -> None:
-		if self._config[CONF_NUMBER_OF_DEVICES] == 0:
+		numbers_of_not_ignored_devices = self._get_numbers_of_not_ignored_devices()
+
+		if len(numbers_of_not_ignored_devices) == 0:
 			return
 
-		for number in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
-			if self._is_device_ignored(number):
-				continue
-
-			device_id = self._get_device_id(number)
-			hass_device = self._create_device_hass_device(number)
+		for device_number in numbers_of_not_ignored_devices:
+			device_id = self._get_device_id(device_number)
+			hass_device = self._create_device_hass_device(device_number)
 			self._device_hass_devices[device_id] = hass_device
 
-			device_sensor_id = Jablotron._get_device_sensor_id(number)
-			device_problem_sensor_id = Jablotron._get_device_problem_sensor_id(number)
-			device_battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(number)
-			type = self._get_device_type(number)
+			device_sensor_id = Jablotron._get_device_sensor_id(device_number)
+			device_problem_sensor_id = Jablotron._get_device_problem_sensor_id(device_number)
+			device_battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(device_number)
+			type = self._get_device_type(device_number)
 
-			if self._is_device_with_activity_sensor(number):
+			if self._is_device_with_activity_sensor(device_number):
 				self._device_sensors.append(JablotronDevice(
 					self._central_unit,
 					hass_device,
 					device_sensor_id,
-					Jablotron._get_device_sensor_name(type, number),
+					Jablotron._get_device_sensor_name(type, device_number),
 					type,
 				))
 				self._set_initial_state(device_sensor_id, STATE_OFF)
@@ -615,16 +610,16 @@ class Jablotron:
 				self._central_unit,
 				hass_device,
 				device_problem_sensor_id,
-				Jablotron._get_device_problem_sensor_name(type, number),
+				Jablotron._get_device_problem_sensor_name(type, device_number),
 			))
 			self._set_initial_state(device_problem_sensor_id, STATE_OFF)
 
-			if self._is_wireless_device(number):
+			if self._is_wireless_device(device_number):
 				self._device_battery_level_sensors.append(JablotronControl(
 					self._central_unit,
 					hass_device,
 					device_battery_level_sensor_id,
-					Jablotron._get_device_battery_level_sensor_name(type, number),
+					Jablotron._get_device_battery_level_sensor_name(type, device_number),
 				))
 				self._set_initial_state(device_battery_level_sensor_id, self._wireless_devices_battery_levels[device_id])
 
@@ -726,11 +721,8 @@ class Jablotron:
 						actual_time = datetime.datetime.now()
 						time_since_last_update = actual_time - last_battery_levels_update
 						if time_since_last_update.total_seconds() > 12 * 3600:
-							for device_number in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
-								if (
-									not self._is_device_ignored(device_number)
-									and self._is_wireless_device(device_number)
-								):
+							for device_number in self._get_numbers_of_not_ignored_devices():
+								if self._is_wireless_device(device_number):
 									self._send_packet(JABLOTRON_PACKET_GET_DEVICE_INFO_PREFIX + Jablotron._int_to_bytes(device_number))
 
 							last_battery_levels_update = actual_time
@@ -902,12 +894,12 @@ class Jablotron:
 		if Jablotron._is_device_state_packet(packet[triggered_device_start_packet:(triggered_device_start_packet + 2)]):
 			self._parse_device_state_packet(packet[triggered_device_start_packet:])
 
-		for i in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
-			device_state = STATE_ON if states[i:(i + 1)] == "1" else STATE_OFF
+		for device_number in self._get_numbers_of_not_ignored_devices():
+			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
 			# Use only OFF state
 			if device_state == STATE_OFF:
 				self._update_state(
-					Jablotron._get_device_sensor_id(i),
+					Jablotron._get_device_sensor_id(device_number),
 					device_state,
 				)
 
@@ -916,6 +908,15 @@ class Jablotron:
 			return 125
 
 		return None
+
+	def _get_numbers_of_not_ignored_devices(self) -> List[int]:
+		numbers_of_not_ignored_devices = []
+
+		for number in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
+			if not self._is_device_ignored(number):
+				numbers_of_not_ignored_devices.append(number)
+
+		return numbers_of_not_ignored_devices
 
 	def _set_initial_state(self, id: str, initial_state: StateType):
 		if id in self.states:
