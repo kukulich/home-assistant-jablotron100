@@ -244,7 +244,7 @@ class Jablotron:
 
 		self.states: Dict[str, str] = {}
 		self.last_update_success: bool = False
-		self.in_service = False
+		self.in_service_mode = False
 
 	def update_options(self, options: Dict[str, Any]) -> None:
 		self._options = options
@@ -564,11 +564,11 @@ class Jablotron:
 					prefix = packet[:2]
 
 					if prefix == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
-						in_service = self.in_service
+						in_service_mode = self.in_service_mode
 
 						self._parse_section_states_packet(packet)
 
-						if in_service != self.in_service:
+						if in_service_mode != self.in_service_mode:
 							self._update_all_entities()
 
 						break
@@ -663,7 +663,7 @@ class Jablotron:
 
 			if section_state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_SERVICE:
 				# Service is for all sections - we can check only the first
-				self.in_service = True
+				self.in_service_mode = True
 				return
 
 			self._update_state(
@@ -1019,7 +1019,7 @@ class JablotronEntity(Entity):
 
 	@property
 	def available(self) -> bool:
-		if self._jablotron.in_service is True:
+		if self._jablotron.in_service_mode is True:
 			return False
 
 		return self._jablotron.last_update_success
