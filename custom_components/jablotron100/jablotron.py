@@ -483,21 +483,21 @@ class Jablotron:
 
 		for section, section_packet in section_states.items():
 			section_hass_device = Jablotron._create_section_hass_device(section)
-			section_alarm_id = Jablotron._create_section_alarm_id(section)
-			section_problem_sensor_id = Jablotron._create_section_problem_sensor_id(section)
+			section_alarm_id = Jablotron._get_section_alarm_id(section)
+			section_problem_sensor_id = Jablotron._get_section_problem_sensor_id(section)
 
 			self._alarm_control_panels.append(JablotronAlarmControlPanel(
 				self._central_unit,
 				section_hass_device,
 				section_alarm_id,
-				Jablotron._create_section_alarm_name(section),
+				Jablotron._get_section_alarm_name(section),
 				section,
 			))
 			self._section_problem_sensors.append(JablotronControl(
 				self._central_unit,
 				section_hass_device,
 				section_problem_sensor_id,
-				Jablotron._create_section_problem_sensor_name(section),
+				Jablotron._get_section_problem_sensor_name(section),
 			))
 
 			section_state = Jablotron._parse_jablotron_section_state(section_packet)
@@ -596,9 +596,9 @@ class Jablotron:
 			hass_device = self._create_device_hass_device(number)
 			self._device_hass_devices[device_id] = hass_device
 
-			device_sensor_id = Jablotron._create_device_sensor_id(number)
-			device_problem_sensor_id = Jablotron._create_device_problem_sensor_id(number)
-			device_battery_level_sensor_id = Jablotron._create_device_battery_level_sensor_id(number)
+			device_sensor_id = Jablotron._get_device_sensor_id(number)
+			device_problem_sensor_id = Jablotron._get_device_problem_sensor_id(number)
+			device_battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(number)
 			type = self._get_device_type(number)
 
 			if self._is_device_with_activity_sensor(number):
@@ -606,7 +606,7 @@ class Jablotron:
 					self._central_unit,
 					hass_device,
 					device_sensor_id,
-					Jablotron._create_device_sensor_name(type, number),
+					Jablotron._get_device_sensor_name(type, number),
 					type,
 				))
 				self._set_initial_state(device_sensor_id, STATE_OFF)
@@ -615,7 +615,7 @@ class Jablotron:
 				self._central_unit,
 				hass_device,
 				device_problem_sensor_id,
-				Jablotron._create_device_problem_sensor_name(type, number),
+				Jablotron._get_device_problem_sensor_name(type, number),
 			))
 			self._set_initial_state(device_problem_sensor_id, STATE_OFF)
 
@@ -624,7 +624,7 @@ class Jablotron:
 					self._central_unit,
 					hass_device,
 					device_battery_level_sensor_id,
-					Jablotron._create_device_battery_level_sensor_name(type, number),
+					Jablotron._get_device_battery_level_sensor_name(type, number),
 				))
 				self._set_initial_state(device_battery_level_sensor_id, self._wireless_devices_battery_levels[device_id])
 
@@ -632,13 +632,13 @@ class Jablotron:
 		if self._get_lan_connection_device_number() is None:
 			return None
 
-		id = self._create_lan_connection_id()
+		id = self._get_lan_connection_id()
 
 		self._lan_connection = JablotronControl(
 			self._central_unit,
 			None,
 			id,
-			self._create_lan_connection_name(),
+			self._get_lan_connection_name(),
 		)
 
 		self._set_initial_state(id, STATE_ON)
@@ -756,7 +756,7 @@ class Jablotron:
 
 	def _is_alarm_active(self) -> bool:
 		for alarm_control_panel in self._alarm_control_panels:
-			section_alarm_id = Jablotron._create_section_alarm_id(alarm_control_panel.section)
+			section_alarm_id = Jablotron._get_section_alarm_id(alarm_control_panel.section)
 
 			if (
 				self.states[section_alarm_id] == STATE_ALARM_TRIGGERED
@@ -804,7 +804,7 @@ class Jablotron:
 				return
 
 			self._update_state(
-				Jablotron._create_section_alarm_id(section),
+				Jablotron._get_section_alarm_id(section),
 				Jablotron._convert_jablotron_section_state_to_alarm_state(section_state),
 			)
 
@@ -813,7 +813,7 @@ class Jablotron:
 				or section_state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM
 			):
 				self._update_state(
-					Jablotron._create_section_problem_sensor_id(section),
+					Jablotron._get_section_problem_sensor_id(section),
 					Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state),
 				)
 
@@ -827,7 +827,7 @@ class Jablotron:
 			return
 
 		battery_level = Jablotron._parse_device_battery_level_from_device_info_packet(packet)
-		battery_level_sensor_id = Jablotron._create_device_battery_level_sensor_id(device_number)
+		battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(device_number)
 
 		self._update_state(battery_level_sensor_id, battery_level, store_state=True)
 
@@ -869,7 +869,7 @@ class Jablotron:
 
 		if is_lan_connection_device is True:
 			self._update_state(
-				Jablotron._create_lan_connection_id(),
+				Jablotron._get_lan_connection_id(),
 				STATE_ON if device_state == STATE_OFF else STATE_OFF,
 				store_state=True,
 			)
@@ -878,7 +878,7 @@ class Jablotron:
 			and Jablotron._is_device_state_packet_for_activity(packet)
 		):
 			self._update_state(
-				Jablotron._create_device_sensor_id(device_number),
+				Jablotron._get_device_sensor_id(device_number),
 				device_state,
 			)
 		elif (
@@ -886,7 +886,7 @@ class Jablotron:
 			or Jablotron._is_device_state_packet_for_fault(packet)
 		):
 			self._update_state(
-				Jablotron._create_device_problem_sensor_id(device_number),
+				Jablotron._get_device_problem_sensor_id(device_number),
 				device_state,
 				store_state=True,
 			)
@@ -907,7 +907,7 @@ class Jablotron:
 			# Use only OFF state
 			if device_state == STATE_OFF:
 				self._update_state(
-					Jablotron._create_device_sensor_id(i),
+					Jablotron._get_device_sensor_id(i),
 					device_state,
 				)
 
@@ -1098,51 +1098,51 @@ class Jablotron:
 		)
 
 	@staticmethod
-	def _create_section_alarm_id(section: int) -> str:
+	def _get_section_alarm_id(section: int) -> str:
 		return "section_{}".format(section)
 
 	@staticmethod
-	def _create_section_alarm_name(section: int) -> str:
+	def _get_section_alarm_name(section: int) -> str:
 		return "Section {}".format(section)
 
 	@staticmethod
-	def _create_section_problem_sensor_id(section: int) -> str:
+	def _get_section_problem_sensor_id(section: int) -> str:
 		return "section_problem_sensor_{}".format(section)
 
 	@staticmethod
-	def _create_section_problem_sensor_name(section: int) -> str:
+	def _get_section_problem_sensor_name(section: int) -> str:
 		return "Problem of section {}".format(section)
 
 	@staticmethod
-	def _create_device_sensor_id(device_number: int) -> str:
+	def _get_device_sensor_id(device_number: int) -> str:
 		return "device_sensor_{}".format(device_number)
 
 	@staticmethod
-	def _create_device_sensor_name(device_type: str, device_number: int) -> str:
+	def _get_device_sensor_name(device_type: str, device_number: int) -> str:
 		return "{} (device {})".format(DEVICES[device_type], device_number)
 
 	@staticmethod
-	def _create_device_problem_sensor_id(device_number: int) -> str:
+	def _get_device_problem_sensor_id(device_number: int) -> str:
 		return "device_problem_sensor_{}".format(device_number)
 
 	@staticmethod
-	def _create_device_battery_level_sensor_id(device_number: int) -> str:
+	def _get_device_battery_level_sensor_id(device_number: int) -> str:
 		return "device_battery_level_sensor_{}".format(device_number)
 
 	@staticmethod
-	def _create_device_problem_sensor_name(device_type: str, device_number: int) -> str:
+	def _get_device_problem_sensor_name(device_type: str, device_number: int) -> str:
 		return "Problem of {} (device {})".format(DEVICES[device_type].lower(), device_number)
 
 	@staticmethod
-	def _create_device_battery_level_sensor_name(device_type: str, device_number: int) -> str:
+	def _get_device_battery_level_sensor_name(device_type: str, device_number: int) -> str:
 		return "Battery level of {} (device {})".format(DEVICES[device_type].lower(), device_number)
 
 	@staticmethod
-	def _create_lan_connection_id() -> str:
+	def _get_lan_connection_id() -> str:
 		return "lan"
 
 	@staticmethod
-	def _create_lan_connection_name() -> str:
+	def _get_lan_connection_name() -> str:
 		return "LAN connection"
 
 	@staticmethod
