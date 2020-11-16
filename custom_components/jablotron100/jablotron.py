@@ -1003,7 +1003,6 @@ class Jablotron:
 
 
 class JablotronEntity(Entity):
-	_state: str
 
 	def __init__(
 			self,
