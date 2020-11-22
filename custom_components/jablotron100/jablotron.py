@@ -923,6 +923,9 @@ class Jablotron:
 		if self._central_unit.model in ["JA-101K-LAN", "JA-106K-3G"]:
 			return 125
 
+		if self._central_unit.model in ["JA-103K", "JA-103KRY"]:
+			return 233
+
 		return None
 
 	def _get_numbers_of_not_ignored_devices(self) -> List[int]:
