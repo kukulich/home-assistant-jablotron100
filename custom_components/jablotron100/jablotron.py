@@ -502,8 +502,8 @@ class Jablotron:
 			if not Jablotron._is_known_section_state(section_state):
 				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(sections_states_packet)))
 
-			self._set_initial_state(section_alarm_id, Jablotron._convert_jablotron_section_state_to_alarm_state(section_state))
-			self._set_initial_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state))
+			self._update_state(section_alarm_id, Jablotron._convert_jablotron_section_state_to_alarm_state(section_state))
+			self._update_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state))
 
 	def _detect_devices(self) -> None:
 		numbers_of_not_ignored_devices = self._get_numbers_of_not_ignored_devices()
