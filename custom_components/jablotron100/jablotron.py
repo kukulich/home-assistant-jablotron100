@@ -822,6 +822,9 @@ class Jablotron:
 					store_state=False,
 				)
 
+		# No service mode found
+		self.in_service_mode = False
+
 	def _parse_device_info_packet(self, packet: bytes) -> None:
 		device_number = Jablotron._bytes_to_int(packet[3:4])
 		device_id = Jablotron._get_device_id(device_number)
