@@ -502,8 +502,8 @@ class Jablotron:
 			if not Jablotron._is_known_section_state(section_state):
 				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(sections_states_packet)))
 
-			self._update_state(section_alarm_id, Jablotron._convert_jablotron_section_state_to_alarm_state(section_state))
-			self._update_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state))
+			self._update_state(section_alarm_id, Jablotron._convert_jablotron_section_state_to_alarm_state(section_state), store_state=False)
+			self._update_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state), store_state=False)
 
 	def _detect_devices(self) -> None:
 		numbers_of_not_ignored_devices = self._get_numbers_of_not_ignored_devices()
@@ -809,6 +809,7 @@ class Jablotron:
 			self._update_state(
 				Jablotron._get_section_alarm_id(section),
 				Jablotron._convert_jablotron_section_state_to_alarm_state(section_state),
+				store_state=False,
 			)
 
 			if (
@@ -818,6 +819,7 @@ class Jablotron:
 				self._update_state(
 					Jablotron._get_section_problem_sensor_id(section),
 					Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state),
+					store_state=False,
 				)
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
@@ -888,6 +890,7 @@ class Jablotron:
 			self._update_state(
 				Jablotron._get_device_sensor_id(device_number),
 				device_state,
+				store_state=False,
 			)
 		elif (
 			Jablotron._is_device_state_packet_for_sabotage(packet)
@@ -917,6 +920,7 @@ class Jablotron:
 				self._update_state(
 					Jablotron._get_device_sensor_id(device_number),
 					device_state,
+					store_state=False,
 				)
 
 	def _get_lan_connection_device_number(self) -> Optional[int]:
@@ -942,9 +946,9 @@ class Jablotron:
 			# Loaded from stored data
 			return
 
-		self._update_state(id, initial_state)
+		self._update_state(id, initial_state, store_state=False)
 
-	def _update_state(self, id: str, state: StateType, store_state: bool = False) -> None:
+	def _update_state(self, id: str, state: StateType, store_state: bool) -> None:
 		if store_state is True:
 			self._store_state(id, state)
 
