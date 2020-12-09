@@ -749,6 +749,7 @@ class Jablotron:
 		stream = open(self._config[CONF_SERIAL_PORT], "wb")
 
 		stream.write(packet)
+		# LOGGER.debug(Jablotron.format_packet_to_string(packet))
 		time.sleep(0.1)
 
 		stream.close()
