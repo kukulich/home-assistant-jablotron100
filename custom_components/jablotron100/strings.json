@@ -7,7 +7,8 @@
 				"data": {
 					"serial_port": "Serial port",
 					"password": "Code",
-					"number_of_devices": "Number of devices"
+					"number_of_devices": "Number of devices",
+					"number_of_pg_outputs": "Number of programmable PG outputs"
 				}
 			},
 			"devices": {

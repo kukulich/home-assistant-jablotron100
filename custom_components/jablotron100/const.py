@@ -8,6 +8,7 @@ NAME = "Jablotron"
 
 CONF_SERIAL_PORT = "serial_port"
 CONF_NUMBER_OF_DEVICES = "number_of_devices"
+CONF_NUMBER_OF_PG_OUTPUTS = "number_of_pg_outputs"
 CONF_DEVICES = "devices"
 CONF_REQUIRE_CODE_TO_ARM = "require_code_to_arm"
 CONF_REQUIRE_CODE_TO_DISARM = "require_code_to_disarm"
@@ -63,3 +64,4 @@ DEVICES = {
 
 MAX_SECTIONS = 15
 MAX_DEVICES = 120
+MAX_PG_OUTPUTS = 128

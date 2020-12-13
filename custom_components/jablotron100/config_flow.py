@@ -7,6 +7,7 @@ import voluptuous as vol
 from .const import (
 	CONF_SERIAL_PORT,
 	CONF_NUMBER_OF_DEVICES,
+	CONF_NUMBER_OF_PG_OUTPUTS,
 	CONF_DEVICES,
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
@@ -16,6 +17,7 @@ from .const import (
 	DOMAIN,
 	DEFAULT_SERIAL_PORT,
 	MAX_DEVICES,
+	MAX_PG_OUTPUTS,
 	NAME,
 	LOGGER,
 )
@@ -53,6 +55,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 					CONF_SERIAL_PORT: user_input[CONF_SERIAL_PORT],
 					CONF_PASSWORD: user_input[CONF_PASSWORD],
 					CONF_NUMBER_OF_DEVICES: user_input[CONF_NUMBER_OF_DEVICES],
+					CONF_NUMBER_OF_PG_OUTPUTS: user_input[CONF_NUMBER_OF_PG_OUTPUTS],
 				}
 
 				if user_input[CONF_NUMBER_OF_DEVICES] == 0:
@@ -89,6 +92,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 					vol.Required(CONF_SERIAL_PORT, default=DEFAULT_SERIAL_PORT): str,
 					vol.Required(CONF_PASSWORD): str,
 					vol.Optional(CONF_NUMBER_OF_DEVICES, default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_DEVICES)),
+					vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_PG_OUTPUTS)),
 				}
 			),
 			errors=errors,

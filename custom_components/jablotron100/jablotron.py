@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional, Union
 from .const import (
 	CONF_DEVICES,
 	CONF_NUMBER_OF_DEVICES,
+	CONF_NUMBER_OF_PG_OUTPUTS,
 	CONF_SERIAL_PORT,
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
@@ -67,12 +68,14 @@ JABLOTRON_PACKET_SYSTEM_INFO = b"\x40"
 JABLOTRON_PACKET_SECTIONS_STATES = b"\x51"
 JABLOTRON_PACKET_DEVICE_STATE = b"\x55"
 JABLOTRON_PACKET_DEVICES_STATES = b"\xd8"
+JABLOTRON_PACKET_PG_OUTPUT_STATE = b"\xd0"
+JABLOTRON_PACKET_PG_OUTPUTS_STATES = b"\x50"
 JABLOTRON_PACKET_COMMAND = b"\x52"
 JABLOTRON_PACKET_UI_CONTROL = b"\x80"
 
 JABLOTRON_COMMAND_HEARTBEAT = b"\x02"
 JABLOTRON_COMMAND_GET_DEVICE_INFO = b"\x0a"
-JABLOTRON_COMMAND_GET_SECTIONS_STATES = b"\x0e"
+JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES = b"\x0e"
 JABLOTRON_COMMAND_ENABLE_DEVICE_STATE_PACKETS = b"\x13"
 
 JABLOTRON_COMMAND_RESPONSE_DEVICE_INFO = b"\x8a"
@@ -80,6 +83,7 @@ JABLOTRON_COMMAND_RESPONSE_DEVICE_INFO = b"\x8a"
 JABLOTRON_UI_CONTROL_AUTHORISATION_END = b"\x01"
 JABLOTRON_UI_CONTROL_AUTHORISATION_CODE = b"\x03"
 JABLOTRON_UI_CONTROL_MODIFY_SECTION = b"\x0d"
+JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT = b"\x23"
 
 JABLOTRON_PACKETS_DEVICE_ACTIVITY = [
 	b"\x00", b"\x01", b"\x02", b"\x03", b"\x0a",
@@ -132,6 +136,10 @@ JABLOTRON_SECTION_TERTIARY_STATES = [
 
 JABLOTRON_SIGNAL_STRENGTH_STEP = 5
 JABLOTRON_BATTERY_LEVEL_STEP = 10
+
+JABLOTRON_PG_OUTPUT_TURN_ON = 1
+JABLOTRON_PG_OUTPUT_TURN_OFF = 2
+
 
 def check_serial_port(serial_port: str) -> None:
 	stop_event = threading.Event()
@@ -242,6 +250,14 @@ class JablotronAlarmControlPanel(JablotronControl):
 		super().__init__(central_unit, hass_device, id, name)
 
 
+class JablotronProgrammableOutput(JablotronControl):
+
+	def __init__(self, central_unit: JablotronCentralUnit, id: str, name: str, pg_output_number: int):
+		self.pg_output_number: int = pg_output_number
+
+		super().__init__(central_unit, None, id, name)
+
+
 class Jablotron:
 
 	def __init__(self, hass: core.HomeAssistant, config: Dict[str, Any], options: Dict[str, Any]) -> None:
@@ -261,6 +277,7 @@ class Jablotron:
 		self._lan_connection: Optional[JablotronControl] = None
 		self._gsm_signal_sensor: Optional[JablotronControl] = None
 		self._gsm_signal_strength_sensor: Optional[JablotronControl] = None
+		self._pg_outputs: List[JablotronProgrammableOutput] = []
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
@@ -296,7 +313,7 @@ class Jablotron:
 		await self._load_stored_data()
 
 		self._detect_central_unit()
-		self._detect_sections()
+		self._detect_sections_and_pg_outputs()
 		self._detect_devices()
 		self._create_devices()
 		self._create_lan_connection()
@@ -317,7 +334,7 @@ class Jablotron:
 
 		# Send packet so read thread can finish
 		self._send_packet(
-			Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_STATES)
+			Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES)
 			+ Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
 		)
 
@@ -352,6 +369,14 @@ class Jablotron:
 		if code != self._config[CONF_PASSWORD]:
 			self._send_packet(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
 
+	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
+		pg_output_number_packet = Jablotron.int_to_bytes(pg_output_number - 1)
+		state_packet = Jablotron.int_to_bytes(JABLOTRON_PG_OUTPUT_TURN_ON if state == STATE_ON else JABLOTRON_PG_OUTPUT_TURN_OFF)
+
+		packet = Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT, pg_output_number_packet + state_packet)
+
+		self._send_packet(packet)
+
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
 		return self._alarm_control_panels
 
@@ -378,6 +403,9 @@ class Jablotron:
 
 	def gsm_signal_strength_sensor(self) -> Optional[JablotronControl]:
 		return self._gsm_signal_strength_sensor
+
+	def pg_outputs(self) -> List[JablotronProgrammableOutput]:
+		return self._pg_outputs
 
 	def _update_all_entities(self) -> None:
 		for entity in self._entities.values():
@@ -470,7 +498,7 @@ class Jablotron:
 		if self._central_unit is None:
 			raise ShouldNotHappen
 
-	def _detect_sections(self) -> None:
+	def _detect_sections_and_pg_outputs(self) -> None:
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
@@ -481,15 +509,10 @@ class Jablotron:
 
 			try:
 				while not stop_event.is_set():
-					raw_packet = stream.read(PACKET_READ_SIZE)
-					packets = Jablotron.get_packets_from_packet(raw_packet)
-
-					for packet in packets:
-						if packet[:1] == JABLOTRON_PACKET_SECTIONS_STATES:
-							states_packet = packet
-							break
-
-					if states_packet is not None:
+					# Don't parse - it's parsed later
+					read_packet = stream.read(PACKET_READ_SIZE)
+					if self._is_sections_states_packet(read_packet):
+						states_packet = read_packet
 						break
 
 			finally:
@@ -499,14 +522,14 @@ class Jablotron:
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
-				self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_STATES))
+				self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 				time.sleep(1)
 
 		try:
 			reader = thread_pool_executor.submit(reader_thread)
 			thread_pool_executor.submit(writer_thread)
 
-			sections_states_packet = reader.result(TIMEOUT)
+			raw_packet = reader.result(TIMEOUT)
 
 		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
 			LOGGER.error(format(ex))
@@ -516,12 +539,25 @@ class Jablotron:
 			stop_event.set()
 			thread_pool_executor.shutdown()
 
-		if sections_states_packet is None:
+		if raw_packet is None:
 			raise ShouldNotHappen
 
-		section_states = Jablotron._parse_sections_states_packet(sections_states_packet)
+		packets = Jablotron.get_packets_from_packet(raw_packet)
 
-		for section, section_packet in section_states.items():
+		for packet in packets:
+			if Jablotron._is_sections_states_packet(packet):
+				self._create_sections(packet)
+
+			elif Jablotron._is_pg_outputs_states_packet(packet):
+				self._parse_pg_outputs_states_packet(packet)
+
+		# We have to create PG outputs even when no packet arrived
+		self._create_pg_outputs()
+
+	def _create_sections(self, packet: bytes) -> None:
+		sections_states = Jablotron._parse_sections_states_packet(packet)
+
+		for section, section_packet in sections_states.items():
 			section_hass_device = Jablotron._create_section_hass_device(section)
 			section_alarm_id = Jablotron._get_section_alarm_id(section)
 			section_problem_sensor_id = Jablotron._get_section_problem_sensor_id(section)
@@ -543,10 +579,26 @@ class Jablotron:
 			section_state = Jablotron._parse_jablotron_section_state(section_packet)
 
 			if not Jablotron._is_known_section_state(section_state):
-				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(sections_states_packet)))
+				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(packet)))
 
 			self._update_state(section_alarm_id, Jablotron._convert_jablotron_section_state_to_alarm_state(section_state), store_state=False)
 			self._update_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state), store_state=False)
+
+	def _create_pg_outputs(self) -> None:
+		if not self._has_pg_outputs():
+			return
+
+		for pg_output_number in range(1, self._config[CONF_NUMBER_OF_PG_OUTPUTS] + 1):
+			pg_output_id = Jablotron._get_pg_output_id(pg_output_number)
+
+			self._pg_outputs.append(JablotronProgrammableOutput(
+				self._central_unit,
+				pg_output_id,
+				Jablotron._get_pg_output_name(pg_output_number),
+				pg_output_number,
+			))
+
+			self._set_initial_state(pg_output_id, STATE_OFF)
 
 	def _detect_devices(self) -> None:
 		numbers_of_not_ignored_devices = self._get_numbers_of_not_ignored_devices()
@@ -731,6 +783,12 @@ class Jablotron:
 		self._set_initial_state(signal_sensor_id, STATE_ON)
 		self._set_initial_state(signal_strength_sensor_id, 100)
 
+	def _has_pg_outputs(self) -> bool:
+		if CONF_NUMBER_OF_PG_OUTPUTS not in self._config:
+			return False
+
+		return self._config[CONF_NUMBER_OF_PG_OUTPUTS] > 0
+
 	def _read_packets(self) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")
 		last_restarted_at_hour = datetime.datetime.now().hour
@@ -773,6 +831,12 @@ class Jablotron:
 
 							if in_service_mode != self.in_service_mode:
 								self._update_all_entities()
+
+						elif Jablotron._is_pg_outputs_states_packet(packet):
+							self._parse_pg_outputs_states_packet(packet)
+
+						elif Jablotron._is_pg_output_state_packet(packet):
+							self._parse_pg_output_state_packet(packet)
 
 						elif Jablotron._is_devices_states_packet(packet):
 							self._parse_devices_states_packet(packet)
@@ -1076,6 +1140,40 @@ class Jablotron:
 				store_state=False,
 			)
 
+	def _parse_pg_output_state_packet(self, packet: bytes) -> None:
+		number = Jablotron.bytes_to_int(packet[2:3])
+
+		if number < 51 or number > 114:
+			# 51 should be ON state of 1st PG output
+			# 114 should be OFF state of 32nd PG output
+			return
+
+		magic_offset = 18
+
+		pg_output_number = (number - magic_offset) % 32
+		pg_output_state = STATE_ON if int((number - magic_offset - pg_output_number) / 32) == 1 else STATE_OFF
+
+		self._update_state(
+			Jablotron._get_pg_output_id(pg_output_number),
+			pg_output_state,
+			store_state=True,
+		)
+
+	def _parse_pg_outputs_states_packet(self, packet: bytes) -> None:
+		states_start = 2
+		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
+
+		states = Jablotron._hex_to_bin(packet[states_start:states_end])
+
+		for pg_output_number in range(1, self._config[CONF_NUMBER_OF_PG_OUTPUTS] + 1):
+			pg_output_state = STATE_ON if states[(pg_output_number - 1):pg_output_number] == "1" else STATE_OFF
+
+			self._update_state(
+				Jablotron._get_pg_output_id(pg_output_number),
+				pg_output_state,
+				store_state=True,
+			)
+
 	def _get_lan_connection_device_number(self) -> Optional[int]:
 		if self._central_unit.model in ["JA-101K-LAN", "JA-106K-3G"]:
 			return 125
@@ -1170,6 +1268,14 @@ class Jablotron:
 	@staticmethod
 	def _is_sections_states_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_SECTIONS_STATES
+
+	@staticmethod
+	def _is_pg_outputs_states_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_PG_OUTPUTS_STATES
+
+	@staticmethod
+	def _is_pg_output_state_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_PG_OUTPUT_STATE
 
 	@staticmethod
 	def _is_devices_states_packet(packet: bytes) -> bool:
@@ -1354,6 +1460,14 @@ class Jablotron:
 	@staticmethod
 	def _get_gsm_signal_strength_sensor_name() -> str:
 		return "Signal strength of GSM"
+
+	@staticmethod
+	def _get_pg_output_id(pg_output_number: int) -> str:
+		return "pg_output_{}".format(pg_output_number)
+
+	@staticmethod
+	def _get_pg_output_name(pg_output_number: int) -> str:
+		return "PG output {}".format(pg_output_number)
 
 	@staticmethod
 	def _is_known_section_state(state: Dict[str, int]) -> bool:

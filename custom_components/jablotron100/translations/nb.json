@@ -7,7 +7,8 @@
 				"data": {
 					"serial_port": "Serial port",
 					"password": "Kode",
-					"number_of_devices": "Antall enheter"
+					"number_of_devices": "Antall enheter",
+					"number_of_pg_outputs": "Number of programmable PG outputs"
 				}
 			},
 			"devices": {
