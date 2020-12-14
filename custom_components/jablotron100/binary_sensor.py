@@ -46,7 +46,7 @@ class JablotronProblemSensorEntity(JablotronEntity, BinarySensorEntity):
 
 	@property
 	def is_on(self) -> bool:
-		return self.state == STATE_ON
+		return self._state == STATE_ON
 
 	@property
 	def device_class(self) -> str:
@@ -57,18 +57,18 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 
 	@property
 	def is_on(self) -> bool:
-		return self.state == STATE_ON
+		return self._state == STATE_ON
 
 	@property
 	def icon(self) -> Optional[str]:
 		if self._control.type == DEVICE_GLASS_BREAK_DETECTOR:
-			return "mdi:image-broken-variant" if self.state == STATE_ON else "mdi:rectangle-outline"
+			return "mdi:image-broken-variant" if self._state == STATE_ON else "mdi:rectangle-outline"
 
 		if self._control.type in [DEVICE_KEY_FOB, DEVICE_BUTTON]:
-			return "mdi:gesture-double-tap" if self.state == STATE_ON else "mdi:circle-double"
+			return "mdi:gesture-double-tap" if self._state == STATE_ON else "mdi:circle-double"
 
 		if self._control.type == DEVICE_SIREN_INDOOR:
-			return "mdi:gesture-tap-box" if self.state == STATE_ON else "mdi:circle-box-outline"
+			return "mdi:gesture-tap-box" if self._state == STATE_ON else "mdi:circle-box-outline"
 
 		return None
 
@@ -99,7 +99,7 @@ class JablotronLanConnectionEntity(JablotronEntity, BinarySensorEntity):
 
 	@property
 	def is_on(self) -> bool:
-		return self.state == STATE_ON
+		return self._state == STATE_ON
 
 	@property
 	def device_class(self) -> str:

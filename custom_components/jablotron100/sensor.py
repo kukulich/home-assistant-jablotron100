@@ -17,6 +17,10 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 class JablotronBatteryLevelEntity(JablotronEntity):
 
 	@property
+	def state(self) -> str:
+		return self._state
+
+	@property
 	def device_class(self):
 		return DEVICE_CLASS_BATTERY
 

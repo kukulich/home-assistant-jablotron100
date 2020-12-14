@@ -1293,13 +1293,13 @@ class JablotronEntity(Entity):
 	def unique_id(self) -> str:
 		return "{}.{}.{}".format(DOMAIN, self._control.central_unit.serial_port, self._control.id)
 
-	@property
-	def state(self) -> str:
-		return self._jablotron.states[self._control.id]
-
 	async def async_added_to_hass(self) -> None:
 		self._jablotron.substribe_entity_for_updates(self._control.id, self)
 
 	def update_state(self, state: StateType) -> None:
 		self._jablotron.states[self._control.id] = state
 		self.async_write_ha_state()
+
+	@property
+	def _state(self) -> str:
+		return self._jablotron.states[self._control.id]
