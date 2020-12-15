@@ -309,8 +309,8 @@ class Jablotron:
 
 		# Send packet so read thread can finish
 		self._send_packet(
-			Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
-			+ Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_STATES)
+			Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_STATES)
+			+ Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
 		)
 
 		if self._state_checker_thread_pool_executor is not None:
