@@ -23,6 +23,7 @@ from .const import (
 	DEVICE_KEY_FOB,
 	DEVICE_SIREN_INDOOR,
 	DEVICE_BUTTON,
+	DEVICE_THERMOSTAT,
 	DOMAIN,
 )
 from .jablotron import JablotronEntity
@@ -69,6 +70,9 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 
 		if self._control.type == DEVICE_SIREN_INDOOR:
 			return "mdi:gesture-tap-box" if self._state == STATE_ON else "mdi:circle-box-outline"
+
+		if self._control.type == DEVICE_THERMOSTAT:
+			return "mdi:thermometer" if self._state == STATE_ON else "mdi:thermometer-off"
 
 		return None
 
