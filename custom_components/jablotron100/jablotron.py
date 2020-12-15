@@ -474,10 +474,7 @@ class Jablotron:
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
-				self._send_packet(
-					Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
-					+ Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_STATES)
-				)
+				self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_STATES))
 				time.sleep(1)
 
 		try:
