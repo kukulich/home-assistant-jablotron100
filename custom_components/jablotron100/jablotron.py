@@ -1345,10 +1345,12 @@ class JablotronEntity(Entity):
 	def device_info(self) -> Optional[Dict[str, Any]]:
 		if self._control.hass_device is None:
 			return {
+				"manufacturer": "Jablotron",
 				"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
 			}
 
 		return {
+			"manufacturer": "Jablotron",
 			"identifiers": {(DOMAIN, self._control.hass_device.id)},
 			"name": self._control.hass_device.name,
 			"via_device": (DOMAIN, self._control.central_unit.serial_port),
