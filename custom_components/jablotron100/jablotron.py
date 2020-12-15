@@ -130,6 +130,7 @@ JABLOTRON_SECTION_TERTIARY_STATES = [
 ]
 
 JABLOTRON_SIGNAL_STRENGTH_STEP = 5
+JABLOTRON_BATTERY_LEVEL_STEP = 10
 
 def check_serial_port(serial_port: str) -> None:
 	stop_event = threading.Event()
@@ -1135,7 +1136,7 @@ class Jablotron:
 		if battery_level > 10:
 			return None
 
-		return battery_level * 10
+		return battery_level * JABLOTRON_BATTERY_LEVEL_STEP
 
 	@staticmethod
 	def _parse_device_number_from_state_packet(packet: bytes) -> int:
