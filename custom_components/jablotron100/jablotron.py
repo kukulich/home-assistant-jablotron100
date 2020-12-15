@@ -60,29 +60,40 @@ STORAGE_VERSION = 1
 STORAGE_STATES_KEY = "states"
 STORAGE_DEVICES_KEY = "devices"
 
-# x02 model
-# x08 hardware version
-# x09 firmware version
-# x0a registration code
-# x0b name of the installation
-JABLOTRON_PACKET_GET_MODEL = b"\x30\x01\x02"
-JABLOTRON_PACKET_GET_INFO = b"\x30\x01\x02\x30\x01\x08\x30\x01\x09"
-JABLOTRON_PACKET_GET_SECTIONS_STATES = b"\x80\x01\x01\x52\x01\x0e"
-JABLOTRON_PACKET_GET_DEVICE_INFO_PREFIX = b"\x52\x02\x0a"
-JABLOTRON_PACKET_LOGIN = b"\x52\x02\x13\x05\x9a"
-JABLOTRON_PACKET_SECTIONS_STATES_PREFIX = b"\x51\x22"
-JABLOTRON_PACKET_DEVICES_STATES_PREFIX = b"\xd8"
-JABLOTRON_PACKET_WIRED_DEVICE_INFO_PREFIX = b"\x52\x07"
-JABLOTRON_PACKET_WIRELESS_DEVICE_INFO_PREFIX = b"\x52\x09"
-JABLOTRON_PACKET_WIRED_DEVICE_STATE_PREFIX = b"\x55\x08"
-JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX = b"\x55\x09"
-JABLOTRON_PACKET_INFO_PREFIX = b"\x40"
-JABLOTRON_PACKETS_DEVICE_ACTIVITY = [b"\x00", b"\x01", b"\x02", b"\x03", b"\x0a", b"\x0c", b"\x0d", b"\x0e", b"\x22", b"\x24", b"\x2d", b"\x33", b"\x3e", b"\x4f", b"\x80", b"\x81", b"\xa3", b"\xa4", b"\xa6", b"\xbe"]
-JABLOTRON_INFO_MODEL = b"\x02"
-JABLOTRON_INFO_HARDWARE_VERSION = b"\x08"
-JABLOTRON_INFO_FIRMWARE_VERSION = b"\x09"
-JABLOTRON_INFO_REGISTRATION_CODE = b"\x0a"
-JABLOTRON_INFO_INSTALLATION_NAME = b"\x0b"
+JABLOTRON_PACKET_GET_SYSTEM_INFO = b"\x30"
+JABLOTRON_PACKET_SYSTEM_INFO = b"\x40"
+JABLOTRON_PACKET_SECTIONS_STATES = b"\x51"
+JABLOTRON_PACKET_DEVICE_STATE = b"\x55"
+JABLOTRON_PACKET_DEVICES_STATES = b"\xd8"
+JABLOTRON_PACKET_COMMAND = b"\x52"
+JABLOTRON_PACKET_UI_CONTROL = b"\x80"
+
+JABLOTRON_COMMAND_HEARTBEAT = b"\x02"
+JABLOTRON_COMMAND_GET_DEVICE_INFO = b"\x0a"
+JABLOTRON_COMMAND_GET_SECTIONS_STATES = b"\x0e"
+JABLOTRON_COMMAND_ENABLE_DEVICE_STATE_PACKETS = b"\x13"
+
+JABLOTRON_COMMAND_RESPONSE_DEVICE_INFO = b"\x8a"
+
+JABLOTRON_UI_CONTROL_AUTHORISATION_END = b"\x01"
+JABLOTRON_UI_CONTROL_AUTHORISATION_CODE = b"\x03"
+JABLOTRON_UI_CONTROL_MODIFY_SECTION = b"\x0d"
+
+JABLOTRON_PACKETS_DEVICE_ACTIVITY = [
+	b"\x00", b"\x01", b"\x02", b"\x03", b"\x0a",
+	b"\x0c", b"\x0d", b"\x0e", b"\x22", b"\x24",
+	b"\x2d", b"\x33", b"\x3e", b"\x4f", b"\x80",
+	b"\x81", b"\xa3", b"\xa4", b"\xa6", b"\xbe",
+]
+
+# In minutes
+JABLOTRON_TIMEOUT_FOR_DEVICE_STATE_PACKETS = 5
+
+JABLOTRON_SYSTEM_INFO_MODEL = 2
+JABLOTRON_SYSTEM_INFO_HARDWARE_VERSION = 8
+JABLOTRON_SYSTEM_INFO_FIRMWARE_VERSION = 9
+JABLOTRON_SYSTEM_INFO_REGISTRATION_CODE = 10
+JABLOTRON_SYSTEM_INFO_INSTALLATION_NAME = 11
 
 JABLOTRON_SECTION_PRIMARY_STATE_DISARMED = 1
 JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY = 2
@@ -118,20 +129,6 @@ JABLOTRON_SECTION_TERTIARY_STATES = [
 ]
 
 
-def decode_info_bytes(value: bytes) -> str:
-	info = ""
-
-	for i in range(len(value)):
-		letter = value[i:(i + 1)]
-
-		if letter == b"\x00" or letter == JABLOTRON_PACKET_INFO_PREFIX:
-			break
-
-		info += letter.decode()
-
-	return info
-
-
 def check_serial_port(serial_port: str) -> None:
 	stop_event = threading.Event()
 	thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
@@ -143,16 +140,25 @@ def check_serial_port(serial_port: str) -> None:
 
 		try:
 			while not stop_event.is_set():
-				packet = stream.read(PACKET_READ_SIZE)
-				LOGGER.debug("Info packet: {}".format(Jablotron.format_packet_to_string(packet)))
+				raw_packet = stream.read(PACKET_READ_SIZE)
+				LOGGER.debug("Check serial port: {}".format(Jablotron.format_packet_to_string(raw_packet)))
 
-				if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX and packet[2:3] == JABLOTRON_INFO_MODEL:
-					try:
-						detected_model = decode_info_bytes(packet[3:])
-						break
-					except UnicodeDecodeError:
-						# Try again
-						pass
+				packets = Jablotron.get_packets_from_packet(raw_packet)
+				for packet in packets:
+					if (
+						packet[:1] == JABLOTRON_PACKET_SYSTEM_INFO
+						and Jablotron.bytes_to_int(packet[2:3]) == JABLOTRON_SYSTEM_INFO_MODEL
+					):
+						try:
+							detected_model = Jablotron.decode_system_info_packet(packet)
+							break
+						except UnicodeDecodeError:
+							# Will try again
+							pass
+
+				if detected_model is not None:
+					break
+
 		finally:
 			stream.close()
 
@@ -162,7 +168,7 @@ def check_serial_port(serial_port: str) -> None:
 		while not stop_event.is_set():
 			stream = open(serial_port, "wb")
 
-			stream.write(JABLOTRON_PACKET_GET_MODEL)
+			stream.write(Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_MODEL))
 			time.sleep(0.1)
 
 			stream.close()
@@ -302,7 +308,10 @@ class Jablotron:
 		self._state_checker_stop_event.set()
 
 		# Send packet so read thread can finish
-		self._send_packet(JABLOTRON_PACKET_GET_SECTIONS_STATES)
+		self._send_packet(
+			Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
+			+ Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_STATES)
+		)
 
 		if self._state_checker_thread_pool_executor is not None:
 			self._state_checker_thread_pool_executor.shutdown()
@@ -320,9 +329,12 @@ class Jablotron:
 			STATE_ALARM_ARMED_NIGHT: 175,
 		}
 
-		state_packet = Jablotron._int_to_bytes(int_packets[state] + section)
+		state_packet = Jablotron.int_to_bytes(int_packets[state] + section)
 
-		self._send_packet(Jablotron._create_code_packet(code) + b"\x80\x02\x0d" + state_packet)
+		self._send_packet(
+			Jablotron.create_packet_authorisation_code(code)
+			+ Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet)
+		)
 
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
 		return self._alarm_control_panels
@@ -376,30 +388,26 @@ class Jablotron:
 
 			try:
 				while not stop_event.is_set():
-					packet = stream.read(PACKET_READ_SIZE)
+					raw_packet = stream.read(PACKET_READ_SIZE)
+					packets = Jablotron.get_packets_from_packet(raw_packet)
 
-					if packet[:1] == JABLOTRON_PACKET_INFO_PREFIX:
+					for packet in packets:
+						if packet[:1] != JABLOTRON_PACKET_SYSTEM_INFO:
+							continue
+
 						LOGGER.debug("Info packet: {}".format(Jablotron.format_packet_to_string(packet)))
 
-						info_packets = []
-
-						for i in range(len(packet)):
-							prefix = packet[i:(i + 1)]
-
-							if prefix == JABLOTRON_PACKET_INFO_PREFIX:
-								info_packets.append(packet[i:])
-
-						for info_packet in info_packets:
-							try:
-								if info_packet[2:3] == JABLOTRON_INFO_MODEL:
-									model = decode_info_bytes(info_packet[3:])
-								elif info_packet[2:3] == JABLOTRON_INFO_HARDWARE_VERSION:
-									hardware_version = decode_info_bytes(info_packet[3:])
-								elif info_packet[2:3] == JABLOTRON_INFO_FIRMWARE_VERSION:
-									firmware_version = decode_info_bytes(info_packet[3:])
-							except UnicodeDecodeError:
-								# Try again
-								pass
+						try:
+							info_type = Jablotron.bytes_to_int(packet[2:3])
+							if info_type == JABLOTRON_SYSTEM_INFO_MODEL:
+								model = Jablotron.decode_system_info_packet(packet)
+							elif info_type == JABLOTRON_SYSTEM_INFO_HARDWARE_VERSION:
+								hardware_version = Jablotron.decode_system_info_packet(packet)
+							elif info_type == JABLOTRON_SYSTEM_INFO_FIRMWARE_VERSION:
+								firmware_version = Jablotron.decode_system_info_packet(packet)
+						except UnicodeDecodeError:
+							# Try again
+							pass
 
 					if model is not None and hardware_version is not None and firmware_version is not None:
 						break
@@ -413,7 +421,11 @@ class Jablotron:
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
-				self._send_packet(JABLOTRON_PACKET_GET_INFO)
+				self._send_packet(
+					Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_MODEL)
+					+ Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_HARDWARE_VERSION)
+					+ Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_FIRMWARE_VERSION)
+				)
 				time.sleep(1)
 
 		try:
@@ -444,11 +456,17 @@ class Jablotron:
 
 			try:
 				while not stop_event.is_set():
-					packet = stream.read(PACKET_READ_SIZE)
+					raw_packet = stream.read(PACKET_READ_SIZE)
+					packets = Jablotron.get_packets_from_packet(raw_packet)
 
-					if packet[:2] == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
-						states_packet = packet
+					for packet in packets:
+						if packet[:1] == JABLOTRON_PACKET_SECTIONS_STATES:
+							states_packet = packet
+							break
+
+					if states_packet is not None:
 						break
+
 			finally:
 				stream.close()
 
@@ -456,7 +474,10 @@ class Jablotron:
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
-				self._send_packet(JABLOTRON_PACKET_GET_SECTIONS_STATES)
+				self._send_packet(
+					Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
+					+ Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_STATES)
+				)
 				time.sleep(1)
 
 		try:
@@ -527,10 +548,12 @@ class Jablotron:
 
 			try:
 				while not stop_event.is_set():
-					packet = stream.read(PACKET_READ_SIZE)
+					raw_packet = stream.read(PACKET_READ_SIZE)
+					packets = Jablotron.get_packets_from_packet(raw_packet)
 
-					if self._is_device_info_packet(packet[:2]):
-						info_packets[Jablotron._get_device_id(Jablotron._bytes_to_int(packet[3:4]))] = packet
+					for packet in packets:
+						if self._is_device_info_packet(packet):
+							info_packets[Jablotron._get_device_id(Jablotron.bytes_to_int(packet[3:4]))] = packet
 
 					if len(info_packets.items()) == not_ignored_devices_count:
 						break
@@ -541,11 +564,11 @@ class Jablotron:
 			return info_packets
 
 		def writer_thread() -> None:
-			self._send_packet(Jablotron._create_code_packet(self._config[CONF_PASSWORD]) + JABLOTRON_PACKET_LOGIN)
+			self._send_packet(Jablotron.create_packet_authorisation_code(self._config[CONF_PASSWORD]))
 
 			while not stop_event.is_set():
 				for number_of_not_ignored_device in numbers_of_not_ignored_devices:
-					self._send_packet(JABLOTRON_PACKET_GET_DEVICE_INFO_PREFIX + Jablotron._int_to_bytes(number_of_not_ignored_device))
+					self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(number_of_not_ignored_device))
 
 				time.sleep(estimated_duration)
 
@@ -581,7 +604,7 @@ class Jablotron:
 					self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] = battery_level
 				else:
 					LOGGER.debug("Unknown battery level packet of device {}: {}".format(
-						Jablotron._bytes_to_int(devices_info_packets[device_id][3:4]),
+						Jablotron.bytes_to_int(devices_info_packets[device_id][3:4]),
 						Jablotron.format_packet_to_string(devices_info_packets[device_id])),
 					)
 
@@ -663,12 +686,12 @@ class Jablotron:
 
 					self._state_checker_data_updating_event.clear()
 
-					packet = stream.read(PACKET_READ_SIZE)
-					# LOGGER.debug(Jablotron.format_packet_to_string(packet))
+					raw_packet = stream.read(PACKET_READ_SIZE)
+					# LOGGER.debug(Jablotron.format_packet_to_string(raw_packet))
 
 					self._state_checker_data_updating_event.set()
 
-					if not packet:
+					if not raw_packet:
 						self.last_update_success = False
 						self._update_all_entities()
 						break
@@ -677,33 +700,27 @@ class Jablotron:
 						self.last_update_success = True
 						self._update_all_entities()
 
-					prefix = packet[:2]
+					packets = Jablotron.get_packets_from_packet(raw_packet)
 
-					if prefix == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
-						in_service_mode = self.in_service_mode
+					for packet in packets:
+						if Jablotron._is_sections_states_packet(packet):
+							in_service_mode = self.in_service_mode
 
-						self._parse_section_states_packet(packet)
+							self._parse_section_states_packet(packet)
 
-						if in_service_mode != self.in_service_mode:
-							self._update_all_entities()
+							if in_service_mode != self.in_service_mode:
+								self._update_all_entities()
 
-						break
+						if Jablotron._is_device_state_packet(packet):
+							self._parse_device_state_packet(packet)
 
-					if Jablotron._is_device_state_packet(prefix):
-						self._parse_device_state_packet(packet)
+						if Jablotron._is_device_info_packet(packet):
+							self._parse_device_info_packet(packet)
 
-						if packet[10:12] == JABLOTRON_PACKET_SECTIONS_STATES_PREFIX:
-							self._parse_section_states_packet(packet[10:])
+						if Jablotron._is_devices_states_packet(packet):
+							self._parse_devices_states_packet(packet)
 
-						break
-
-					if Jablotron._is_device_info_packet(prefix):
-						self._parse_device_info_packet(packet)
-						break
-
-					if packet[:1] == JABLOTRON_PACKET_DEVICES_STATES_PREFIX:
-						self._parse_devices_states_packet(packet)
-						break
+					break
 
 			except Exception as ex:
 				LOGGER.error("Read error: {}".format(format(ex)))
@@ -722,7 +739,7 @@ class Jablotron:
 			if not self._state_checker_data_updating_event.wait(0.5):
 				try:
 					if counter == 0 and not self._is_alarm_active():
-						self._send_packet(Jablotron._create_code_packet(self._config[CONF_PASSWORD]) + JABLOTRON_PACKET_LOGIN)
+						self._send_packet(Jablotron.create_packet_authorisation_code(self._config[CONF_PASSWORD]) + Jablotron.create_packet_enable_device_states())
 
 						# Check battery levels twice a day
 						actual_time = datetime.datetime.now()
@@ -730,11 +747,11 @@ class Jablotron:
 						if time_since_last_update.total_seconds() > 12 * 3600:
 							for device_number in self._get_numbers_of_not_ignored_devices():
 								if self._is_device_with_battery(device_number):
-									self._send_packet(JABLOTRON_PACKET_GET_DEVICE_INFO_PREFIX + Jablotron._int_to_bytes(device_number))
+									self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(device_number))
 
 							last_battery_levels_update = actual_time
 					else:
-						self._send_packet(b"\x52\x01\x02")
+						self._send_command(JABLOTRON_COMMAND_HEARTBEAT)
 				except Exception as ex:
 					LOGGER.error("Write error: {}".format(format(ex)))
 
@@ -745,7 +762,13 @@ class Jablotron:
 			if counter == 60:
 				counter = 0
 
-	def _send_packet(self, packet) -> None:
+	def _send_command(self, type: bytes, data: Optional[bytes] = b"") -> None:
+		self._send_packet(Jablotron.create_packet_command(type, data))
+
+	def _send_request(self, type: bytes, data: bytes) -> None:
+		self._send_packet(Jablotron.create_packet(type, data))
+
+	def _send_packet(self, packet: bytes) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "wb")
 
 		stream.write(packet)
@@ -827,7 +850,7 @@ class Jablotron:
 		self.in_service_mode = False
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
-		device_number = Jablotron._bytes_to_int(packet[3:4])
+		device_number = Jablotron.bytes_to_int(packet[3:4])
 		device_id = Jablotron._get_device_id(device_number)
 
 		device_connection = Jablotron._parse_device_connection_type_device_info_packet(packet)
@@ -909,13 +932,10 @@ class Jablotron:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
 
 	def _parse_devices_states_packet(self, packet: bytes) -> None:
-		states_start_packet = 3
-		triggered_device_start_packet = states_start_packet + Jablotron._bytes_to_int(packet[1:2]) - 1
+		states_start = 3
+		states_end = states_start + Jablotron.bytes_to_int(packet[1:2]) - 1
 
-		states = Jablotron._hex_to_bin(packet[states_start_packet:triggered_device_start_packet])
-
-		if Jablotron._is_device_state_packet(packet[triggered_device_start_packet:(triggered_device_start_packet + 2)]):
-			self._parse_device_state_packet(packet[triggered_device_start_packet:])
+		states = Jablotron._hex_to_bin(packet[states_start:states_end])
 
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
@@ -1010,31 +1030,20 @@ class Jablotron:
 		return self._stored_data
 
 	@staticmethod
-	def _create_code_packet(code: str) -> bytes:
-		code_packet = b"\x80\x08\x03\x39\x39\x39"
-
-		for i in range(0, 4):
-			j = i + 4
-
-			first_number = code[j:(j + 1)]
-			second_number = code[i:(i + 1)]
-
-			if first_number == "":
-				code_number = 48 + int(second_number)
-			else:
-				code_number = int(f"{first_number}{second_number}", 16)
-
-			code_packet += Jablotron._int_to_bytes(code_number)
-
-		return code_packet
+	def _is_sections_states_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_SECTIONS_STATES
 
 	@staticmethod
-	def _is_device_info_packet(prefix) -> bool:
-		return prefix == JABLOTRON_PACKET_WIRED_DEVICE_INFO_PREFIX or prefix == JABLOTRON_PACKET_WIRELESS_DEVICE_INFO_PREFIX
+	def _is_devices_states_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_DEVICES_STATES
 
 	@staticmethod
-	def _is_device_state_packet(prefix) -> bool:
-		return prefix == JABLOTRON_PACKET_WIRED_DEVICE_STATE_PREFIX or prefix == JABLOTRON_PACKET_WIRELESS_DEVICE_STATE_PREFIX
+	def _is_device_info_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_COMMAND and packet[2:3] == JABLOTRON_COMMAND_RESPONSE_DEVICE_INFO
+
+	@staticmethod
+	def _is_device_state_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_DEVICE_STATE
 
 	@staticmethod
 	def _is_device_state_packet_for_activity(packet: bytes) -> bool:
@@ -1042,11 +1051,11 @@ class Jablotron:
 
 	@staticmethod
 	def _is_device_state_packet_for_sabotage(packet: bytes) -> bool:
-		return Jablotron._bytes_to_int(packet[2:3]) % 128 == 6
+		return Jablotron.bytes_to_int(packet[2:3]) % 128 == 6
 
 	@staticmethod
 	def _is_device_state_packet_for_fault(packet: bytes) -> bool:
-		return Jablotron._bytes_to_int(packet[2:3]) % 128 == 7
+		return Jablotron.bytes_to_int(packet[2:3]) % 128 == 7
 
 	@staticmethod
 	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
@@ -1066,11 +1075,12 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_connection_type_device_info_packet(packet: bytes) -> str:
-		return DEVICE_CONNECTION_WIRED if packet[:2] == JABLOTRON_PACKET_WIRED_DEVICE_INFO_PREFIX else DEVICE_CONNECTION_WIRELESS
+		packet_length = Jablotron.bytes_to_int(packet[1:2])
+		return DEVICE_CONNECTION_WIRELESS if packet_length == 9 else DEVICE_CONNECTION_WIRED
 
 	@staticmethod
 	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> Optional[int]:
-		battery_level = Jablotron._bytes_to_int(packet[10:11])
+		battery_level = Jablotron.bytes_to_int(packet[10:11])
 
 		if battery_level > 10:
 			return None
@@ -1079,11 +1089,11 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_number_from_state_packet(packet: bytes) -> int:
-		return int(Jablotron._bytes_to_int(packet[4:6]) / 64)
+		return int(Jablotron.bytes_to_int(packet[4:6]) / 64)
 
 	@staticmethod
 	def _convert_jablotron_device_state_to_state(packet: bytes, device_number: int) -> Optional[str]:
-		state = Jablotron._bytes_to_int(packet[3:4])
+		state = Jablotron.bytes_to_int(packet[3:4])
 
 		if device_number <= 36:
 			high_device_number_offset = 0
@@ -1108,16 +1118,8 @@ class Jablotron:
 		return None
 
 	@staticmethod
-	def _int_to_bytes(number: int) -> bytes:
-		return int.to_bytes(number, 1, byteorder=sys.byteorder)
-
-	@staticmethod
-	def _bytes_to_int(packet: bytes) -> int:
-		return int.from_bytes(packet, byteorder=sys.byteorder)
-
-	@staticmethod
 	def _hex_to_bin(hex):
-		dec = Jablotron._bytes_to_int(hex)
+		dec = Jablotron.bytes_to_int(hex)
 		bin_dec = bin(dec)
 		bin_string = bin_dec[2:]
 		bin_string = bin_string.zfill(len(hex) * 8)
@@ -1221,8 +1223,8 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_jablotron_section_state(packet: bytes) -> Dict[str, int]:
-		first_number = Jablotron._bytes_to_int(packet[0:1])
-		second_number = Jablotron._bytes_to_int(packet[1:2])
+		first_number = Jablotron.bytes_to_int(packet[0:1])
+		second_number = Jablotron.bytes_to_int(packet[1:2])
 
 		primary_state = first_number % 16
 		secondary_state = int((first_number - primary_state) / 16)
@@ -1235,8 +1237,87 @@ class Jablotron:
 		}
 
 	@staticmethod
+	def get_packets_from_packet(packet: bytes) -> List[bytes]:
+		packets = []
+
+		start = 0
+		while start < len(packet):
+			if packet[start:(start + 1)] == b"\x00":
+				break
+
+			length = Jablotron.bytes_to_int(packet[(start + 1):(start + 2)])
+			end = start + length + 2
+
+			packets.append(packet[start:end])
+
+			start = end
+
+		return packets
+
+	@staticmethod
+	def decode_system_info_packet(packet: bytes) -> str:
+		info = ""
+
+		for i in range(3, len(packet)):
+			letter = packet[i:(i + 1)]
+
+			if letter == b"\x00":
+				break
+
+			info += letter.decode()
+
+		return info
+
+	@staticmethod
 	def format_packet_to_string(packet: bytes) -> str:
 		return str(binascii.hexlify(packet), "utf-8")
+
+	@staticmethod
+	def bytes_to_int(packet: bytes) -> int:
+		return int.from_bytes(packet, byteorder=sys.byteorder)
+
+	@staticmethod
+	def int_to_bytes(number: int) -> bytes:
+		return int.to_bytes(number, 1, byteorder=sys.byteorder)
+
+	@staticmethod
+	def create_packet(type: bytes, data: bytes) -> bytes:
+		return type + Jablotron.int_to_bytes(len(data)) + data
+
+	@staticmethod
+	def create_packet_get_system_info(info_type: int) -> bytes:
+		return Jablotron.create_packet(JABLOTRON_PACKET_GET_SYSTEM_INFO, Jablotron.int_to_bytes(info_type))
+
+	@staticmethod
+	def create_packet_command(type: bytes, data: Optional[bytes] = b"") -> bytes:
+		return Jablotron.create_packet(JABLOTRON_PACKET_COMMAND, type + data)
+
+	@staticmethod
+	def create_packet_ui_control(type: bytes, data: Optional[bytes] = b"") -> bytes:
+		return Jablotron.create_packet(JABLOTRON_PACKET_UI_CONTROL, type + data)
+
+	@staticmethod
+	def create_packet_enable_device_states() -> bytes:
+		return Jablotron.create_packet_command(JABLOTRON_COMMAND_ENABLE_DEVICE_STATE_PACKETS, Jablotron.int_to_bytes(JABLOTRON_TIMEOUT_FOR_DEVICE_STATE_PACKETS))
+
+	@staticmethod
+	def create_packet_authorisation_code(code: str) -> bytes:
+		code_packet = b"\x39\x39\x39"
+
+		for i in range(0, 4):
+			j = i + 4
+
+			first_number = code[j:(j + 1)]
+			second_number = code[i:(i + 1)]
+
+			if first_number == "":
+				code_number = 48 + int(second_number)
+			else:
+				code_number = int(f"{first_number}{second_number}", 16)
+
+			code_packet += Jablotron.int_to_bytes(code_number)
+
+		return Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_CODE, code_packet)
 
 
 class JablotronEntity(Entity):
