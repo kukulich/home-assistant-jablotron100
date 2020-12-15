@@ -889,6 +889,10 @@ class Jablotron:
 			# Mobile application
 			return
 
+		if device_number > 250:
+			# Don't know
+			return
+
 		lan_connection_device_number = self._get_lan_connection_device_number()
 		is_lan_connection_device = True if lan_connection_device_number == device_number else False
 
