@@ -331,10 +331,18 @@ class Jablotron:
 
 		state_packet = Jablotron.int_to_bytes(int_packets[state] + section)
 
-		self._send_packet(
-			Jablotron.create_packet_authorisation_code(code)
-			+ Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet)
-		)
+		packet = b""
+
+		if code != self._config[CONF_PASSWORD]:
+			packet += Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
+			packet += Jablotron.create_packet_authorisation_code(code)
+
+		packet += Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet)
+
+		self._send_packet(packet)
+
+		if code != self._config[CONF_PASSWORD]:
+			self._send_packet(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
 
 	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
 		return self._alarm_control_panels
@@ -736,7 +744,7 @@ class Jablotron:
 			if not self._state_checker_data_updating_event.wait(0.5):
 				try:
 					if counter == 0 and not self._is_alarm_active():
-						self._send_packet(Jablotron.create_packet_authorisation_code(self._config[CONF_PASSWORD]) + Jablotron.create_packet_enable_device_states())
+						self._send_packet(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
 
 						# Check battery levels twice a day
 						actual_time = datetime.datetime.now()
@@ -1315,6 +1323,10 @@ class Jablotron:
 			code_packet += Jablotron.int_to_bytes(code_number)
 
 		return Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_CODE, code_packet)
+
+	@staticmethod
+	def create_packet_keapalive(code: str) -> bytes:
+		return Jablotron.create_packet_authorisation_code(code) + Jablotron.create_packet_enable_device_states()
 
 
 class JablotronEntity(Entity):
