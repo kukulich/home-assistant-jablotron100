@@ -1,5 +1,6 @@
 import binascii
 from concurrent.futures import ThreadPoolExecutor
+import copy
 import datetime
 from homeassistant import core
 from homeassistant.const import (
@@ -385,10 +386,10 @@ class Jablotron:
 			return
 
 		if STORAGE_STATES_KEY in self._stored_data[serial_port]:
-			self.states = self._stored_data[serial_port][STORAGE_STATES_KEY]
+			self.states = copy.deepcopy(self._stored_data[serial_port][STORAGE_STATES_KEY])
 
 		if STORAGE_DEVICES_KEY in self._stored_data[serial_port]:
-			self._devices_data = self._stored_data[serial_port][STORAGE_DEVICES_KEY]
+			self._devices_data = copy.deepcopy(self._stored_data[serial_port][STORAGE_DEVICES_KEY])
 
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
