@@ -985,13 +985,11 @@ class Jablotron:
 
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
-			# Use only OFF state
-			if device_state == STATE_OFF:
-				self._update_state(
-					Jablotron._get_device_sensor_id(device_number),
-					device_state,
-					store_state=False,
-				)
+			self._update_state(
+				Jablotron._get_device_sensor_id(device_number),
+				device_state,
+				store_state=False,
+			)
 
 	def _get_lan_connection_device_number(self) -> Optional[int]:
 		if self._central_unit.model in ["JA-101K-LAN", "JA-106K-3G"]:
