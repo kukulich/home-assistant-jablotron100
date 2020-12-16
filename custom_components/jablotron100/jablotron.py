@@ -742,14 +742,14 @@ class Jablotron:
 							if in_service_mode != self.in_service_mode:
 								self._update_all_entities()
 
-						if Jablotron._is_device_state_packet(packet):
+						elif Jablotron._is_devices_states_packet(packet):
+							self._parse_devices_states_packet(packet)
+
+						elif Jablotron._is_device_state_packet(packet):
 							self._parse_device_state_packet(packet)
 
-						if Jablotron._is_device_info_packet(packet):
+						elif Jablotron._is_device_info_packet(packet):
 							self._parse_device_info_packet(packet)
-
-						if Jablotron._is_devices_states_packet(packet):
-							self._parse_devices_states_packet(packet)
 
 					break
 
