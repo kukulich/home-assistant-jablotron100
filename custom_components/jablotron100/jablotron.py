@@ -978,10 +978,11 @@ class Jablotron:
 			)
 
 	def _parse_devices_states_packet(self, packet: bytes) -> None:
-		states_start = 3
-		states_end = states_start + Jablotron.bytes_to_int(packet[1:2]) - 1
+		states_start = 2
+		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
 
-		states = Jablotron._hex_to_bin(packet[states_start:states_end])
+		# We need to ignore first packet
+		states = Jablotron._hex_to_bin(packet[(states_start + 1):states_end])
 
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
