@@ -259,6 +259,8 @@ class Jablotron:
 		self._device_signal_strength_sensors: List[JablotronControl] = []
 		self._device_battery_level_sensors: List[JablotronControl] = []
 		self._lan_connection: Optional[JablotronControl] = None
+		self._gsm_signal_sensor: Optional[JablotronControl] = None
+		self._gsm_signal_strength_sensor: Optional[JablotronControl] = None
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
@@ -298,6 +300,7 @@ class Jablotron:
 		self._detect_devices()
 		self._create_devices()
 		self._create_lan_connection()
+		self._create_gsm_sensors()
 
 		# Initialize states checker
 		self._state_checker_thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
@@ -369,6 +372,12 @@ class Jablotron:
 
 	def lan_connection(self) -> Optional[JablotronControl]:
 		return self._lan_connection
+
+	def gsm_signal_sensor(self) -> Optional[JablotronControl]:
+		return self._gsm_signal_sensor
+
+	def gsm_signal_strength_sensor(self) -> Optional[JablotronControl]:
+		return self._gsm_signal_strength_sensor
 
 	def _update_all_entities(self) -> None:
 		for entity in self._entities.values():
@@ -699,6 +708,29 @@ class Jablotron:
 
 		self._set_initial_state(id, STATE_ON)
 
+	def _create_gsm_sensors(self) -> None:
+		if self._get_gsm_device_number() is None:
+			return None
+
+		signal_sensor_id = self._get_gsm_signal_sensor_id()
+		signal_strength_sensor_id = self._get_gsm_signal_strength_sensor_id()
+
+		self._gsm_signal_sensor = JablotronControl(
+			self._central_unit,
+			None,
+			signal_sensor_id,
+			self._get_gsm_signal_sensor_name(),
+		)
+		self._gsm_signal_strength_sensor = JablotronControl(
+			self._central_unit,
+			None,
+			signal_strength_sensor_id,
+			self._get_gsm_signal_strength_sensor_name(),
+		)
+
+		self._set_initial_state(signal_sensor_id, STATE_ON)
+		self._set_initial_state(signal_strength_sensor_id, 100)
+
 	def _read_packets(self) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")
 		last_restarted_at_hour = datetime.datetime.now().hour
@@ -776,6 +808,10 @@ class Jablotron:
 						actual_time = datetime.datetime.now()
 						time_since_last_update = actual_time - last_wireless_devices_update
 						if time_since_last_update.total_seconds() > 3600:
+							gsm_device_number = self._get_gsm_device_number()
+							if gsm_device_number is not None:
+								self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(gsm_device_number))
+
 							for device_number in self._get_numbers_of_not_ignored_devices():
 								if self._is_wireless_device(device_number):
 									self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(device_number))
@@ -882,12 +918,31 @@ class Jablotron:
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
 		device_number = Jablotron.bytes_to_int(packet[3:4])
-		device_id = Jablotron._get_device_id(device_number)
+
+		if device_number == self._get_gsm_device_number():
+			self._parse_gsm_info_packet(packet)
+			return
 
 		device_connection = Jablotron._parse_device_connection_type_device_info_packet(packet)
 
-		if device_connection != DEVICE_CONNECTION_WIRELESS:
+		if device_connection == DEVICE_CONNECTION_WIRELESS:
+			self._parse_wireless_device_info_packet(packet)
+
+	def _parse_gsm_info_packet(self, packet: bytes) -> None:
+		if packet[4:5] != b"\xa4":
+			LOGGER.error("Unknown info packet of GSM: {}".format(Jablotron.format_packet_to_string(packet)))
 			return
+
+		signal_strength_sensor_id = Jablotron._get_gsm_signal_strength_sensor_id()
+		signal_strength = Jablotron.bytes_to_int(packet[5:6])
+
+		self._update_state(signal_strength_sensor_id, signal_strength, store_state=True)
+
+		self._store_devices_data()
+
+	def _parse_wireless_device_info_packet(self, packet: bytes) -> None:
+		device_number = Jablotron.bytes_to_int(packet[3:4])
+		device_id = Jablotron._get_device_id(device_number)
 
 		signal_strength = Jablotron._parse_device_signal_strength_from_device_info_packet(packet)
 		signal_strength_sensor_id = Jablotron._get_device_signal_strength_sensor_id(device_number)
@@ -923,10 +978,12 @@ class Jablotron:
 			# Don't know
 			return
 
-		lan_connection_device_number = self._get_lan_connection_device_number()
-
-		if device_number == lan_connection_device_number:
+		if device_number == self._get_lan_connection_device_number():
 			self._parse_lan_connection_device_state_packet(packet)
+			return
+
+		if device_number == self._get_gsm_device_number():
+			self._parse_gsm_device_state_packet(packet)
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
@@ -989,6 +1046,21 @@ class Jablotron:
 			store_state=True,
 		)
 
+	def _parse_gsm_device_state_packet(self, packet: bytes) -> None:
+		gsm_device_number = self._get_gsm_device_number()
+
+		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, gsm_device_number)
+
+		if device_state is None:
+			LOGGER.error("Unknown state packet of GSM: {}".format(Jablotron.format_packet_to_string(packet)))
+			return
+
+		self._update_state(
+			Jablotron._get_gsm_signal_sensor_id(),
+			STATE_ON if device_state == STATE_OFF else STATE_OFF,
+			store_state=True,
+		)
+
 	def _parse_devices_states_packet(self, packet: bytes) -> None:
 		states_start = 2
 		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
@@ -1010,6 +1082,15 @@ class Jablotron:
 
 		if self._central_unit.model in ["JA-103K", "JA-103KRY", "JA-107K"]:
 			return 233
+
+		return None
+
+	def _get_gsm_device_number(self) -> Optional[int]:
+		if self._central_unit.model in ["JA-101K-LAN", "JA-106K-3G"]:
+			return 127
+
+		if self._central_unit.model in ["JA-103K", "JA-103KRY", "JA-107K"]:
+			return 235
 
 		return None
 
@@ -1257,6 +1338,22 @@ class Jablotron:
 	@staticmethod
 	def _get_lan_connection_name() -> str:
 		return "LAN connection"
+
+	@staticmethod
+	def _get_gsm_signal_sensor_id() -> str:
+		return "gsm_signal_sensor"
+
+	@staticmethod
+	def _get_gsm_signal_sensor_name() -> str:
+		return "GSM signal"
+
+	@staticmethod
+	def _get_gsm_signal_strength_sensor_id() -> str:
+		return "gsm_signal_strength_sensor"
+
+	@staticmethod
+	def _get_gsm_signal_strength_sensor_name() -> str:
+		return "Signal strength of GSM"
 
 	@staticmethod
 	def _is_known_section_state(state: Dict[str, int]) -> bool:

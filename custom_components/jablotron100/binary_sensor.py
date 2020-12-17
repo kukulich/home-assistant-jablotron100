@@ -42,6 +42,10 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	if lan_connection is not None:
 		async_add_entities([JablotronLanConnectionEntity(jablotron, lan_connection)], True)
 
+	gsm_signal_sensor = jablotron.gsm_signal_sensor()
+	if gsm_signal_sensor is not None:
+		async_add_entities([JablotronGsmSignalEntity(jablotron, gsm_signal_sensor)], True)
+
 
 class JablotronProblemSensorEntity(JablotronEntity, BinarySensorEntity):
 
@@ -108,3 +112,19 @@ class JablotronLanConnectionEntity(JablotronEntity, BinarySensorEntity):
 	@property
 	def device_class(self) -> str:
 		return DEVICE_CLASS_CONNECTIVITY
+
+
+class JablotronGsmSignalEntity(JablotronEntity, BinarySensorEntity):
+
+	@property
+	def is_on(self) -> bool:
+		return self._state == STATE_ON
+
+	@property
+	def icon(self) -> Optional[str]:
+		return "mdi:signal" if self._state == STATE_ON else "mdi:signal-off"
+
+	@property
+	def device_class(self) -> None:
+		return DEVICE_CLASS_CONNECTIVITY
+
