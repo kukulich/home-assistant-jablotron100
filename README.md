@@ -4,6 +4,8 @@
 
 Home Assistant custom component for JABLOTRON 100+ alarm system
 
+Tested with JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-107K
+
 ## Preparation
 
 1. Connect the USB cable to Jablotron central unit
@@ -18,6 +20,10 @@ Home Assistant custom component for JABLOTRON 100+ alarm system
     The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
 
 ## Installation
+
+- Use code of administrator to make devices work. If you cannot use code of administrator, or you don't want to use devices, set the number of devices to zero.
+- You have to set devices in the same order as you see them in your J-Link/F-Link/mobile application.
+- If you want to use PG outputs, the user of the code has to have rights to control the PG outputs. Set the number of PG outputs to zero to ignore them.
 
 ### HACS
 
@@ -38,7 +44,12 @@ Home Assistant custom component for JABLOTRON 100+ alarm system
 3. Check log - it should be empty when everything works
 4. Does any problem occur? Report [issue](https://github.com/kukulich/home-assistant-jablotron100/issues) or join [Discord](https://discord.gg/bNmaB6n)
 
-Even if everything works for you, you can join the Discord. We would be happy if you can test some things so we can make the integration more robust.
+Even if everything works for you, you can join the [Discord](https://discord.gg/bNmaB6n).
+We would be happy:
+ - If you report model of you Jablotron central unit, so we know that integration works on another model
+ - If you can test some things (e.g. LAN), so we can make the integration more robust
+
+The communication in Discord is mostly in Czech or Slovak but don't be afraid - you can use English as well.
 
 ## Credits
 
