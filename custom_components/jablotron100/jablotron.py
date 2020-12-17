@@ -924,18 +924,20 @@ class Jablotron:
 			return
 
 		lan_connection_device_number = self._get_lan_connection_device_number()
-		is_lan_connection_device = True if lan_connection_device_number == device_number else False
 
-		if is_lan_connection_device is False:
-			if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-				LOGGER.debug("State packet of unknown device: {}".format(Jablotron.format_packet_to_string(packet)))
-				return
+		if device_number == lan_connection_device_number:
+			self._parse_lan_connection_device_state_packet(packet)
+			return
 
-			device_type = self._get_device_type(device_number)
+		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
+			LOGGER.debug("State packet of unknown device: {}".format(Jablotron.format_packet_to_string(packet)))
+			return
 
-			if self._is_device_ignored(device_number) or device_type == DEVICE_KEYPAD:
-				LOGGER.debug("State packet of {}: {}".format(DEVICES[device_type].lower(), Jablotron.format_packet_to_string(packet)))
-				return
+		device_type = self._get_device_type(device_number)
+
+		if self._is_device_ignored(device_number) or device_type == DEVICE_KEYPAD:
+			LOGGER.debug("State packet of {}: {}".format(DEVICES[device_type].lower(), Jablotron.format_packet_to_string(packet)))
+			return
 
 		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, device_number)
 
@@ -943,13 +945,7 @@ class Jablotron:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
 			return
 
-		if is_lan_connection_device is True:
-			self._update_state(
-				Jablotron._get_lan_connection_id(),
-				STATE_ON if device_state == STATE_OFF else STATE_OFF,
-				store_state=True,
-			)
-		elif (
+		if (
 			self._is_device_with_activity_sensor(device_number)
 			and Jablotron._is_device_state_packet_for_activity(packet)
 		):
@@ -977,6 +973,21 @@ class Jablotron:
 				device_signal_strength,
 				store_state=True,
 			)
+
+	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
+		lan_connection_device_number = self._get_lan_connection_device_number()
+
+		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, lan_connection_device_number)
+
+		if device_state is None:
+			LOGGER.error("Unknown state packet of LAN connection: {}".format(Jablotron.format_packet_to_string(packet)))
+			return
+
+		self._update_state(
+			Jablotron._get_lan_connection_id(),
+			STATE_ON if device_state == STATE_OFF else STATE_OFF,
+			store_state=True,
+		)
 
 	def _parse_devices_states_packet(self, packet: bytes) -> None:
 		states_start = 2
