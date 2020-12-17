@@ -772,10 +772,10 @@ class Jablotron:
 					if counter == 0 and not self._is_alarm_active():
 						self._send_packet(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
 
-						# Check wireless devices twice a day
+						# Check wireless devices once a hour
 						actual_time = datetime.datetime.now()
 						time_since_last_update = actual_time - last_wireless_devices_update
-						if time_since_last_update.total_seconds() > 12 * 3600:
+						if time_since_last_update.total_seconds() > 3600:
 							for device_number in self._get_numbers_of_not_ignored_devices():
 								if self._is_wireless_device(device_number):
 									self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(device_number))
