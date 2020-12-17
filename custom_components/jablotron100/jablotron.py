@@ -68,7 +68,6 @@ JABLOTRON_PACKET_SYSTEM_INFO = b"\x40"
 JABLOTRON_PACKET_SECTIONS_STATES = b"\x51"
 JABLOTRON_PACKET_DEVICE_STATE = b"\x55"
 JABLOTRON_PACKET_DEVICES_STATES = b"\xd8"
-JABLOTRON_PACKET_PG_OUTPUT_STATE = b"\xd0"
 JABLOTRON_PACKET_PG_OUTPUTS_STATES = b"\x50"
 JABLOTRON_PACKET_COMMAND = b"\x52"
 JABLOTRON_PACKET_UI_CONTROL = b"\x80"
@@ -835,9 +834,6 @@ class Jablotron:
 						elif Jablotron._is_pg_outputs_states_packet(packet):
 							self._parse_pg_outputs_states_packet(packet)
 
-						elif Jablotron._is_pg_output_state_packet(packet):
-							self._parse_pg_output_state_packet(packet)
-
 						elif Jablotron._is_devices_states_packet(packet):
 							self._parse_devices_states_packet(packet)
 
@@ -1140,25 +1136,6 @@ class Jablotron:
 				store_state=False,
 			)
 
-	def _parse_pg_output_state_packet(self, packet: bytes) -> None:
-		number = Jablotron.bytes_to_int(packet[2:3])
-
-		if number < 51 or number > 114:
-			# 51 should be ON state of 1st PG output
-			# 114 should be OFF state of 32nd PG output
-			return
-
-		magic_offset = 18
-
-		pg_output_number = (number - magic_offset) % 32
-		pg_output_state = STATE_ON if int((number - magic_offset - pg_output_number) / 32) == 1 else STATE_OFF
-
-		self._update_state(
-			Jablotron._get_pg_output_id(pg_output_number),
-			pg_output_state,
-			store_state=True,
-		)
-
 	def _parse_pg_outputs_states_packet(self, packet: bytes) -> None:
 		states_start = 2
 		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
@@ -1272,10 +1249,6 @@ class Jablotron:
 	@staticmethod
 	def _is_pg_outputs_states_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_PG_OUTPUTS_STATES
-
-	@staticmethod
-	def _is_pg_output_state_packet(packet: bytes) -> bool:
-		return packet[:1] == JABLOTRON_PACKET_PG_OUTPUT_STATE
 
 	@staticmethod
 	def _is_devices_states_packet(packet: bytes) -> bool:
