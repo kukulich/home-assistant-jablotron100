@@ -994,7 +994,7 @@ class Jablotron:
 		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
 
 		# We need to ignore first packet
-		states = Jablotron._hex_to_bin(packet[(states_start + 1):states_end])
+		states = Jablotron._hex_to_reverse_bin(packet[(states_start + 1):states_end])
 
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
@@ -1184,7 +1184,11 @@ class Jablotron:
 		dec = Jablotron.bytes_to_int(hex)
 		bin_dec = bin(dec)
 		bin_string = bin_dec[2:]
-		bin_string = bin_string.zfill(len(hex) * 8)
+		return bin_string.zfill(len(hex) * 8)
+
+	@staticmethod
+	def _hex_to_reverse_bin(hex):
+		bin_string = Jablotron._hex_to_bin(hex)
 		return bin_string[::-1]
 
 	@staticmethod
