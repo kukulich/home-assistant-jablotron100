@@ -105,34 +105,7 @@ JABLOTRON_SECTION_PRIMARY_STATE_DISARMED = 1
 JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY = 2
 JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL = 3
 JABLOTRON_SECTION_PRIMARY_STATE_SERVICE = 5
-JABLOTRON_SECTION_PRIMARY_STATE_TRIGGERED = 11
-JABLOTRON_SECTION_PRIMARY_STATES = [
-	JABLOTRON_SECTION_PRIMARY_STATE_DISARMED,
-	JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY,
-	JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL,
-	JABLOTRON_SECTION_PRIMARY_STATE_SERVICE,
-	JABLOTRON_SECTION_PRIMARY_STATE_TRIGGERED,
-]
-
-JABLOTRON_SECTION_SECONDARY_STATE_NOTHING = 0
-JABLOTRON_SECTION_SECONDARY_STATE_TRIGGERED = 1
-JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM = 2
-JABLOTRON_SECTION_SECONDARY_STATE_PENDING = 4
-JABLOTRON_SECTION_SECONDARY_STATE_ARMING = 8
-JABLOTRON_SECTION_SECONDARY_STATES = [
-	JABLOTRON_SECTION_SECONDARY_STATE_NOTHING,
-	JABLOTRON_SECTION_SECONDARY_STATE_TRIGGERED,
-	JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM,
-	JABLOTRON_SECTION_SECONDARY_STATE_PENDING,
-	JABLOTRON_SECTION_SECONDARY_STATE_ARMING,
-]
-
-JABLOTRON_SECTION_TERTIARY_STATE_OFF = 0
-JABLOTRON_SECTION_TERTIARY_STATE_ON = 1
-JABLOTRON_SECTION_TERTIARY_STATES = [
-	JABLOTRON_SECTION_TERTIARY_STATE_OFF,
-	JABLOTRON_SECTION_TERTIARY_STATE_ON,
-]
+JABLOTRON_SECTION_PRIMARY_STATE_BLOCKED = 6
 
 JABLOTRON_SIGNAL_STRENGTH_STEP = 5
 JABLOTRON_BATTERY_LEVEL_STEP = 10
@@ -560,7 +533,7 @@ class Jablotron:
 	def _create_sections(self, packet: bytes) -> None:
 		sections_states = Jablotron._parse_sections_states_packet(packet)
 
-		for section, section_packet in sections_states.items():
+		for section, section_binary in sections_states.items():
 			section_hass_device = Jablotron._create_section_hass_device(section)
 			section_alarm_id = Jablotron._get_section_alarm_id(section)
 			section_problem_sensor_id = Jablotron._get_section_problem_sensor_id(section)
@@ -579,10 +552,7 @@ class Jablotron:
 				Jablotron._get_section_problem_sensor_name(section),
 			))
 
-			section_state = Jablotron._parse_jablotron_section_state(section_packet)
-
-			if not Jablotron._is_known_section_state(section_state):
-				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(packet)))
+			section_state = Jablotron._parse_jablotron_section_state(section_binary)
 
 			self._update_state(section_alarm_id, Jablotron._convert_jablotron_section_state_to_alarm_state(section_state), store_state=False)
 			self._update_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state), store_state=False)
@@ -952,15 +922,12 @@ class Jablotron:
 		]
 
 	def _parse_section_states_packet(self, packet: bytes) -> None:
-		section_states = Jablotron._parse_sections_states_packet(packet)
+		sections_states = Jablotron._parse_sections_states_packet(packet)
 
-		for section, section_packet in section_states.items():
-			section_state = Jablotron._parse_jablotron_section_state(section_packet)
+		for section, section_binary in sections_states.items():
+			section_state = Jablotron._parse_jablotron_section_state(section_binary)
 
-			if not Jablotron._is_known_section_state(section_state):
-				LOGGER.error("Unknown state packet for section {}: {}".format(section, Jablotron.format_packet_to_string(packet)))
-
-			if section_state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_SERVICE:
+			if section_state["state"] == JABLOTRON_SECTION_PRIMARY_STATE_SERVICE:
 				# Service is for all sections - we can check only the first
 				self.in_service_mode = True
 				return
@@ -970,16 +937,11 @@ class Jablotron:
 				Jablotron._convert_jablotron_section_state_to_alarm_state(section_state),
 				store_state=False,
 			)
-
-			if (
-				section_state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_NOTHING
-				or section_state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM
-			):
-				self._update_state(
-					Jablotron._get_section_problem_sensor_id(section),
-					Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state),
-					store_state=False,
-				)
+			self._update_state(
+				Jablotron._get_section_problem_sensor_id(section),
+				Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state),
+				store_state=False,
+			)
 
 		# No service mode found
 		self.in_service_mode = False
@@ -1297,18 +1259,18 @@ class Jablotron:
 		return Jablotron.bytes_to_int(packet[2:3]) % 128 == 7
 
 	@staticmethod
-	def _parse_sections_states_packet(packet: bytes) -> Dict[int, bytes]:
+	def _parse_sections_states_packet(packet: bytes) -> Dict[int, str]:
 		section_states = {}
 
 		for section in range(1, MAX_SECTIONS + 1):
 			state_offset = section * 2
-			state = packet[state_offset:(state_offset + 2)]
+			state_packet = packet[state_offset:(state_offset + 2)]
 
 			# Unused section
-			if state == b"\x07\x00":
+			if state_packet == b"\x07\x00":
 				break
 
-			section_states[section] = state
+			section_states[section] = Jablotron._hex_to_bin(state_packet[:1]) + Jablotron._hex_to_bin(state_packet[1:])
 
 		return section_states
 
@@ -1465,55 +1427,41 @@ class Jablotron:
 		return "PG output {}".format(pg_output_number)
 
 	@staticmethod
-	def _is_known_section_state(state: Dict[str, int]) -> bool:
-		return (
-			state["primary"] in JABLOTRON_SECTION_PRIMARY_STATES
-			and state["secondary"] in JABLOTRON_SECTION_SECONDARY_STATES
-			and state["tertiary"] in JABLOTRON_SECTION_TERTIARY_STATES
-		)
+	def _convert_jablotron_section_state_to_alarm_state(state: Dict[str, Union[int, bool]]) -> StateType:
+		if state["state"] in [JABLOTRON_SECTION_PRIMARY_STATE_SERVICE, JABLOTRON_SECTION_PRIMARY_STATE_BLOCKED]:
+			return None
 
-	@staticmethod
-	def _convert_jablotron_section_state_to_alarm_state(state: Dict[str, int]) -> str:
-		if (
-			state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_TRIGGERED
-			or state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_TRIGGERED
-		):
+		if state["triggered"] is True:
 			return STATE_ALARM_TRIGGERED
 
-		if state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_ARMING:
-			return STATE_ALARM_ARMING
-
-		if state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_PENDING:
+		if state["pending"] is True:
 			return STATE_ALARM_PENDING
 
-		if state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL:
-			if state["tertiary"] == JABLOTRON_SECTION_TERTIARY_STATE_ON:
-				return STATE_ALARM_TRIGGERED
-			else:
-				return STATE_ALARM_ARMED_AWAY
+		if state["arming"] is True:
+			return STATE_ALARM_ARMING
 
-		if state["primary"] == JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY:
+		if state["state"] == JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL:
+			return STATE_ALARM_ARMED_AWAY
+
+		if state["state"] == JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY:
 			return STATE_ALARM_ARMED_NIGHT
 
 		return STATE_ALARM_DISARMED
 
 	@staticmethod
-	def _convert_jablotron_section_state_to_problem_sensor_state(state: Dict[str, int]) -> str:
-		return STATE_ON if state["secondary"] == JABLOTRON_SECTION_SECONDARY_STATE_PROBLEM else STATE_OFF
+	def _convert_jablotron_section_state_to_problem_sensor_state(state: Dict[str, Union[int, bool]]) -> StateType:
+		return STATE_ON if state["problem"] is True else STATE_OFF
 
 	@staticmethod
-	def _parse_jablotron_section_state(packet: bytes) -> Dict[str, int]:
-		first_number = Jablotron.bytes_to_int(packet[0:1])
-		second_number = Jablotron.bytes_to_int(packet[1:2])
-
-		primary_state = first_number % 16
-		secondary_state = int((first_number - primary_state) / 16)
-		tertiary_state = second_number % 16
+	def _parse_jablotron_section_state(section_binary: str) -> Dict[str, Union[int, bool]]:
+		state = Jablotron.binary_to_int(section_binary[5:8])
 
 		return {
-			"primary": primary_state,
-			"secondary": secondary_state,
-			"tertiary": tertiary_state,
+			"state": state,
+			"pending": section_binary[1:2] == "1",
+			"arming": section_binary[0:1] == "1",
+			"triggered": section_binary[3:4] == "1" or section_binary[4:5] == "1",
+			"problem": section_binary[2:3] == "1",
 		}
 
 	@staticmethod
@@ -1555,6 +1503,10 @@ class Jablotron:
 	@staticmethod
 	def bytes_to_int(packet: bytes) -> int:
 		return int.from_bytes(packet, byteorder=sys.byteorder)
+
+	@staticmethod
+	def binary_to_int(binary: str) -> int:
+		return int(binary, 2)
 
 	@staticmethod
 	def int_to_bytes(number: int) -> bytes:
@@ -1621,6 +1573,9 @@ class JablotronEntity(Entity):
 	@property
 	def available(self) -> bool:
 		if self._jablotron.in_service_mode is True:
+			return False
+
+		if self._state is None:
 			return False
 
 		return self._jablotron.last_update_success
