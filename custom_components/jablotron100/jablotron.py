@@ -368,6 +368,9 @@ class Jablotron:
 		if code != self._config[CONF_PASSWORD]:
 			self._send_packet(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
 
+		# Update states - should fix state when invalid code was inserted
+		self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+
 	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
 		pg_output_number_packet = Jablotron.int_to_bytes(pg_output_number - 1)
 		state_packet = Jablotron.int_to_bytes(JABLOTRON_PG_OUTPUT_TURN_ON if state == STATE_ON else JABLOTRON_PG_OUTPUT_TURN_OFF)
@@ -843,6 +846,10 @@ class Jablotron:
 						elif Jablotron._is_device_info_packet(packet):
 							self._parse_device_info_packet(packet)
 
+						elif Jablotron._is_login_error_packet(packet):
+							# Login error - update section states to have actual states
+							self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+
 					break
 
 			except Exception as ex:
@@ -1245,6 +1252,17 @@ class Jablotron:
 	@staticmethod
 	def _is_sections_states_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_SECTIONS_STATES
+
+	@staticmethod
+	def _is_login_error_packet(packet: bytes) -> bool:
+		if (
+			packet[:1] == JABLOTRON_PACKET_UI_CONTROL
+			and packet[2:3] == b"\x1b"
+			and packet[3:4] == b"\x03"
+		):
+			return True
+
+		return False
 
 	@staticmethod
 	def _is_pg_outputs_states_packet(packet: bytes) -> bool:
