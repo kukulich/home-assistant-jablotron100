@@ -997,7 +997,7 @@ class Jablotron:
 			self._parse_wireless_device_info_packet(packet)
 
 	def _parse_gsm_info_packet(self, packet: bytes) -> None:
-		if packet[4:5] != b"\xa4":
+		if packet[4:5] not in [b"\xa4", b"\xd5"]:
 			LOGGER.error("Unknown info packet of GSM: {}".format(Jablotron.format_packet_to_string(packet)))
 			return
 
