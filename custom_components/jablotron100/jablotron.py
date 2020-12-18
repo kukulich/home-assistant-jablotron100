@@ -88,7 +88,8 @@ JABLOTRON_PACKETS_DEVICE_ACTIVITY = [
 	b"\x00", b"\x01", b"\x02", b"\x03", b"\x0a",
 	b"\x0c", b"\x0d", b"\x0e", b"\x22", b"\x24",
 	b"\x2d", b"\x33", b"\x3e", b"\x4f", b"\x80",
-	b"\x81", b"\xa3", b"\xa4", b"\xa6", b"\xbe",
+	b"\x81", b"\xa2", b"\xa3", b"\xa4", b"\xa6",
+	b"\xa8", b"\xbe",
 ]
 
 # In minutes
