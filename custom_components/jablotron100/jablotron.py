@@ -1668,5 +1668,5 @@ class JablotronEntity(Entity):
 		self.async_write_ha_state()
 
 	@property
-	def _state(self) -> str:
+	def _state(self) -> StateType:
 		return self._jablotron.states[self._control.id]

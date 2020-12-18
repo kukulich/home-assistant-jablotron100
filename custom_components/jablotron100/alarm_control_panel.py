@@ -11,6 +11,7 @@ from homeassistant.components.alarm_control_panel import (
 	SUPPORT_ALARM_ARM_AWAY,
 	SUPPORT_ALARM_ARM_NIGHT,
 )
+from homeassistant.helpers.typing import StateType
 from typing import Optional
 from .const import DATA_JABLOTRON, DOMAIN
 from .jablotron import JablotronEntity, JablotronAlarmControlPanel, Jablotron
@@ -34,7 +35,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._state_before_arming: Optional[str] = None
 
 	@property
-	def state(self) -> str:
+	def state(self) -> StateType:
 		return self._state
 
 	@property

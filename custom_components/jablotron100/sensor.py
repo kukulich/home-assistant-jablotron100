@@ -1,6 +1,7 @@
 from homeassistant import config_entries, core
 from homeassistant.components.sensor import DEVICE_CLASS_BATTERY, DEVICE_CLASS_SIGNAL_STRENGTH
 from homeassistant.const import PERCENTAGE
+from homeassistant.helpers.typing import StateType
 from .const import (
 	DATA_JABLOTRON,
 	DOMAIN,
@@ -22,7 +23,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 class JablotronSignalStrengthEntity(JablotronEntity):
 
 	@property
-	def state(self) -> str:
+	def state(self) -> StateType:
 		return self._state
 
 	@property
@@ -37,7 +38,7 @@ class JablotronSignalStrengthEntity(JablotronEntity):
 class JablotronBatteryLevelEntity(JablotronEntity):
 
 	@property
-	def state(self) -> str:
+	def state(self) -> StateType:
 		return self._state
 
 	@property
