@@ -1144,6 +1144,9 @@ class Jablotron:
 			)
 
 	def _parse_pg_outputs_states_packet(self, packet: bytes) -> None:
+		if not self._has_pg_outputs():
+			return
+
 		states_start = 2
 		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
 
