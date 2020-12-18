@@ -1115,8 +1115,9 @@ class Jablotron:
 
 		states = Jablotron._hex_to_bin(packet[states_start:states_end])
 
-		for pg_output_number in range(1, self._config[CONF_NUMBER_OF_PG_OUTPUTS] + 1):
-			pg_output_state = STATE_ON if states[(pg_output_number - 1):pg_output_number] == "1" else STATE_OFF
+		for index in range(0, self._config[CONF_NUMBER_OF_PG_OUTPUTS]):
+			pg_output_number = index + 1
+			pg_output_state = STATE_ON if states[index:(index + 1)] == "1" else STATE_OFF
 
 			self._update_state(
 				Jablotron._get_pg_output_id(pg_output_number),
