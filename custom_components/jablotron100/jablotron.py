@@ -84,13 +84,10 @@ JABLOTRON_UI_CONTROL_AUTHORISATION_CODE = b"\x03"
 JABLOTRON_UI_CONTROL_MODIFY_SECTION = b"\x0d"
 JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT = b"\x23"
 
-JABLOTRON_PACKETS_DEVICE_ACTIVITY = [
-	b"\x00", b"\x01", b"\x02", b"\x03", b"\x0a",
-	b"\x0c", b"\x0d", b"\x0e", b"\x22", b"\x24",
-	b"\x2d", b"\x33", b"\x3e", b"\x4f", b"\x80",
-	b"\x81", b"\xa2", b"\xa3", b"\xa4", b"\xa6",
-	b"\xa8", b"\xbe",
-]
+JABLOTRON_DEVICE_PACKET_TYPE_BATTERY_FAULT = 4
+JABLOTRON_DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT = 5
+JABLOTRON_DEVICE_PACKET_TYPE_SABOTAGE = 6
+JABLOTRON_DEVICE_PACKET_TYPE_FAULT = 7
 
 # In minutes
 JABLOTRON_TIMEOUT_FOR_DEVICE_STATE_PACKETS = 5
@@ -1032,19 +1029,19 @@ class Jablotron:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
 			return
 
+		packet_type_binary = Jablotron._hex_to_bin(packet[2:3])
+		packet_type = Jablotron.binary_to_int(packet_type_binary[4:])
+
 		if (
 			self._is_device_with_activity_sensor(device_number)
-			and Jablotron._is_device_state_packet_for_activity(packet)
+			and Jablotron._is_device_state_packet_for_activity(packet_type)
 		):
 			self._update_state(
 				Jablotron._get_device_sensor_id(device_number),
 				device_state,
 				store_state=False,
 			)
-		elif (
-			Jablotron._is_device_state_packet_for_sabotage(packet)
-			or Jablotron._is_device_state_packet_for_fault(packet)
-		):
+		elif Jablotron._is_device_state_packet_for_fault(packet_type):
 			self._update_state(
 				Jablotron._get_device_problem_sensor_id(device_number),
 				device_state,
@@ -1248,16 +1245,17 @@ class Jablotron:
 		return packet[:1] == JABLOTRON_PACKET_DEVICE_STATE
 
 	@staticmethod
-	def _is_device_state_packet_for_activity(packet: bytes) -> bool:
-		return packet[2:3] in JABLOTRON_PACKETS_DEVICE_ACTIVITY
+	def _is_device_state_packet_for_activity(packet_type: int) -> bool:
+		return not Jablotron._is_device_state_packet_for_fault(packet_type)
 
 	@staticmethod
-	def _is_device_state_packet_for_sabotage(packet: bytes) -> bool:
-		return Jablotron.bytes_to_int(packet[2:3]) % 128 == 6
-
-	@staticmethod
-	def _is_device_state_packet_for_fault(packet: bytes) -> bool:
-		return Jablotron.bytes_to_int(packet[2:3]) % 128 == 7
+	def _is_device_state_packet_for_fault(packet_type: int) -> bool:
+		return packet_type in [
+			JABLOTRON_DEVICE_PACKET_TYPE_BATTERY_FAULT,
+			JABLOTRON_DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT,
+			JABLOTRON_DEVICE_PACKET_TYPE_SABOTAGE,
+			JABLOTRON_DEVICE_PACKET_TYPE_FAULT,
+		]
 
 	@staticmethod
 	def _parse_sections_states_packet(packet: bytes) -> Dict[int, str]:
