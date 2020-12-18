@@ -22,7 +22,7 @@ Tested with JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-107K
 ## Installation
 
 - Use code of administrator to make devices work. If you cannot use code of administrator, or you don't want to use devices, set the number of devices to zero.
-- You have to set devices in the same order as you see them in your J-Link/F-Link/mobile application.
+- You have to set devices in the same order as you see them in your J-Link/F-Link/mobile application. Ignore the central unit on position 0.
 - If you want to use PG outputs, the user of the code has to have rights to control the PG outputs. Set the number of PG outputs to zero to ignore them.
 
 ### HACS
