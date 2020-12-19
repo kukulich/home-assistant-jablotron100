@@ -863,7 +863,7 @@ class Jablotron:
 
 	def _keepalive(self):
 		counter = 0
-		last_wireless_devices_update = datetime.datetime.now()
+		last_wireless_devices_update = None
 
 		while not self._state_checker_stop_event.is_set():
 			if not self._state_checker_data_updating_event.wait(0.5):
@@ -871,10 +871,12 @@ class Jablotron:
 					if counter == 0 and not self._is_alarm_active():
 						self._send_packet(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
 
-						# Check wireless devices once a hour
+						# Check wireless devices once a hour (and on the start too)
 						actual_time = datetime.datetime.now()
-						time_since_last_update = actual_time - last_wireless_devices_update
-						if time_since_last_update.total_seconds() > 3600:
+						if (
+							last_wireless_devices_update is None
+							or (actual_time - last_wireless_devices_update).total_seconds() > 3600
+						):
 							gsm_device_number = self._get_gsm_device_number()
 							if gsm_device_number is not None:
 								self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(gsm_device_number))
