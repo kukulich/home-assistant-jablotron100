@@ -778,7 +778,6 @@ class Jablotron:
 					self._state_checker_data_updating_event.clear()
 
 					raw_packet = stream.read(PACKET_READ_SIZE)
-					# LOGGER.debug(Jablotron.format_packet_to_string(raw_packet))
 
 					self._state_checker_data_updating_event.set()
 
@@ -794,6 +793,8 @@ class Jablotron:
 					packets = Jablotron.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
+						# LOGGER.debug(Jablotron.format_packet_to_string(packet))
+
 						if Jablotron._is_sections_states_packet(packet):
 							in_service_mode = self.in_service_mode
 
