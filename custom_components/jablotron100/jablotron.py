@@ -1344,8 +1344,10 @@ class Jablotron:
 			high_device_number_offset = 0
 		elif device_number <= 96:
 			high_device_number_offset = -64
-		else:
+		elif device_number <= 128:
 			high_device_number_offset = -128
+		else:
+			high_device_number_offset = -256
 
 		device_states_offset = ((device_number + high_device_number_offset) * 4) + 104
 
