@@ -1113,7 +1113,7 @@ class Jablotron:
 		states_start = 2
 		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
 
-		states = Jablotron._hex_to_bin(packet[states_start:states_end])
+		states = Jablotron._hex_to_reverse_bin(packet[states_start:states_end])
 
 		for index in range(0, self._config[CONF_NUMBER_OF_PG_OUTPUTS]):
 			pg_output_number = index + 1
