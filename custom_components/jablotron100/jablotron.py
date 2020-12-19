@@ -1152,7 +1152,7 @@ class Jablotron:
 		states_start = 2
 		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
 
-		states = Jablotron._hex_to_bin(packet[states_start:states_end])
+		states = Jablotron._hex_to_reverse_bin(packet[states_start:states_end])
 
 		for pg_output_number in range(1, self._config[CONF_NUMBER_OF_PG_OUTPUTS] + 1):
 			pg_output_state = STATE_ON if states[(pg_output_number - 1):pg_output_number] == "1" else STATE_OFF
