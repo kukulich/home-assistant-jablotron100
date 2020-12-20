@@ -6,6 +6,7 @@ from homeassistant.components.binary_sensor import DOMAIN as PLATFORM_BINARY_SEN
 from homeassistant.components.sensor import DOMAIN as PLATFORM_SENSOR
 from homeassistant.components.switch import DOMAIN as PLATFORM_SWITCH
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
 	DATA_JABLOTRON,
@@ -33,6 +34,24 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	}
 
 	central_unit = jablotron.central_unit()
+
+	if central_unit.model in ["JA-103K", "JA-103KRY", "JA-107K"]:
+		entity_registry = await er.async_get_registry(hass)
+		not_working_gsm_signal_entity_id = entity_registry.async_get_entity_id(
+			PLATFORM_BINARY_SENSOR,
+			DOMAIN,
+			"{}.{}.gsm_signal_sensor".format(DOMAIN, central_unit.serial_port),
+		)
+		if not_working_gsm_signal_entity_id is not None:
+			entity_registry.async_remove(not_working_gsm_signal_entity_id)
+
+		not_working_gsm_signal_strength_entity_id = entity_registry.async_get_entity_id(
+			PLATFORM_SENSOR,
+			DOMAIN,
+			"{}.{}.gsm_signal_strength_sensor".format(DOMAIN, central_unit.serial_port),
+		)
+		if not_working_gsm_signal_strength_entity_id is not None:
+			entity_registry.async_remove(not_working_gsm_signal_strength_entity_id)
 
 	device_registry = await dr.async_get_registry(hass)
 
