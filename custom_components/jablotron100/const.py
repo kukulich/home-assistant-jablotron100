@@ -37,6 +37,7 @@ DEVICE_SIREN_INDOOR = "indoor_siren"
 DEVICE_MOTION_DETECTOR = "motion_detector"
 DEVICE_WINDOW_OPENING_DETECTOR = "window_opening_detector"
 DEVICE_DOOR_OPENING_DETECTOR = "door_opening_detector"
+DEVICE_GARAGE_DOOR_OPENING_DETECTOR = "garage_door_opening_detector"
 DEVICE_GLASS_BREAK_DETECTOR = "glass_break_detector"
 DEVICE_SMOKE_DETECTOR = "smoke_detector"
 DEVICE_FLOOD_DETECTOR = "flood_detector"
@@ -52,6 +53,7 @@ DEVICES = {
 	DEVICE_MOTION_DETECTOR: "Motion detector",
 	DEVICE_WINDOW_OPENING_DETECTOR: "Window opening detector",
 	DEVICE_DOOR_OPENING_DETECTOR: "Door opening detector",
+	DEVICE_GARAGE_DOOR_OPENING_DETECTOR: "Garage door opening detector",
 	DEVICE_GLASS_BREAK_DETECTOR: "Glass break detector",
 	DEVICE_SMOKE_DETECTOR: "Smoke detector",
 	DEVICE_FLOOD_DETECTOR: "Flood detector",
