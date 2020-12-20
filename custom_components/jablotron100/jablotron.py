@@ -1535,20 +1535,35 @@ class Jablotron:
 
 	@staticmethod
 	def create_packet_authorisation_code(code: str) -> bytes:
-		code_packet = b"\x39\x39\x39"
+		magic_offset = 48
 
-		for i in range(0, 4):
-			j = i + 4
+		if code.find("*") != -1:
+			code_packet = b"\x30"
 
-			first_number = code[j:(j + 1)]
-			second_number = code[i:(i + 1)]
+			for i in range(0, len(code)):
+				letter = code[i:(i + 1)]
 
-			if first_number == "":
-				code_number = 48 + int(second_number)
-			else:
-				code_number = int(f"{first_number}{second_number}", 16)
+				if letter == "*":
+					continue
 
-			code_packet += Jablotron.int_to_bytes(code_number)
+				code_number = magic_offset + int(letter)
+				code_packet += Jablotron.int_to_bytes(code_number)
+
+		else:
+			code_packet = b"\x39\x39\x39"
+
+			for i in range(0, 4):
+				j = i + 4
+
+				first_number = code[j:(j + 1)]
+				second_number = code[i:(i + 1)]
+
+				if first_number == "":
+					code_number = magic_offset + int(second_number)
+				else:
+					code_number = int(f"{first_number}{second_number}", 16)
+
+				code_packet += Jablotron.int_to_bytes(code_number)
 
 		return Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_CODE, code_packet)
 
