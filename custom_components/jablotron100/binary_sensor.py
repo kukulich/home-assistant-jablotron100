@@ -4,6 +4,7 @@ from homeassistant.components.binary_sensor import (
 	DEVICE_CLASS_CONNECTIVITY,
 	DEVICE_CLASS_DOOR,
 	DEVICE_CLASS_GAS,
+	DEVICE_CLASS_LOCK,
 	DEVICE_CLASS_MOISTURE,
 	DEVICE_CLASS_MOTION,
 	DEVICE_CLASS_PROBLEM,
@@ -24,6 +25,7 @@ from .const import (
 	DEVICE_SIREN_INDOOR,
 	DEVICE_BUTTON,
 	DEVICE_THERMOSTAT,
+	DEVICE_LOCK,
 	DOMAIN,
 )
 from .jablotron import JablotronEntity
@@ -99,6 +101,9 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 
 		if self._control.type == DEVICE_SMOKE_DETECTOR:
 			return DEVICE_CLASS_SMOKE
+
+		if self._control.type == DEVICE_LOCK:
+			return DEVICE_CLASS_LOCK
 
 		return None
 

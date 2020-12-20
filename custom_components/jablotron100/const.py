@@ -42,6 +42,7 @@ DEVICE_SMOKE_DETECTOR = "smoke_detector"
 DEVICE_FLOOD_DETECTOR = "flood_detector"
 DEVICE_GAS_DETECTOR = "gas_detector"
 DEVICE_THERMOSTAT = "thermostat"
+DEVICE_LOCK = "lock"
 DEVICE_OTHER = "other"
 
 DEVICES = {
@@ -58,6 +59,7 @@ DEVICES = {
 	DEVICE_KEY_FOB: "Key fob",
 	DEVICE_BUTTON: "Button",
 	DEVICE_THERMOSTAT: "Thermostat",
+	DEVICE_LOCK: "Lock",
 	DEVICE_OTHER: "Other",
 	DEVICE_EMPTY: "Empty",
 }
