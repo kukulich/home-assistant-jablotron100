@@ -1135,7 +1135,7 @@ class Jablotron:
 		return None
 
 	def _get_gsm_device_number(self) -> Optional[int]:
-		if self._central_unit.model in ["JA-101K-LAN", "JA-106K-3G"]:
+		if self._central_unit.model in ["JA-101K", "JA-101K-LAN", "JA-106K-3G"]:
 			return 127
 
 		if self._central_unit.model in ["JA-103K", "JA-103KRY", "JA-107K"]:
