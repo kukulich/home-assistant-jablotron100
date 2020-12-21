@@ -12,6 +12,13 @@ CONF_NUMBER_OF_PG_OUTPUTS = "number_of_pg_outputs"
 CONF_DEVICES = "devices"
 CONF_REQUIRE_CODE_TO_ARM = "require_code_to_arm"
 CONF_REQUIRE_CODE_TO_DISARM = "require_code_to_disarm"
+CONF_ENABLE_DEBUGGING = "enable_debugging"
+
+CONF_LOG_ALL_INCOMING_PACKETS = "log_all_incoming_packets"
+CONF_LOG_ALL_OUTCOMING_PACKETS = "log_all_outcoming_packets"
+CONF_LOG_SECTIONS_PACKETS = "log_sections_packets"
+CONF_LOG_PG_OUTPUTS_PACKETS = "log_pg_outputs_packets"
+CONF_LOG_DEVICES_PACKETS = "log_devices_packets"
 
 DEFAULT_SERIAL_PORT = "/dev/hidraw0"
 
@@ -20,6 +27,7 @@ DATA_OPTIONS_UPDATE_UNSUBSCRIBER = "options_update_unsubscriber"
 
 DEFAULT_CONF_REQUIRE_CODE_TO_ARM = False
 DEFAULT_CONF_REQUIRE_CODE_TO_DISARM = True
+DEFAULT_CONF_ENABLE_DEBUGGING = False
 
 DEVICE_DATA_CONNECTION = "connection"
 DEVICE_DATA_BATTERY_LEVEL = "battery_level"

@@ -153,7 +153,18 @@
 				"title": "Alternativer",
 				"data": {
 					"require_code_to_arm": "Krever kode for å koble til",
-					"require_code_to_disarm": "Krever kode for å koble fra"
+					"require_code_to_disarm": "Krever kode for å koble fra",
+					"enable_debugging": "Enable debugging"
+				}
+			},
+			"debug": {
+				"title": "Debugging options",
+				"data": {
+					"log_all_incoming_packets": "Log all incoming packets",
+					"log_all_outcoming_packets": "Log all outcoming packets",
+					"log_sections_packets": "Log sections packets",
+					"log_devices_packets": "Log devices packets",
+					"log_pg_outputs_packets": "Log PG outputs packets"
 				}
 			}
 		}

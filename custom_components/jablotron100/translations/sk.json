@@ -153,7 +153,18 @@
 				"title": "Nastavenia",
 				"data": {
 					"require_code_to_arm": "Vyžadovať kód k zabezpečeniu",
-					"require_code_to_disarm": "Vyžadovať kód k odbezpečeniu"
+					"require_code_to_disarm": "Vyžadovať kód k odbezpečeniu",
+					"enable_debugging": "Povoliť ladenie"
+				}
+			},
+			"debug": {
+				"title": "Nastavenia ladenie",
+				"data": {
+					"log_all_incoming_packets": "Logovať všetky prichádzajúce pakety",
+					"log_all_outcoming_packets": "Logovať všetky odchádzajúce pakety",
+					"log_sections_packets": "Logovať pakety sekcií",
+					"log_devices_packets": "Logovať pakety periferií",
+					"log_pg_outputs_packets": "Logovať pakety programovateľných výstupov PG"
 				}
 			}
 		}

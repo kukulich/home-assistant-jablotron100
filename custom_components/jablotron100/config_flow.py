@@ -11,8 +11,15 @@ from .const import (
 	CONF_DEVICES,
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
+	CONF_ENABLE_DEBUGGING,
+	CONF_LOG_ALL_INCOMING_PACKETS,
+	CONF_LOG_ALL_OUTCOMING_PACKETS,
+	CONF_LOG_SECTIONS_PACKETS,
+	CONF_LOG_PG_OUTPUTS_PACKETS,
+	CONF_LOG_DEVICES_PACKETS,
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
+	DEFAULT_CONF_ENABLE_DEBUGGING,
 	DEVICES,
 	DOMAIN,
 	DEFAULT_SERIAL_PORT,
@@ -132,13 +139,22 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class JablotronOptionsFlow(config_entries.OptionsFlow):
+	_options: Optional[Dict[str, Any]] = None
 
 	def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
 		self._config_entry: config_entries.ConfigEntry = config_entry
+		self._options = dict(self._config_entry.options)
 
 	async def async_step_init(self, user_input: Optional[Dict[str, Any]] = None):
 		if user_input is not None:
-			return self.async_create_entry(title=NAME, data=user_input)
+			self._options[CONF_REQUIRE_CODE_TO_DISARM] = user_input[CONF_REQUIRE_CODE_TO_DISARM]
+			self._options[CONF_REQUIRE_CODE_TO_ARM] = user_input[CONF_REQUIRE_CODE_TO_ARM]
+			self._options[CONF_ENABLE_DEBUGGING] = user_input[CONF_ENABLE_DEBUGGING]
+
+			if self._options[CONF_ENABLE_DEBUGGING] is False:
+				return self.async_create_entry(title=NAME, data=self._options)
+
+			return await self.async_step_debug()
 
 		return self.async_show_form(
 			step_id="init",
@@ -151,6 +167,48 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 					vol.Optional(
 						CONF_REQUIRE_CODE_TO_ARM,
 						default=self._config_entry.options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM),
+					): bool,
+					vol.Optional(
+						CONF_ENABLE_DEBUGGING,
+						default=self._config_entry.options.get(CONF_ENABLE_DEBUGGING, DEFAULT_CONF_ENABLE_DEBUGGING),
+					): bool,
+				}
+			),
+		)
+
+	async def async_step_debug(self, user_input: Optional[Dict[str, Any]] = None):
+		if user_input is not None:
+			self._options[CONF_LOG_ALL_INCOMING_PACKETS] = user_input[CONF_LOG_ALL_INCOMING_PACKETS]
+			self._options[CONF_LOG_ALL_OUTCOMING_PACKETS] = user_input[CONF_LOG_ALL_OUTCOMING_PACKETS]
+			self._options[CONF_LOG_SECTIONS_PACKETS] = user_input[CONF_LOG_SECTIONS_PACKETS]
+			self._options[CONF_LOG_PG_OUTPUTS_PACKETS] = user_input[CONF_LOG_PG_OUTPUTS_PACKETS]
+			self._options[CONF_LOG_DEVICES_PACKETS] = user_input[CONF_LOG_DEVICES_PACKETS]
+
+			return self.async_create_entry(title=NAME, data=self._options)
+
+		return self.async_show_form(
+			step_id="debug",
+			data_schema=vol.Schema(
+				{
+					vol.Optional(
+						CONF_LOG_ALL_INCOMING_PACKETS,
+						default=self._config_entry.options.get(CONF_LOG_ALL_INCOMING_PACKETS, False),
+					): bool,
+					vol.Optional(
+						CONF_LOG_ALL_OUTCOMING_PACKETS,
+						default=self._config_entry.options.get(CONF_LOG_ALL_OUTCOMING_PACKETS, False),
+					): bool,
+					vol.Optional(
+						CONF_LOG_SECTIONS_PACKETS,
+						default=self._config_entry.options.get(CONF_LOG_SECTIONS_PACKETS, False),
+					): bool,
+					vol.Optional(
+						CONF_LOG_PG_OUTPUTS_PACKETS,
+						default=self._config_entry.options.get(CONF_LOG_PG_OUTPUTS_PACKETS, False),
+					): bool,
+					vol.Optional(
+						CONF_LOG_DEVICES_PACKETS,
+						default=self._config_entry.options.get(CONF_LOG_DEVICES_PACKETS, False),
 					): bool,
 				}
 			),

@@ -32,8 +32,15 @@ from .const import (
 	CONF_SERIAL_PORT,
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
+	CONF_ENABLE_DEBUGGING,
+	CONF_LOG_ALL_INCOMING_PACKETS,
+	CONF_LOG_ALL_OUTCOMING_PACKETS,
+	CONF_LOG_SECTIONS_PACKETS,
+	CONF_LOG_PG_OUTPUTS_PACKETS,
+	CONF_LOG_DEVICES_PACKETS,
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
+	DEFAULT_CONF_ENABLE_DEBUGGING,
 	DEVICE_CONNECTION_WIRED,
 	DEVICE_CONNECTION_WIRELESS,
 	DEVICE_DATA_CONNECTION,
@@ -339,7 +346,7 @@ class Jablotron:
 		after_packets = []
 
 		if code != self._config[CONF_PASSWORD]:
-			after_packets.append(Jablotron.create_packet_keepalive(self._config[CONF_PASSWORD]))
+			after_packets.extend(Jablotron.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
 		# Update states - should fix state when invalid code was inserted
 		after_packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
@@ -422,10 +429,10 @@ class Jablotron:
 					packets = Jablotron.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
+						self._log_incoming_packet(packet)
+
 						if packet[:1] != JABLOTRON_PACKET_SYSTEM_INFO:
 							continue
-
-						LOGGER.debug("Info packet: {}".format(Jablotron.format_packet_to_string(packet)))
 
 						try:
 							info_type = Jablotron.bytes_to_int(packet[2:3])
@@ -479,23 +486,29 @@ class Jablotron:
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-		def reader_thread() -> Optional[bytes]:
-			states_packet = None
+		def reader_thread() -> Optional[List[bytes]]:
+			states_packets = None
 
 			stream = open(self._config[CONF_SERIAL_PORT], "rb")
 
 			try:
 				while not stop_event.is_set():
-					# Don't parse - it's parsed later
-					read_packet = stream.read(PACKET_READ_SIZE)
-					if self._is_sections_states_packet(read_packet):
-						states_packet = read_packet
+					raw_packet = stream.read(PACKET_READ_SIZE)
+					read_packets = Jablotron.get_packets_from_packet(raw_packet)
+					for read_packet in read_packets:
+						self._log_incoming_packet(read_packet)
+
+						if self._is_sections_states_packet(read_packet):
+							states_packets = read_packets
+							break
+
+					if states_packets is not None:
 						break
 
 			finally:
 				stream.close()
 
-			return states_packet
+			return states_packets
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
@@ -506,7 +519,7 @@ class Jablotron:
 			reader = thread_pool_executor.submit(reader_thread)
 			thread_pool_executor.submit(writer_thread)
 
-			raw_packet = reader.result(TIMEOUT)
+			packets = reader.result(TIMEOUT)
 
 		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
 			LOGGER.error(format(ex))
@@ -516,10 +529,8 @@ class Jablotron:
 			stop_event.set()
 			thread_pool_executor.shutdown()
 
-		if raw_packet is None:
+		if packets is None:
 			raise ShouldNotHappen
-
-		packets = Jablotron.get_packets_from_packet(raw_packet)
 
 		for packet in packets:
 			if Jablotron._is_sections_states_packet(packet):
@@ -604,6 +615,8 @@ class Jablotron:
 					packets = Jablotron.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
+						self._log_incoming_packet(packet)
+
 						if self._is_device_info_packet(packet):
 							info_packets[Jablotron._get_device_id(Jablotron._parse_device_number_from_device_info_packet(packet))] = packet
 
@@ -794,7 +807,7 @@ class Jablotron:
 					packets = Jablotron.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
-						# LOGGER.debug(Jablotron.format_packet_to_string(packet))
+						self._log_incoming_packet(packet)
 
 						if Jablotron._is_sections_states_packet(packet):
 							in_service_mode = self.in_service_mode
@@ -839,7 +852,7 @@ class Jablotron:
 			if not self._state_checker_data_updating_event.wait(0.5):
 				try:
 					if counter == 0 and not self._is_alarm_active():
-						self._send_packet(Jablotron.create_packet_keepalive(self._config[CONF_PASSWORD]))
+						self._send_packets(Jablotron.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
 						# Check wireless devices once a hour (and on the start too)
 						actual_time = datetime.datetime.now()
@@ -878,22 +891,27 @@ class Jablotron:
 
 		batch_packet = b""
 		for packet in batch:
+			self._log_outcoming_packet(packet)
+
 			if len(batch_packet) + len(packet) > 64:
-				self._send_packet(batch_packet)
+				self._send_packet_by_stream(batch_packet)
 				batch_packet = b""
 
 			batch_packet += packet
 
 		if batch_packet != b"":
-			self._send_packet(batch_packet)
+			self._send_packet_by_stream(batch_packet)
 
 		stream.close()
 
 	def _send_packet(self, packet: bytes) -> None:
+		self._log_outcoming_packet(packet)
+		self._send_packet_by_stream(packet)
+
+	def _send_packet_by_stream(self, packet: bytes) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "wb")
 
 		stream.write(packet)
-		# LOGGER.debug(Jablotron.format_packet_to_string(packet))
 		time.sleep(0.1)
 
 		stream.close()
@@ -1182,6 +1200,68 @@ class Jablotron:
 		else:
 			self.states[id] = state
 
+	def _log_incoming_packet(self, packet: bytes) -> None:
+		if self._should_be_incoming_packet_logged(packet):
+			Jablotron._log_packet(packet)
+
+	def _log_outcoming_packet(self, packet: bytes) -> None:
+		if self._should_be_outcoming_packet_logged(packet):
+			Jablotron._log_packet(packet)
+
+	def _should_be_incoming_packet_logged(self, packet: bytes) -> bool:
+		if not self._options.get(CONF_ENABLE_DEBUGGING, DEFAULT_CONF_ENABLE_DEBUGGING):
+			return False
+
+		if self._options.get(CONF_LOG_ALL_INCOMING_PACKETS, False):
+			return True
+
+		if (
+			self._options.get(CONF_LOG_SECTIONS_PACKETS, False)
+			and Jablotron._is_sections_states_packet(packet)
+		):
+			return True
+
+		if (
+			self._options.get(CONF_LOG_PG_OUTPUTS_PACKETS, False)
+			and Jablotron._is_pg_outputs_states_packet(packet)
+		):
+			return True
+
+		if (
+			self._options.get(CONF_LOG_DEVICES_PACKETS, False)
+			and Jablotron._is_device_packet(packet)
+		):
+			return True
+
+		return False
+
+	def _should_be_outcoming_packet_logged(self, packet: bytes) -> bool:
+		if not self._options.get(CONF_ENABLE_DEBUGGING, DEFAULT_CONF_ENABLE_DEBUGGING):
+			return False
+
+		if self._options.get(CONF_LOG_ALL_OUTCOMING_PACKETS, False):
+			return True
+
+		if (
+			self._options.get(CONF_LOG_SECTIONS_PACKETS, False)
+			and Jablotron._is_section_modify_packet(packet)
+		):
+			return True
+
+		if (
+			self._options.get(CONF_LOG_PG_OUTPUTS_PACKETS, False)
+			and Jablotron._is_pg_output_toggle_packet(packet)
+		):
+			return True
+
+		if (
+			self._options.get(CONF_LOG_DEVICES_PACKETS, False)
+			and Jablotron._is_device_get_info_packet(packet)
+		):
+			return True
+
+		return False
+
 	def _store_state(self, id: str, state: StateType):
 		serial_port = self._config[CONF_SERIAL_PORT]
 
@@ -1228,8 +1308,16 @@ class Jablotron:
 		return self._stored_data
 
 	@staticmethod
+	def _log_packet(packet: bytes) -> None:
+		LOGGER.debug(Jablotron.format_packet_to_string(packet))
+
+	@staticmethod
 	def _is_sections_states_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_SECTIONS_STATES
+
+	@staticmethod
+	def _is_section_modify_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_UI_CONTROL and packet[2:3] == JABLOTRON_UI_CONTROL_MODIFY_SECTION
 
 	@staticmethod
 	def _is_login_error_packet(packet: bytes) -> bool:
@@ -1247,12 +1335,28 @@ class Jablotron:
 		return packet[:1] == JABLOTRON_PACKET_PG_OUTPUTS_STATES
 
 	@staticmethod
+	def _is_pg_output_toggle_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_UI_CONTROL and packet[2:3] == JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT
+
+	@staticmethod
+	def _is_device_packet(packet: bytes) -> bool:
+		return (
+			Jablotron._is_devices_states_packet(packet)
+			or Jablotron._is_device_state_packet(packet)
+			or Jablotron._is_device_info_packet(packet)
+		)
+
+	@staticmethod
 	def _is_devices_states_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_DEVICES_STATES
 
 	@staticmethod
 	def _is_device_info_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_COMMAND and packet[2:3] == JABLOTRON_COMMAND_RESPONSE_DEVICE_INFO
+
+	@staticmethod
+	def _is_device_get_info_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_COMMAND and packet[2:3] == JABLOTRON_COMMAND_GET_DEVICE_INFO
 
 	@staticmethod
 	def _is_device_state_packet(packet: bytes) -> bool:
@@ -1595,8 +1699,11 @@ class Jablotron:
 		return Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_CODE, code_packet)
 
 	@staticmethod
-	def create_packet_keepalive(code: str) -> bytes:
-		return Jablotron.create_packet_authorisation_code(code) + Jablotron.create_packet_enable_device_states()
+	def create_packets_keepalive(code: str) -> List[bytes]:
+		return [
+			Jablotron.create_packet_authorisation_code(code),
+			Jablotron.create_packet_enable_device_states(),
+		]
 
 
 class JablotronEntity(Entity):
