@@ -605,7 +605,7 @@ class Jablotron:
 
 					for packet in packets:
 						if self._is_device_info_packet(packet):
-							info_packets[Jablotron._get_device_id(Jablotron.bytes_to_int(packet[3:4]))] = packet
+							info_packets[Jablotron._get_device_id(Jablotron._parse_device_number_from_device_info_packet(packet))] = packet
 
 					if len(info_packets.items()) == not_ignored_devices_count:
 						break
@@ -660,11 +660,6 @@ class Jablotron:
 
 				if battery_level is not None:
 					self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] = battery_level
-				else:
-					LOGGER.debug("Unknown battery level packet of device {}: {}".format(
-						Jablotron.bytes_to_int(devices_info_packets[device_id][3:4]),
-						Jablotron.format_packet_to_string(devices_info_packets[device_id])),
-					)
 
 		self._store_devices_data()
 
@@ -968,7 +963,7 @@ class Jablotron:
 		self.in_service_mode = False
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
-		device_number = Jablotron.bytes_to_int(packet[3:4])
+		device_number = Jablotron._parse_device_number_from_device_info_packet(packet)
 
 		if device_number == self._get_gsm_device_number():
 			self._parse_gsm_info_packet(packet)
@@ -992,7 +987,7 @@ class Jablotron:
 		self._store_devices_data()
 
 	def _parse_wireless_device_info_packet(self, packet: bytes) -> None:
-		device_number = Jablotron.bytes_to_int(packet[3:4])
+		device_number = Jablotron._parse_device_number_from_device_info_packet(packet)
 		device_id = Jablotron._get_device_id(device_number)
 
 		signal_strength = Jablotron._parse_device_signal_strength_from_device_info_packet(packet)
@@ -1003,9 +998,7 @@ class Jablotron:
 
 		battery_level = Jablotron._parse_device_battery_level_from_device_info_packet(packet)
 
-		if battery_level is None:
-			LOGGER.error("Unknown battery level packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
-		else:
+		if battery_level is not None:
 			battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(device_number)
 
 			self._update_state(battery_level_sensor_id, battery_level, store_state=True)
@@ -1295,6 +1288,10 @@ class Jablotron:
 		return section_states
 
 	@staticmethod
+	def _parse_device_number_from_device_info_packet(packet: bytes) -> int:
+		return Jablotron.bytes_to_int(packet[3:4])
+
+	@staticmethod
 	def _parse_device_connection_type_device_info_packet(packet: bytes) -> str:
 		packet_length = Jablotron.bytes_to_int(packet[1:2])
 		return DEVICE_CONNECTION_WIRELESS if packet_length == 9 else DEVICE_CONNECTION_WIRED
@@ -1306,9 +1303,18 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> Optional[int]:
-		battery_level = Jablotron.bytes_to_int(packet[10:11])
+		battery_level_packet = packet[10:11]
+
+		if battery_level_packet == b"\x0b":
+			return None
+
+		battery_level = Jablotron.bytes_to_int(battery_level_packet)
 
 		if battery_level > 10:
+			LOGGER.debug("Unknown battery level packet of device {}: {}".format(
+				Jablotron._parse_device_number_from_device_info_packet(packet),
+				Jablotron.format_packet_to_string(packet),
+			))
 			return None
 
 		return battery_level * JABLOTRON_BATTERY_LEVEL_STEP
