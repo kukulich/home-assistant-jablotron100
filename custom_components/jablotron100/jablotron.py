@@ -339,7 +339,7 @@ class Jablotron:
 		after_packets = []
 
 		if code != self._config[CONF_PASSWORD]:
-			after_packets.append(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
+			after_packets.append(Jablotron.create_packet_keepalive(self._config[CONF_PASSWORD]))
 
 		# Update states - should fix state when invalid code was inserted
 		after_packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
@@ -839,7 +839,7 @@ class Jablotron:
 			if not self._state_checker_data_updating_event.wait(0.5):
 				try:
 					if counter == 0 and not self._is_alarm_active():
-						self._send_packet(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
+						self._send_packet(Jablotron.create_packet_keepalive(self._config[CONF_PASSWORD]))
 
 						# Check wireless devices once a hour (and on the start too)
 						actual_time = datetime.datetime.now()
@@ -1595,7 +1595,7 @@ class Jablotron:
 		return Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_CODE, code_packet)
 
 	@staticmethod
-	def create_packet_keapalive(code: str) -> bytes:
+	def create_packet_keepalive(code: str) -> bytes:
 		return Jablotron.create_packet_authorisation_code(code) + Jablotron.create_packet_enable_device_states()
 
 
