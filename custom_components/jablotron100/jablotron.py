@@ -543,7 +543,7 @@ class Jablotron:
 		self._create_pg_outputs()
 
 	def _create_sections(self, packet: bytes) -> None:
-		sections_states = Jablotron._parse_sections_states_packet(packet)
+		sections_states = Jablotron._convert_sections_states_packet_to_binary(packet)
 
 		for section, section_binary in sections_states.items():
 			section_hass_device = Jablotron._create_section_hass_device(section)
@@ -812,7 +812,7 @@ class Jablotron:
 						if Jablotron._is_sections_states_packet(packet):
 							in_service_mode = self.in_service_mode
 
-							self._parse_section_states_packet(packet)
+							self._parse_sections_states_packet(packet)
 
 							if in_service_mode != self.in_service_mode:
 								self._update_all_entities()
@@ -955,8 +955,8 @@ class Jablotron:
 			DEVICE_SIREN_OUTDOOR,
 		]
 
-	def _parse_section_states_packet(self, packet: bytes) -> None:
-		sections_states = Jablotron._parse_sections_states_packet(packet)
+	def _parse_sections_states_packet(self, packet: bytes) -> None:
+		sections_states = Jablotron._convert_sections_states_packet_to_binary(packet)
 
 		for section, section_binary in sections_states.items():
 			section_state = Jablotron._parse_jablotron_section_state(section_binary)
@@ -1376,7 +1376,7 @@ class Jablotron:
 		]
 
 	@staticmethod
-	def _parse_sections_states_packet(packet: bytes) -> Dict[int, str]:
+	def _convert_sections_states_packet_to_binary(packet: bytes) -> Dict[int, str]:
 		section_states = {}
 
 		for section in range(1, MAX_SECTIONS + 1):
