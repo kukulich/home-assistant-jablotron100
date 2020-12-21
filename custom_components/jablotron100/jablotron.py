@@ -303,10 +303,10 @@ class Jablotron:
 		self._state_checker_stop_event.set()
 
 		# Send packet so read thread can finish
-		self._send_packet(
-			Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES)
-			+ Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
-		)
+		self._send_packets([
+			Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
+			Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
+		])
 
 		if self._state_checker_thread_pool_executor is not None:
 			self._state_checker_thread_pool_executor.shutdown()
@@ -326,21 +326,25 @@ class Jablotron:
 
 		state_packet = Jablotron.int_to_bytes(int_packets[state] + section)
 
-		packet = b""
+		packets = []
 
 		if code != self._config[CONF_PASSWORD]:
-			packet += Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END)
-			packet += Jablotron.create_packet_authorisation_code(code)
+			packets.append(Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END))
+			packets.append(Jablotron.create_packet_authorisation_code(code))
 
-		packet += Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet)
+		packets.append(Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet))
 
-		self._send_packet(packet)
+		self._send_packets(packets)
+
+		after_packets = []
 
 		if code != self._config[CONF_PASSWORD]:
-			self._send_packet(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
+			after_packets.append(Jablotron.create_packet_keapalive(self._config[CONF_PASSWORD]))
 
 		# Update states - should fix state when invalid code was inserted
-		self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+		after_packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+
+		self._send_packets(after_packets)
 
 	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
 		pg_output_number_packet = Jablotron.int_to_bytes(pg_output_number - 1)
@@ -447,11 +451,11 @@ class Jablotron:
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
-				self._send_packet(
-					Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_MODEL)
-					+ Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_HARDWARE_VERSION)
-					+ Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_FIRMWARE_VERSION)
-				)
+				self._send_packets([
+					Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_MODEL),
+					Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_HARDWARE_VERSION),
+					Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_FIRMWARE_VERSION),
+				])
 				time.sleep(1)
 
 		try:
@@ -615,9 +619,11 @@ class Jablotron:
 			self._send_packet(Jablotron.create_packet_authorisation_code(self._config[CONF_PASSWORD]))
 
 			while not stop_event.is_set():
+				packets = []
 				for number_of_not_ignored_device in numbers_of_not_ignored_devices:
-					self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(number_of_not_ignored_device))
+					packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(number_of_not_ignored_device)))
 
+				self._send_packets(packets)
 				time.sleep(estimated_duration)
 
 		try:
@@ -846,17 +852,22 @@ class Jablotron:
 							last_wireless_devices_update is None
 							or (actual_time - last_wireless_devices_update).total_seconds() > 3600
 						):
+							packets = []
+
 							gsm_device_number = self._get_gsm_device_number()
 							if gsm_device_number is not None:
-								self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(gsm_device_number))
+								packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(gsm_device_number)))
 
 							for device_number in self._get_numbers_of_not_ignored_devices():
 								if self._is_wireless_device(device_number):
-									self._send_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(device_number))
+									packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(device_number)))
+
+							if len(packets) > 0:
+								self._send_packets(packets)
 
 							last_wireless_devices_update = actual_time
 					else:
-						self._send_command(JABLOTRON_COMMAND_HEARTBEAT)
+						self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_HEARTBEAT))
 				except Exception as ex:
 					LOGGER.error("Write error: {}".format(format(ex)))
 
@@ -867,11 +878,21 @@ class Jablotron:
 			if counter == 60:
 				counter = 0
 
-	def _send_command(self, type: bytes, data: Optional[bytes] = b"") -> None:
-		self._send_packet(Jablotron.create_packet_command(type, data))
+	def _send_packets(self, batch: List[bytes]) -> None:
+		stream = open(self._config[CONF_SERIAL_PORT], "wb")
 
-	def _send_request(self, type: bytes, data: bytes) -> None:
-		self._send_packet(Jablotron.create_packet(type, data))
+		batch_packet = b""
+		for packet in batch:
+			if len(batch_packet) + len(packet) > 64:
+				self._send_packet(batch_packet)
+				batch_packet = b""
+
+			batch_packet += packet
+
+		if batch_packet != b"":
+			self._send_packet(batch_packet)
+
+		stream.close()
 
 	def _send_packet(self, packet: bytes) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "wb")
