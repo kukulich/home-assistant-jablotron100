@@ -1669,10 +1669,12 @@ class Jablotron:
 		magic_offset = 48
 
 		if code.find("*") != -1:
-			code_packet = b"\x30"
+			code_packet = b""
 
-			for i in range(0, len(code)):
-				letter = code[i:(i + 1)]
+			code = code.rjust(8, "0")
+
+			for j in range(0, len(code)):
+				letter = code[j:(j + 1)]
 
 				if letter == "*":
 					continue
