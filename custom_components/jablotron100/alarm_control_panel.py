@@ -8,6 +8,7 @@ from homeassistant.const import (
 from homeassistant.components.alarm_control_panel import (
 	AlarmControlPanelEntity,
 	FORMAT_NUMBER,
+	FORMAT_TEXT,
 	SUPPORT_ALARM_ARM_AWAY,
 	SUPPORT_ALARM_ARM_NIGHT,
 )
@@ -45,7 +46,10 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		else:
 			code_required = self._jablotron.is_code_required_for_disarm()
 
-		return FORMAT_NUMBER if code_required is True else None
+		if not code_required:
+			return None
+
+		return FORMAT_TEXT if self._jablotron.code_contains_asterisk() is True else FORMAT_NUMBER
 
 	@property
 	def supported_features(self) -> int:

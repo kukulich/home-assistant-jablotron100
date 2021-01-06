@@ -281,6 +281,9 @@ class Jablotron:
 	def is_code_required_for_arm(self) -> bool:
 		return self._options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM)
 
+	def code_contains_asterisk(self) -> bool:
+		return self._config[CONF_PASSWORD].find("*") != -1
+
 	async def initialize(self) -> None:
 		def shutdown_event(_):
 			self.shutdown()
