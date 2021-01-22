@@ -26,6 +26,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional, Union
 from .const import (
+	CODE_MIN_LENGTH,
 	CONF_DEVICES,
 	CONF_NUMBER_OF_DEVICES,
 	CONF_NUMBER_OF_PG_OUTPUTS,
@@ -326,6 +327,9 @@ class Jablotron:
 	def modify_alarm_control_panel_section_state(self, section: int, state: str, code: Optional[str]) -> None:
 		if code is None:
 			code = self._config[CONF_PASSWORD]
+
+		if len(code) < CODE_MIN_LENGTH:
+			return
 
 		int_packets = {
 			STATE_ALARM_DISARMED: 143,

@@ -5,6 +5,8 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
 import voluptuous as vol
 from .const import (
+	CODE_MIN_LENGTH,
+	CODE_MAX_LENGTH,
 	CONF_SERIAL_PORT,
 	CONF_NUMBER_OF_DEVICES,
 	CONF_NUMBER_OF_PG_OUTPUTS,
@@ -97,7 +99,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 			data_schema=vol.Schema(
 				{
 					vol.Required(CONF_SERIAL_PORT, default=DEFAULT_SERIAL_PORT): str,
-					vol.Required(CONF_PASSWORD): str,
+					vol.Required(CONF_PASSWORD): vol.All(str, vol.Length(min=CODE_MIN_LENGTH, max=CODE_MAX_LENGTH)),
 					vol.Optional(CONF_NUMBER_OF_DEVICES, default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_DEVICES)),
 					vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=0): vol.All(vol.Coerce(int), vol.Range(min=0, max=MAX_PG_OUTPUTS)),
 				}
