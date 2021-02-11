@@ -329,6 +329,7 @@ class Jablotron:
 			code = self._config[CONF_PASSWORD]
 
 		if len(code) < CODE_MIN_LENGTH:
+			self._login_error()
 			return
 
 		int_packets = {
@@ -779,6 +780,10 @@ class Jablotron:
 
 		return self._config[CONF_NUMBER_OF_PG_OUTPUTS] > 0
 
+	def _login_error(self) -> None:
+		# Login error - update section states to have actual states
+		self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+
 	def _read_packets(self) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")
 		last_restarted_at_hour = datetime.datetime.now().hour
@@ -836,8 +841,7 @@ class Jablotron:
 							self._parse_device_info_packet(packet)
 
 						elif Jablotron._is_login_error_packet(packet):
-							# Login error - update section states to have actual states
-							self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+							self._login_error()
 
 					break
 
