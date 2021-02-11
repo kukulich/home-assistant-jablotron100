@@ -53,6 +53,7 @@ from .const import (
 	DEVICE_SIREN_OUTDOOR,
 	DEVICE_OTHER,
 	DOMAIN,
+	EVENT_WRONG_CODE,
 	LOGGER,
 	MAX_SECTIONS,
 )
@@ -783,6 +784,7 @@ class Jablotron:
 	def _login_error(self) -> None:
 		# Login error - update section states to have actual states
 		self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+		self._hass.bus.fire(EVENT_WRONG_CODE)
 
 	def _read_packets(self) -> None:
 		stream = open(self._config[CONF_SERIAL_PORT], "rb")

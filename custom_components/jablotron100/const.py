@@ -6,6 +6,8 @@ LOGGER = logging.getLogger(__package__)
 DOMAIN = "jablotron100"
 NAME = "Jablotron"
 
+EVENT_WRONG_CODE = "{}_wrong_code".format(DOMAIN)
+
 CONF_SERIAL_PORT = "serial_port"
 CONF_NUMBER_OF_DEVICES = "number_of_devices"
 CONF_NUMBER_OF_PG_OUTPUTS = "number_of_pg_outputs"
