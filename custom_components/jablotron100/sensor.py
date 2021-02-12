@@ -12,12 +12,12 @@ from .jablotron import JablotronEntity
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
 	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronSignalStrengthEntity(jablotron, control) for control in jablotron.device_signal_strength_sensors()), True)
-	async_add_entities((JablotronBatteryLevelEntity(jablotron, control) for control in jablotron.device_battery_level_sensors()), True)
+	async_add_entities((JablotronSignalStrengthEntity(jablotron, control) for control in jablotron.device_signal_strength_sensors()))
+	async_add_entities((JablotronBatteryLevelEntity(jablotron, control) for control in jablotron.device_battery_level_sensors()))
 
 	gsm_signal_strength_sensor = jablotron.gsm_signal_strength_sensor()
 	if gsm_signal_strength_sensor is not None:
-		async_add_entities([JablotronSignalStrengthEntity(jablotron, gsm_signal_strength_sensor)], True)
+		async_add_entities([JablotronSignalStrengthEntity(jablotron, gsm_signal_strength_sensor)])
 
 
 class JablotronSignalStrengthEntity(JablotronEntity):

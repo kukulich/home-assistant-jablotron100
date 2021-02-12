@@ -21,7 +21,7 @@ from .jablotron import JablotronEntity, JablotronAlarmControlPanel, Jablotron
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
 	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronAlarmControlPanelEntity(jablotron, control) for control in jablotron.alarm_control_panels()), True)
+	async_add_entities((JablotronAlarmControlPanelEntity(jablotron, control) for control in jablotron.alarm_control_panels()))
 
 
 class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity):

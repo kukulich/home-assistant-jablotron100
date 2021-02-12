@@ -11,7 +11,7 @@ from .jablotron import Jablotron, JablotronProgrammableOutput, JablotronEntity
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
 	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronProgrammableOutputEntity(jablotron, control) for control in jablotron.pg_outputs()), True)
+	async_add_entities((JablotronProgrammableOutputEntity(jablotron, control) for control in jablotron.pg_outputs()))
 
 
 class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
