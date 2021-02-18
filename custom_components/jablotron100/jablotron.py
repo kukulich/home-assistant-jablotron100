@@ -273,6 +273,8 @@ class Jablotron:
 		self.last_update_success: bool = False
 		self.in_service_mode = False
 
+		self._successful_login = True
+
 	def update_options(self, options: Dict[str, Any]) -> None:
 		self._options = options
 		self._update_all_entities()
@@ -332,6 +334,8 @@ class Jablotron:
 
 		if len(code) < CODE_MIN_LENGTH:
 			self._login_error()
+			# Update section states to have actual states
+			self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 			return
 
 		int_packets = {
@@ -340,21 +344,26 @@ class Jablotron:
 			STATE_ALARM_ARMED_NIGHT: 175,
 		}
 
-		state_packet = Jablotron.int_to_bytes(int_packets[state] + section)
-
-		packets = []
+		# Reset
+		self._successful_login = True
 
 		if code != self._config[CONF_PASSWORD]:
-			packets.append(Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END))
-			packets.append(Jablotron.create_packet_authorisation_code(code))
+			packets = [
+				Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
+				Jablotron.create_packet_authorisation_code(code),
+			]
 
-		packets.append(Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet))
+			self._send_packets(packets)
+			time.sleep(1)
 
-		self._send_packets(packets)
+		if self._successful_login is True:
+			state_packet = Jablotron.int_to_bytes(int_packets[state] + section)
+			self._send_packet(Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet))
 
 		after_packets = []
 
 		if code != self._config[CONF_PASSWORD]:
+			after_packets.append(Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END))
 			after_packets.extend(Jablotron.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
 		# Update states - should fix state when invalid code was inserted
@@ -783,8 +792,6 @@ class Jablotron:
 		return self._config[CONF_NUMBER_OF_PG_OUTPUTS] > 0
 
 	def _login_error(self) -> None:
-		# Login error - update section states to have actual states
-		self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 		self._hass.bus.fire(EVENT_WRONG_CODE)
 
 	def _read_packets(self) -> None:
@@ -844,6 +851,7 @@ class Jablotron:
 							self._parse_device_info_packet(packet)
 
 						elif Jablotron._is_login_error_packet(packet):
+							self._successful_login = False
 							self._login_error()
 
 					break
