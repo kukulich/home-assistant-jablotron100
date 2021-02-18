@@ -96,6 +96,7 @@ JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT = b"\x23"
 JABLOTRON_DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT = 5
 JABLOTRON_DEVICE_PACKET_TYPE_SABOTAGE = 6
 JABLOTRON_DEVICE_PACKET_TYPE_FAULT = 7
+JABLOTRON_DEVICE_PACKET_TYPE_HEARTBEAT = 15
 
 # In minutes
 JABLOTRON_TIMEOUT_FOR_DEVICE_STATE_PACKETS = 5
@@ -1376,7 +1377,10 @@ class Jablotron:
 
 	@staticmethod
 	def _is_device_state_packet_for_activity(packet_type: int) -> bool:
-		return not Jablotron._is_device_state_packet_for_fault(packet_type)
+		return (
+			not Jablotron._is_device_state_packet_for_fault(packet_type)
+			and packet_type != JABLOTRON_DEVICE_PACKET_TYPE_HEARTBEAT
+		)
 
 	@staticmethod
 	def _is_device_state_packet_for_fault(packet_type: int) -> bool:
