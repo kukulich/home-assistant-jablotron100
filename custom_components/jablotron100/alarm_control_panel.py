@@ -15,7 +15,7 @@ from homeassistant.components.alarm_control_panel import (
 from homeassistant.helpers.typing import StateType
 from typing import Optional
 from .const import DATA_JABLOTRON, DOMAIN
-from .jablotron import JablotronEntity, JablotronAlarmControlPanel, Jablotron
+from .jablotron import JablotronEntity, JablotronAlarmControlPanel
 
 
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
@@ -25,15 +25,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 
 
 class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity):
-
-	def __init__(
-		self,
-		jablotron: Jablotron,
-		control: JablotronAlarmControlPanel,
-	) -> None:
-		super().__init__(jablotron, control)
-
-		self._state_before_arming: Optional[str] = None
+	_control: JablotronAlarmControlPanel
 
 	@property
 	def state(self) -> StateType:
@@ -55,16 +47,6 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	def supported_features(self) -> int:
 		return SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_NIGHT
 
-	def update_state(self, state: str) -> None:
-		state_before_arming = self._state_before_arming
-		self._state_before_arming = None
-
-		if self._state == STATE_ALARM_ARMING and state_before_arming == state:
-			# Ignore first update because it's probably outdated
-			return
-
-		super().update_state(state)
-
 	async def async_alarm_disarm(self, code: Optional[str] = None) -> None:
 		if self._state == STATE_ALARM_DISARMED:
 			return
@@ -74,7 +56,6 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._jablotron.is_code_required_for_disarm():
 			return
 
-		self._state_before_arming = None
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_DISARMED, code)
 		self.update_state(STATE_ALARM_DISARMED)
 
@@ -87,9 +68,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
-		state_before_arming = self._state
 		self.update_state(STATE_ALARM_ARMING)
-		self._state_before_arming = state_before_arming
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
 	async def async_alarm_arm_night(self, code: Optional[str] = None) -> None:
@@ -101,9 +80,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._jablotron.is_code_required_for_arm():
 			return
 
-		state_before_arming = self._state
 		self.update_state(STATE_ALARM_ARMING)
-		self._state_before_arming = state_before_arming
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_NIGHT, code)
 
 	@staticmethod

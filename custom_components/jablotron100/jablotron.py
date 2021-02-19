@@ -1734,9 +1734,9 @@ class Jablotron:
 class JablotronEntity(Entity):
 
 	def __init__(
-			self,
-			jablotron: Jablotron,
-			control: JablotronControl,
+		self,
+		jablotron: Jablotron,
+		control: JablotronControl,
 	) -> None:
 		self._jablotron: Jablotron = jablotron
 		self._control: JablotronControl = control
