@@ -1432,7 +1432,7 @@ class Jablotron:
 	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> Optional[int]:
 		battery_level_packet = packet[10:11]
 
-		if battery_level_packet == b"\x0b":
+		if battery_level_packet in [b"\x0b", b"\x0c"]:
 			return None
 
 		battery_level = Jablotron.bytes_to_int(battery_level_packet)
