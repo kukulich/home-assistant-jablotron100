@@ -1088,7 +1088,10 @@ class Jablotron:
 		packet_type_binary = Jablotron._hex_to_bin(packet[2:3])
 		packet_type = Jablotron.binary_to_int(packet_type_binary[4:])
 
-		if (
+		if packet_type == JABLOTRON_DEVICE_PACKET_TYPE_HEARTBEAT:
+			# Ignore
+			pass
+		elif (
 			self._is_device_with_activity_sensor(device_number)
 			and Jablotron._is_device_state_packet_for_activity(packet_type)
 		):
