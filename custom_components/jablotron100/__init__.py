@@ -12,7 +12,6 @@ from .const import (
 	DATA_JABLOTRON,
 	DATA_OPTIONS_UPDATE_UNSUBSCRIBER,
 	DOMAIN,
-	LOGGER,
 )
 from .jablotron import Jablotron
 
