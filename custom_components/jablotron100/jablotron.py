@@ -322,6 +322,10 @@ class Jablotron:
 			Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
 		])
 
+		serial_port = self._config[CONF_SERIAL_PORT]
+		del self._stored_data[serial_port]
+		self._store.async_delay_save(self._data_to_store)
+
 		if self._state_checker_thread_pool_executor is not None:
 			self._state_checker_thread_pool_executor.shutdown()
 
