@@ -34,7 +34,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 
 	central_unit = jablotron.central_unit()
 
-	if central_unit.model in ["JA-103K", "JA-103KRY", "JA-107K"]:
+	if central_unit.model in ("JA-103K", "JA-103KRY", "JA-107K"):
 		entity_registry = await er.async_get_registry(hass)
 		not_working_gsm_signal_entity_id = entity_registry.async_get_entity_id(
 			PLATFORM_BINARY_SENSOR,
@@ -63,7 +63,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 		sw_version=central_unit.firmware_version,
 	)
 
-	for platform in [PLATFORM_ALARM_CONTROL_PANEL, PLATFORM_BINARY_SENSOR, PLATFORM_SENSOR, PLATFORM_SWITCH]:
+	for platform in (PLATFORM_ALARM_CONTROL_PANEL, PLATFORM_BINARY_SENSOR, PLATFORM_SENSOR, PLATFORM_SWITCH):
 		hass.async_create_task(
 			hass.config_entries.async_forward_entry_setup(config_entry, platform)
 		)

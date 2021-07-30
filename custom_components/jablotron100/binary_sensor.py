@@ -73,7 +73,7 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 		if self._control.type == DEVICE_GLASS_BREAK_DETECTOR:
 			return "mdi:image-broken-variant" if self._state == STATE_ON else "mdi:square-outline"
 
-		if self._control.type in [DEVICE_KEY_FOB, DEVICE_BUTTON]:
+		if self._control.type in (DEVICE_KEY_FOB, DEVICE_BUTTON):
 			return "mdi:gesture-double-tap" if self._state == STATE_ON else "mdi:circle-double"
 
 		if self._control.type == DEVICE_SIREN_INDOOR:

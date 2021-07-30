@@ -959,10 +959,10 @@ class Jablotron:
 	def _is_device_ignored(self, number: int) -> bool:
 		type = self._get_device_type(number)
 
-		return type in [
+		return type in (
 			DEVICE_OTHER,
 			DEVICE_EMPTY,
-		]
+		)
 
 	def _is_wireless_device(self, number: int):
 		device_id = self._get_device_id(number)
@@ -975,10 +975,10 @@ class Jablotron:
 	def _is_device_with_activity_sensor(self, number: int) -> bool:
 		type = self._get_device_type(number)
 
-		return type not in [
+		return type not in (
 			DEVICE_KEYPAD,
 			DEVICE_SIREN_OUTDOOR,
-		]
+		)
 
 	def _parse_sections_states_packet(self, packet: bytes) -> None:
 		sections_states = Jablotron._convert_sections_states_packet_to_binary(packet)
@@ -1018,7 +1018,7 @@ class Jablotron:
 			self._parse_wireless_device_info_packet(packet)
 
 	def _parse_gsm_info_packet(self, packet: bytes) -> None:
-		if packet[4:5] not in [b"\xa4", b"\xd5"]:
+		if packet[4:5] not in (b"\xa4", b"\xd5"):
 			LOGGER.error("Unknown info packet of GSM: {}".format(Jablotron.format_packet_to_string(packet)))
 			return
 
@@ -1186,16 +1186,16 @@ class Jablotron:
 			)
 
 	def _get_lan_connection_device_number(self) -> Optional[int]:
-		if self._central_unit.model in ["JA-101K-LAN", "JA-106K-3G"]:
+		if self._central_unit.model in ("JA-101K-LAN", "JA-106K-3G"):
 			return 125
 
-		if self._central_unit.model in ["JA-103K", "JA-103KRY", "JA-107K"]:
+		if self._central_unit.model in ("JA-103K", "JA-103KRY", "JA-107K"):
 			return 233
 
 		return None
 
 	def _get_gsm_device_number(self) -> Optional[int]:
-		if self._central_unit.model in ["JA-101K", "JA-101K-LAN", "JA-106K-3G"]:
+		if self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G"):
 			return 127
 
 		return None
@@ -1399,11 +1399,11 @@ class Jablotron:
 
 	@staticmethod
 	def _is_device_state_packet_for_fault(packet_type: int) -> bool:
-		return packet_type in [
+		return packet_type in (
 			JABLOTRON_DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT,
 			JABLOTRON_DEVICE_PACKET_TYPE_SABOTAGE,
 			JABLOTRON_DEVICE_PACKET_TYPE_FAULT,
-		]
+		)
 
 	@staticmethod
 	def _convert_sections_states_packet_to_binary(packet: bytes) -> Dict[int, str]:
@@ -1439,7 +1439,7 @@ class Jablotron:
 	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> Optional[int]:
 		battery_level_packet = packet[10:11]
 
-		if battery_level_packet in [b"\x0b", b"\x0c"]:
+		if battery_level_packet in (b"\x0b", b"\x0c"):
 			return None
 
 		battery_level = Jablotron.bytes_to_int(battery_level_packet)
@@ -1590,7 +1590,7 @@ class Jablotron:
 
 	@staticmethod
 	def _convert_jablotron_section_state_to_alarm_state(state: Dict[str, Union[int, bool]]) -> StateType:
-		if state["state"] in [JABLOTRON_SECTION_PRIMARY_STATE_SERVICE, JABLOTRON_SECTION_PRIMARY_STATE_BLOCKED]:
+		if state["state"] in (JABLOTRON_SECTION_PRIMARY_STATE_SERVICE, JABLOTRON_SECTION_PRIMARY_STATE_BLOCKED):
 			return None
 
 		if state["triggered"] is True:
