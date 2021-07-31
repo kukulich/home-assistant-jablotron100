@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import OrderedDict
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD
@@ -30,7 +31,7 @@ from .const import (
 	NAME,
 	LOGGER,
 )
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from .errors import (
 	ModelNotDetected,
 	ModelNotSupported,
@@ -40,14 +41,14 @@ from .jablotron import check_serial_port
 
 
 class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-	_config: Optional[Dict[str, Any]] = None
+	_config: Dict[str, Any] | None = None
 
 	@staticmethod
 	@callback
 	def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
 		return JablotronOptionsFlow(config_entry)
 
-	async def async_step_user(self, user_input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+	async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> Dict[str, Any]:
 		errors = {}
 
 		if user_input is not None:
@@ -107,7 +108,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 			errors=errors,
 		)
 
-	async def async_step_devices(self, user_input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+	async def async_step_devices(self, user_input: Dict[str, Any] | None = None) -> Dict[str, Any]:
 		errors = {}
 
 		if user_input is not None:
@@ -141,13 +142,13 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class JablotronOptionsFlow(config_entries.OptionsFlow):
-	_options: Optional[Dict[str, Any]] = None
+	_options: Dict[str, Any] | None = None
 
 	def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
 		self._config_entry: config_entries.ConfigEntry = config_entry
 		self._options = dict(self._config_entry.options)
 
-	async def async_step_init(self, user_input: Optional[Dict[str, Any]] = None):
+	async def async_step_init(self, user_input: Dict[str, Any] | None = None):
 		if user_input is not None:
 			self._options[CONF_REQUIRE_CODE_TO_DISARM] = user_input[CONF_REQUIRE_CODE_TO_DISARM]
 			self._options[CONF_REQUIRE_CODE_TO_ARM] = user_input[CONF_REQUIRE_CODE_TO_ARM]
@@ -178,7 +179,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			),
 		)
 
-	async def async_step_debug(self, user_input: Optional[Dict[str, Any]] = None):
+	async def async_step_debug(self, user_input: Dict[str, Any] | None = None):
 		if user_input is not None:
 			self._options[CONF_LOG_ALL_INCOMING_PACKETS] = user_input[CONF_LOG_ALL_INCOMING_PACKETS]
 			self._options[CONF_LOG_ALL_OUTCOMING_PACKETS] = user_input[CONF_LOG_ALL_OUTCOMING_PACKETS]

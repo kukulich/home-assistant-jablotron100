@@ -1,3 +1,4 @@
+from __future__ import annotations
 import binascii
 from concurrent.futures import ThreadPoolExecutor
 import copy
@@ -24,7 +25,7 @@ import re
 import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 from .const import (
 	CODE_MIN_LENGTH,
 	CONF_DEVICES,
@@ -124,7 +125,7 @@ def check_serial_port(serial_port: str) -> None:
 	stop_event = threading.Event()
 	thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-	def reader_thread() -> Optional[str]:
+	def reader_thread() -> str | None:
 		detected_model = None
 
 		stream = open(serial_port, "rb")
@@ -198,17 +199,17 @@ class JablotronCentralUnit:
 
 class JablotronHassDevice:
 
-	def __init__(self, id: str, name: str, battery_level: Optional[int] = None):
+	def __init__(self, id: str, name: str, battery_level: int | None = None):
 		self.id: str = id
 		self.name: str = name
-		self.battery_level: Optional[int] = battery_level
+		self.battery_level: int | None = battery_level
 
 
 class JablotronControl:
 
-	def __init__(self, central_unit: JablotronCentralUnit, hass_device: Optional[JablotronHassDevice], id: str, name: str):
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice | None, id: str, name: str):
 		self.central_unit: JablotronCentralUnit = central_unit
-		self.hass_device: Optional[JablotronHassDevice] = hass_device
+		self.hass_device: JablotronHassDevice | None = hass_device
 		self.id: str = id
 		self.name: str = name
 
@@ -244,7 +245,7 @@ class Jablotron:
 		self._config: Dict[str, Any] = config
 		self._options: Dict[str, Any] = options
 
-		self._central_unit: Optional[JablotronCentralUnit] = None
+		self._central_unit: JablotronCentralUnit | None = None
 		self._device_hass_devices: Dict[str, JablotronHassDevice] = {}
 
 		self._alarm_control_panels: List[JablotronAlarmControlPanel] = []
@@ -253,21 +254,21 @@ class Jablotron:
 		self._device_problem_sensors: List[JablotronControl] = []
 		self._device_signal_strength_sensors: List[JablotronControl] = []
 		self._device_battery_level_sensors: List[JablotronControl] = []
-		self._lan_connection: Optional[JablotronControl] = None
-		self._gsm_signal_sensor: Optional[JablotronControl] = None
-		self._gsm_signal_strength_sensor: Optional[JablotronControl] = None
+		self._lan_connection: JablotronControl | None = None
+		self._gsm_signal_sensor: JablotronControl | None = None
+		self._gsm_signal_strength_sensor: JablotronControl | None = None
 		self._pg_outputs: List[JablotronProgrammableOutput] = []
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
-		self._state_checker_thread_pool_executor: Optional[ThreadPoolExecutor] = None
+		self._state_checker_thread_pool_executor: ThreadPoolExecutor | None = None
 		self._state_checker_stop_event: threading.Event = threading.Event()
 		self._state_checker_data_updating_event: threading.Event = threading.Event()
 
 		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
-		self._stored_data: Optional[dict] = None
+		self._stored_data: dict | None = None
 
-		self._devices_data: Dict[str, Dict[str, Union[str, int, None]]] = {}
+		self._devices_data: Dict[str, Dict[str, str | int | None]] = {}
 
 		self.states: Dict[str, StateType] = {}
 		self.last_update_success: bool = False
@@ -332,7 +333,7 @@ class Jablotron:
 	def substribe_entity_for_updates(self, control_id: str, entity) -> None:
 		self._entities[control_id] = entity
 
-	def modify_alarm_control_panel_section_state(self, section: int, state: str, code: Optional[str]) -> None:
+	def modify_alarm_control_panel_section_state(self, section: int, state: str, code: str | None) -> None:
 		if code is None:
 			code = self._config[CONF_PASSWORD]
 
@@ -401,13 +402,13 @@ class Jablotron:
 	def device_battery_level_sensors(self) -> List[JablotronControl]:
 		return self._device_battery_level_sensors
 
-	def lan_connection(self) -> Optional[JablotronControl]:
+	def lan_connection(self) -> JablotronControl | None:
 		return self._lan_connection
 
-	def gsm_signal_sensor(self) -> Optional[JablotronControl]:
+	def gsm_signal_sensor(self) -> JablotronControl | None:
 		return self._gsm_signal_sensor
 
-	def gsm_signal_strength_sensor(self) -> Optional[JablotronControl]:
+	def gsm_signal_strength_sensor(self) -> JablotronControl | None:
 		return self._gsm_signal_strength_sensor
 
 	def pg_outputs(self) -> List[JablotronProgrammableOutput]:
@@ -438,7 +439,7 @@ class Jablotron:
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-		def reader_thread() -> Optional[JablotronCentralUnit]:
+		def reader_thread() -> JablotronCentralUnit | None:
 			model = None
 			hardware_version = None
 			firmware_version = None
@@ -508,7 +509,7 @@ class Jablotron:
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-		def reader_thread() -> Optional[List[bytes]]:
+		def reader_thread() -> List[bytes] | None:
 			states_packets = None
 
 			stream = open(self._config[CONF_SERIAL_PORT], "rb")
@@ -1185,7 +1186,7 @@ class Jablotron:
 				store_state=True,
 			)
 
-	def _get_lan_connection_device_number(self) -> Optional[int]:
+	def _get_lan_connection_device_number(self) -> int | None:
 		if self._central_unit.model in ("JA-101K-LAN", "JA-106K-3G"):
 			return 125
 
@@ -1194,7 +1195,7 @@ class Jablotron:
 
 		return None
 
-	def _get_gsm_device_number(self) -> Optional[int]:
+	def _get_gsm_device_number(self) -> int | None:
 		if self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G"):
 			return 127
 
@@ -1321,7 +1322,7 @@ class Jablotron:
 		device_id = Jablotron._get_device_id(device_number)
 		device_type = self._get_device_type(device_number)
 
-		battery_level: Optional[int] = None
+		battery_level: int | None = None
 		if self._is_device_with_battery(device_number):
 			battery_level = self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL]
 
@@ -1431,12 +1432,12 @@ class Jablotron:
 		return DEVICE_CONNECTION_WIRELESS if packet_length == 9 else DEVICE_CONNECTION_WIRED
 
 	@staticmethod
-	def _parse_device_signal_strength_from_device_info_packet(packet: bytes) -> Optional[int]:
+	def _parse_device_signal_strength_from_device_info_packet(packet: bytes) -> int | None:
 		number = Jablotron.bytes_to_int(packet[9:10])
 		return (number & 0x1f) * JABLOTRON_SIGNAL_STRENGTH_STEP
 
 	@staticmethod
-	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> Optional[int]:
+	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> int | None:
 		battery_level_packet = packet[10:11]
 
 		if battery_level_packet in (b"\x0b", b"\x0c"):
@@ -1458,7 +1459,7 @@ class Jablotron:
 		return int(Jablotron.bytes_to_int(packet[4:6]) / 64)
 
 	@staticmethod
-	def _convert_jablotron_device_state_to_state(packet: bytes, device_number: int) -> Optional[str]:
+	def _convert_jablotron_device_state_to_state(packet: bytes, device_number: int) -> str | None:
 		state = Jablotron.bytes_to_int(packet[3:4])
 
 		if device_number <= 37:
@@ -1589,7 +1590,7 @@ class Jablotron:
 		return "PG output {}".format(pg_output_number)
 
 	@staticmethod
-	def _convert_jablotron_section_state_to_alarm_state(state: Dict[str, Union[int, bool]]) -> StateType:
+	def _convert_jablotron_section_state_to_alarm_state(state: Dict[str, int | bool]) -> StateType:
 		if state["state"] in (JABLOTRON_SECTION_PRIMARY_STATE_SERVICE, JABLOTRON_SECTION_PRIMARY_STATE_BLOCKED):
 			return None
 
@@ -1611,11 +1612,11 @@ class Jablotron:
 		return STATE_ALARM_DISARMED
 
 	@staticmethod
-	def _convert_jablotron_section_state_to_problem_sensor_state(state: Dict[str, Union[int, bool]]) -> StateType:
+	def _convert_jablotron_section_state_to_problem_sensor_state(state: Dict[str, int | bool]) -> StateType:
 		return STATE_ON if state["problem"] is True else STATE_OFF
 
 	@staticmethod
-	def _parse_jablotron_section_state(section_binary: str) -> Dict[str, Union[int, bool]]:
+	def _parse_jablotron_section_state(section_binary: str) -> Dict[str, int | bool]:
 		state = Jablotron.binary_to_int(section_binary[5:8])
 
 		return {
@@ -1683,11 +1684,11 @@ class Jablotron:
 		return Jablotron.create_packet(JABLOTRON_PACKET_GET_SYSTEM_INFO, Jablotron.int_to_bytes(info_type))
 
 	@staticmethod
-	def create_packet_command(type: bytes, data: Optional[bytes] = b"") -> bytes:
+	def create_packet_command(type: bytes, data: bytes | None = b"") -> bytes:
 		return Jablotron.create_packet(JABLOTRON_PACKET_COMMAND, type + data)
 
 	@staticmethod
-	def create_packet_ui_control(type: bytes, data: Optional[bytes] = b"") -> bytes:
+	def create_packet_ui_control(type: bytes, data: bytes | None = b"") -> bytes:
 		return Jablotron.create_packet(JABLOTRON_PACKET_UI_CONTROL, type + data)
 
 	@staticmethod
@@ -1763,7 +1764,7 @@ class JablotronEntity(Entity):
 		return self._jablotron.last_update_success
 
 	@property
-	def device_info(self) -> Optional[Dict[str, Any]]:
+	def device_info(self) -> Dict[str, Any] | None:
 		if self._control.hass_device is None:
 			return {
 				"manufacturer": "Jablotron",
@@ -1778,7 +1779,7 @@ class JablotronEntity(Entity):
 		}
 
 	@property
-	def device_state_attributes(self) -> Optional[Dict[str, Any]]:
+	def device_state_attributes(self) -> Dict[str, Any] | None:
 		if self._control.hass_device is None:
 			return None
 

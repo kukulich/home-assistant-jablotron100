@@ -1,3 +1,4 @@
+from __future__ import annotations
 from homeassistant import config_entries, core
 from homeassistant.components.binary_sensor import (
 	BinarySensorEntity,
@@ -31,7 +32,6 @@ from .const import (
 	DOMAIN,
 )
 from .jablotron import JablotronEntity
-from typing import Optional
 
 
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
@@ -69,7 +69,7 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 		return self._state == STATE_ON
 
 	@property
-	def icon(self) -> Optional[str]:
+	def icon(self) -> str|None:
 		if self._control.type == DEVICE_GLASS_BREAK_DETECTOR:
 			return "mdi:image-broken-variant" if self._state == STATE_ON else "mdi:square-outline"
 
@@ -85,7 +85,7 @@ class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
 		return None
 
 	@property
-	def device_class(self) -> Optional[str]:
+	def device_class(self) -> str | None:
 		if self._control.type == DEVICE_MOTION_DETECTOR:
 			return DEVICE_CLASS_MOTION
 
@@ -131,10 +131,9 @@ class JablotronGsmSignalEntity(JablotronEntity, BinarySensorEntity):
 		return self._state == STATE_ON
 
 	@property
-	def icon(self) -> Optional[str]:
+	def icon(self) -> str | None:
 		return "mdi:signal" if self._state == STATE_ON else "mdi:signal-off"
 
 	@property
 	def device_class(self) -> None:
 		return DEVICE_CLASS_CONNECTIVITY
-
