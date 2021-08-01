@@ -22,6 +22,8 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 class JablotronSensor(JablotronEntity):
 
 	def _update_attributes(self) -> None:
+		super()._update_attributes()
+
 		self._attr_state = self._get_state()
 
 

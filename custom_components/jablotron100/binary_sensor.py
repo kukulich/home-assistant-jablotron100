@@ -82,6 +82,8 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 
 	def _update_attributes(self) -> None:
+		super()._update_attributes()
+
 		self._attr_is_on = self._get_state() == STATE_ON
 
 

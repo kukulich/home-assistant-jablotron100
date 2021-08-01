@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 import binascii
 from concurrent.futures import ThreadPoolExecutor
 import copy
@@ -1772,9 +1771,11 @@ class JablotronEntity(Entity):
 
 		self._update_attributes()
 
-	@abstractmethod
 	def _update_attributes(self) -> None:
-		pass
+		if self._control.hass_device is not None and self._control.hass_device.battery_level is not None:
+			self._attr_extra_state_attributes = {
+				ATTR_BATTERY_LEVEL: self._control.hass_device.battery_level,
+			}
 
 	@property
 	def available(self) -> bool:
@@ -1785,18 +1786,6 @@ class JablotronEntity(Entity):
 			return False
 
 		return self._jablotron.last_update_success
-
-	@property
-	def device_state_attributes(self) -> Dict[str, Any] | None:
-		if self._control.hass_device is None:
-			return None
-
-		if self._control.hass_device.battery_level is not None:
-			return {
-				ATTR_BATTERY_LEVEL: self._control.hass_device.battery_level,
-			}
-
-		return None
 
 	async def async_added_to_hass(self) -> None:
 		self._jablotron.substribe_entity_for_updates(self._control.id, self)

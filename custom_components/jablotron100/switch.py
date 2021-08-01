@@ -29,6 +29,8 @@ class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 		self._update_attributes()
 
 	def _update_attributes(self) -> None:
+		super()._update_attributes()
+
 		self._attr_is_on = self._get_state() == STATE_ON
 
 	async def async_turn_on(self, **kwargs) -> None:
