@@ -23,6 +23,8 @@ class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 	) -> None:
 		super().__init__(jablotron, control)
 
+		self._control: JablotronProgrammableOutput = control
+
 	@property
 	def is_on(self) -> bool:
 		return self._state == STATE_ON
