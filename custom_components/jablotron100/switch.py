@@ -16,6 +16,9 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 
 class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 
+	_control: JablotronProgrammableOutput
+	_attr_device_class = DEVICE_CLASS_SWITCH
+
 	def __init__(
 		self,
 		jablotron: Jablotron,
@@ -23,15 +26,10 @@ class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 	) -> None:
 		super().__init__(jablotron, control)
 
-		self._control: JablotronProgrammableOutput = control
+		self._update_attributes()
 
-	@property
-	def is_on(self) -> bool:
-		return self._state == STATE_ON
-
-	@property
-	def device_class(self):
-		return DEVICE_CLASS_SWITCH
+	def _update_attributes(self) -> None:
+		self._attr_is_on = self._get_state() == STATE_ON
 
 	async def async_turn_on(self, **kwargs) -> None:
 		self._jablotron.toggle_pg_output(self._control.pg_output_number, STATE_ON)

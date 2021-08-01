@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from abc import abstractmethod
 import binascii
 from concurrent.futures import ThreadPoolExecutor
 import copy
@@ -1741,6 +1743,8 @@ class Jablotron:
 
 class JablotronEntity(Entity):
 
+	_attr_should_poll = False
+
 	def __init__(
 		self,
 		jablotron: Jablotron,
@@ -1749,34 +1753,38 @@ class JablotronEntity(Entity):
 		self._jablotron: Jablotron = jablotron
 		self._control: JablotronControl = control
 
-	@property
-	def should_poll(self) -> bool:
-		return False
+		self._attr_unique_id = "{}.{}.{}".format(DOMAIN, self._control.central_unit.serial_port, self._control.id)
+
+		self._attr_name = self._control.name
+
+		if self._control.hass_device is None:
+			self._attr_device_info = {
+				"manufacturer": "Jablotron",
+				"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
+			}
+		else:
+			self._attr_device_info = {
+				"manufacturer": "Jablotron",
+				"identifiers": {(DOMAIN, self._control.hass_device.id)},
+				"name": self._control.hass_device.name,
+				"via_device": (DOMAIN, self._control.central_unit.serial_port),
+			}
+
+		self._update_attributes()
+
+	@abstractmethod
+	def _update_attributes(self) -> None:
+		pass
 
 	@property
 	def available(self) -> bool:
 		if self._jablotron.in_service_mode is True:
 			return False
 
-		if self._state is None:
+		if self._get_state() is None:
 			return False
 
 		return self._jablotron.last_update_success
-
-	@property
-	def device_info(self) -> Dict[str, Any] | None:
-		if self._control.hass_device is None:
-			return {
-				"manufacturer": "Jablotron",
-				"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
-			}
-
-		return {
-			"manufacturer": "Jablotron",
-			"identifiers": {(DOMAIN, self._control.hass_device.id)},
-			"name": self._control.hass_device.name,
-			"via_device": (DOMAIN, self._control.central_unit.serial_port),
-		}
 
 	@property
 	def device_state_attributes(self) -> Dict[str, Any] | None:
@@ -1790,21 +1798,13 @@ class JablotronEntity(Entity):
 
 		return None
 
-	@property
-	def name(self) -> str:
-		return self._control.name
-
-	@property
-	def unique_id(self) -> str:
-		return "{}.{}.{}".format(DOMAIN, self._control.central_unit.serial_port, self._control.id)
-
 	async def async_added_to_hass(self) -> None:
 		self._jablotron.substribe_entity_for_updates(self._control.id, self)
 
 	def update_state(self, state: StateType) -> None:
 		self._jablotron.states[self._control.id] = state
+		self._update_attributes()
 		self.async_write_ha_state()
 
-	@property
-	def _state(self) -> StateType:
+	def _get_state(self) -> StateType:
 		return self._jablotron.states[self._control.id]

@@ -31,7 +31,35 @@ from .const import (
 	DEVICE_LOCK,
 	DOMAIN,
 )
-from .jablotron import JablotronEntity
+from .jablotron import Jablotron, JablotronDevice, JablotronEntity
+
+
+def get_control_device_class(control: JablotronDevice) -> str | None:
+	if control.type == DEVICE_MOTION_DETECTOR:
+		return DEVICE_CLASS_MOTION
+
+	if control.type == DEVICE_WINDOW_OPENING_DETECTOR:
+		return DEVICE_CLASS_WINDOW
+
+	if control.type == DEVICE_DOOR_OPENING_DETECTOR:
+		return DEVICE_CLASS_DOOR
+
+	if control.type == DEVICE_GARAGE_DOOR_OPENING_DETECTOR:
+		return DEVICE_CLASS_GARAGE_DOOR
+
+	if control.type == DEVICE_FLOOD_DETECTOR:
+		return DEVICE_CLASS_MOISTURE
+
+	if control.type == DEVICE_GAS_DETECTOR:
+		return DEVICE_CLASS_GAS
+
+	if control.type == DEVICE_SMOKE_DETECTOR:
+		return DEVICE_CLASS_SMOKE
+
+	if control.type == DEVICE_LOCK:
+		return DEVICE_CLASS_LOCK
+
+	return None
 
 
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
@@ -51,89 +79,53 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 		async_add_entities([JablotronGsmSignalEntity(jablotron, gsm_signal_sensor)])
 
 
-class JablotronProblemSensorEntity(JablotronEntity, BinarySensorEntity):
+class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 
-	@property
-	def is_on(self) -> bool:
-		return self._state == STATE_ON
-
-	@property
-	def device_class(self) -> str:
-		return DEVICE_CLASS_PROBLEM
+	def _update_attributes(self) -> None:
+		self._attr_is_on = self._get_state() == STATE_ON
 
 
-class JablotronDeviceSensorEntity(JablotronEntity, BinarySensorEntity):
+class JablotronProblemSensorEntity(JablotronBinarySensor):
 
-	@property
-	def is_on(self) -> bool:
-		return self._state == STATE_ON
+	_attr_device_class = DEVICE_CLASS_PROBLEM
 
-	@property
-	def icon(self) -> str|None:
+
+class JablotronDeviceSensorEntity(JablotronBinarySensor):
+
+	_control: JablotronDevice
+
+	def __init__(
+		self,
+		jablotron: Jablotron,
+		control: JablotronDevice,
+	) -> None:
+		self._attr_device_class = get_control_device_class(control)
+
+		super().__init__(jablotron, control)
+
+	def _update_attributes(self) -> None:
+		super()._update_attributes()
+
 		if self._control.type == DEVICE_GLASS_BREAK_DETECTOR:
-			return "mdi:image-broken-variant" if self._state == STATE_ON else "mdi:square-outline"
-
-		if self._control.type in (DEVICE_KEY_FOB, DEVICE_BUTTON):
-			return "mdi:gesture-double-tap" if self._state == STATE_ON else "mdi:circle-double"
-
-		if self._control.type == DEVICE_SIREN_INDOOR:
-			return "mdi:gesture-tap-box" if self._state == STATE_ON else "mdi:circle-box-outline"
-
-		if self._control.type == DEVICE_THERMOSTAT:
-			return "mdi:thermometer" if self._state == STATE_ON else "mdi:thermometer-off"
-
-		return None
-
-	@property
-	def device_class(self) -> str | None:
-		if self._control.type == DEVICE_MOTION_DETECTOR:
-			return DEVICE_CLASS_MOTION
-
-		if self._control.type == DEVICE_WINDOW_OPENING_DETECTOR:
-			return DEVICE_CLASS_WINDOW
-
-		if self._control.type == DEVICE_DOOR_OPENING_DETECTOR:
-			return DEVICE_CLASS_DOOR
-
-		if self._control.type == DEVICE_GARAGE_DOOR_OPENING_DETECTOR:
-			return DEVICE_CLASS_GARAGE_DOOR
-
-		if self._control.type == DEVICE_FLOOD_DETECTOR:
-			return DEVICE_CLASS_MOISTURE
-
-		if self._control.type == DEVICE_GAS_DETECTOR:
-			return DEVICE_CLASS_GAS
-
-		if self._control.type == DEVICE_SMOKE_DETECTOR:
-			return DEVICE_CLASS_SMOKE
-
-		if self._control.type == DEVICE_LOCK:
-			return DEVICE_CLASS_LOCK
-
-		return None
+			self._attr_icon = "mdi:image-broken-variant" if self._attr_is_on else "mdi:square-outline"
+		elif self._control.type in (DEVICE_KEY_FOB, DEVICE_BUTTON):
+			self._attr_icon = "mdi:gesture-double-tap" if self._attr_is_on else "mdi:circle-double"
+		elif self._control.type == DEVICE_SIREN_INDOOR:
+			self._attr_icon = "mdi:gesture-tap-box" if self._attr_is_on else "mdi:circle-box-outline"
+		elif self._control.type == DEVICE_THERMOSTAT:
+			self._attr_icon = "mdi:thermometer" if self._attr_is_on else "mdi:thermometer-off"
 
 
-class JablotronLanConnectionEntity(JablotronEntity, BinarySensorEntity):
+class JablotronLanConnectionEntity(JablotronBinarySensor):
 
-	@property
-	def is_on(self) -> bool:
-		return self._state == STATE_ON
-
-	@property
-	def device_class(self) -> str:
-		return DEVICE_CLASS_CONNECTIVITY
+	_attr_device_class = DEVICE_CLASS_CONNECTIVITY
 
 
-class JablotronGsmSignalEntity(JablotronEntity, BinarySensorEntity):
+class JablotronGsmSignalEntity(JablotronBinarySensor):
 
-	@property
-	def is_on(self) -> bool:
-		return self._state == STATE_ON
+	_attr_device_class = DEVICE_CLASS_CONNECTIVITY
 
-	@property
-	def icon(self) -> str | None:
-		return "mdi:signal" if self._state == STATE_ON else "mdi:signal-off"
+	def _update_attributes(self) -> None:
+		super()._update_attributes()
 
-	@property
-	def device_class(self) -> None:
-		return DEVICE_CLASS_CONNECTIVITY
+		self._attr_icon = "mdi:signal" if self._attr_is_on else "mdi:signal-off"
