@@ -16,11 +16,6 @@ from .const import (
 from .jablotron import Jablotron
 
 
-async def async_setup(hass: core.HomeAssistant, config: core.Config) -> bool:
-	"""YAML configuration is not supported."""
-	return True
-
-
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> bool:
 	hass.data.setdefault(DOMAIN, {})
 
