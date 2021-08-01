@@ -19,15 +19,15 @@ from .jablotron import Jablotron
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> bool:
 	hass.data.setdefault(DOMAIN, {})
 
-	jablotron = Jablotron(hass, config_entry.data, config_entry.options)
-	await jablotron.initialize()
+	jablotron_instance: Jablotron = Jablotron(hass, config_entry.data, config_entry.options)
+	await jablotron_instance.initialize()
 
 	hass.data[DOMAIN][config_entry.entry_id] = {
-		DATA_JABLOTRON: jablotron,
+		DATA_JABLOTRON: jablotron_instance,
 		DATA_OPTIONS_UPDATE_UNSUBSCRIBER: config_entry.add_update_listener(options_update_listener),
 	}
 
-	central_unit = jablotron.central_unit()
+	central_unit = jablotron_instance.central_unit()
 
 	if central_unit.model in ("JA-103K", "JA-103KRY", "JA-107K"):
 		entity_registry = await er.async_get_registry(hass)
@@ -70,12 +70,12 @@ async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entr
 	options_update_unsubscriber = hass.data[DOMAIN][config_entry.entry_id][DATA_OPTIONS_UPDATE_UNSUBSCRIBER]
 	options_update_unsubscriber()
 
-	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
-	jablotron.shutdown()
+	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
+	jablotron_instance.shutdown()
 
 	return True
 
 
 async def options_update_listener(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> None:
-	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
-	jablotron.update_options(config_entry.options)
+	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
+	jablotron_instance.update_options(config_entry.options)
