@@ -1,63 +1,64 @@
 """Jablotron specific constants."""
 import logging
+from typing import Final
 
-LOGGER = logging.getLogger(__package__)
+LOGGER: Final = logging.getLogger(__package__)
 
-DOMAIN = "jablotron100"
-NAME = "Jablotron"
+DOMAIN: Final = "jablotron100"
+NAME: Final = "Jablotron"
 
-EVENT_WRONG_CODE = "{}_wrong_code".format(DOMAIN)
+EVENT_WRONG_CODE: Final = "{}_wrong_code".format(DOMAIN)
 
-CONF_SERIAL_PORT = "serial_port"
-CONF_NUMBER_OF_DEVICES = "number_of_devices"
-CONF_NUMBER_OF_PG_OUTPUTS = "number_of_pg_outputs"
-CONF_DEVICES = "devices"
-CONF_REQUIRE_CODE_TO_ARM = "require_code_to_arm"
-CONF_REQUIRE_CODE_TO_DISARM = "require_code_to_disarm"
-CONF_ENABLE_DEBUGGING = "enable_debugging"
+CONF_SERIAL_PORT: Final = "serial_port"
+CONF_NUMBER_OF_DEVICES: Final = "number_of_devices"
+CONF_NUMBER_OF_PG_OUTPUTS: Final = "number_of_pg_outputs"
+CONF_DEVICES: Final = "devices"
+CONF_REQUIRE_CODE_TO_ARM: Final = "require_code_to_arm"
+CONF_REQUIRE_CODE_TO_DISARM: Final = "require_code_to_disarm"
+CONF_ENABLE_DEBUGGING: Final = "enable_debugging"
 
-CONF_LOG_ALL_INCOMING_PACKETS = "log_all_incoming_packets"
-CONF_LOG_ALL_OUTCOMING_PACKETS = "log_all_outcoming_packets"
-CONF_LOG_SECTIONS_PACKETS = "log_sections_packets"
-CONF_LOG_PG_OUTPUTS_PACKETS = "log_pg_outputs_packets"
-CONF_LOG_DEVICES_PACKETS = "log_devices_packets"
+CONF_LOG_ALL_INCOMING_PACKETS: Final = "log_all_incoming_packets"
+CONF_LOG_ALL_OUTCOMING_PACKETS: Final = "log_all_outcoming_packets"
+CONF_LOG_SECTIONS_PACKETS: Final = "log_sections_packets"
+CONF_LOG_PG_OUTPUTS_PACKETS: Final = "log_pg_outputs_packets"
+CONF_LOG_DEVICES_PACKETS: Final = "log_devices_packets"
 
-DEFAULT_SERIAL_PORT = "/dev/hidraw0"
+DEFAULT_SERIAL_PORT: Final = "/dev/hidraw0"
 
-DATA_JABLOTRON = "jablotron"
-DATA_OPTIONS_UPDATE_UNSUBSCRIBER = "options_update_unsubscriber"
+DATA_JABLOTRON: Final = "jablotron"
+DATA_OPTIONS_UPDATE_UNSUBSCRIBER: Final = "options_update_unsubscriber"
 
-DEFAULT_CONF_REQUIRE_CODE_TO_ARM = False
-DEFAULT_CONF_REQUIRE_CODE_TO_DISARM = True
-DEFAULT_CONF_ENABLE_DEBUGGING = False
+DEFAULT_CONF_REQUIRE_CODE_TO_ARM: Final = False
+DEFAULT_CONF_REQUIRE_CODE_TO_DISARM: Final = True
+DEFAULT_CONF_ENABLE_DEBUGGING: Final = False
 
-DEVICE_DATA_CONNECTION = "connection"
-DEVICE_DATA_BATTERY_LEVEL = "battery_level"
-DEVICE_DATA_SIGNAL_STRENGTH = "signal_strength"
+DEVICE_DATA_CONNECTION: Final = "connection"
+DEVICE_DATA_BATTERY_LEVEL: Final = "battery_level"
+DEVICE_DATA_SIGNAL_STRENGTH: Final = "signal_strength"
 
-DEVICE_CONNECTION_WIRED = "wired"
-DEVICE_CONNECTION_WIRELESS = "wireless"
+DEVICE_CONNECTION_WIRED: Final = "wired"
+DEVICE_CONNECTION_WIRELESS: Final = "wireless"
 
-DEVICE_EMPTY = "empty"
-DEVICE_BUTTON = "button"
-DEVICE_KEY_FOB = "key_fob"
-DEVICE_KEYPAD = "keypad"
-DEVICE_SIREN_OUTDOOR = "outdoor_siren"
-DEVICE_SIREN_INDOOR = "indoor_siren"
-DEVICE_MOTION_DETECTOR = "motion_detector"
-DEVICE_WINDOW_OPENING_DETECTOR = "window_opening_detector"
-DEVICE_DOOR_OPENING_DETECTOR = "door_opening_detector"
-DEVICE_GARAGE_DOOR_OPENING_DETECTOR = "garage_door_opening_detector"
-DEVICE_GLASS_BREAK_DETECTOR = "glass_break_detector"
-DEVICE_SMOKE_DETECTOR = "smoke_detector"
-DEVICE_FLOOD_DETECTOR = "flood_detector"
-DEVICE_GAS_DETECTOR = "gas_detector"
-DEVICE_THERMOSTAT = "thermostat"
-DEVICE_LOCK = "lock"
-DEVICE_CUSTOM = "custom"
-DEVICE_OTHER = "other"
+DEVICE_EMPTY: Final = "empty"
+DEVICE_BUTTON: Final = "button"
+DEVICE_KEY_FOB: Final = "key_fob"
+DEVICE_KEYPAD: Final = "keypad"
+DEVICE_SIREN_OUTDOOR: Final = "outdoor_siren"
+DEVICE_SIREN_INDOOR: Final = "indoor_siren"
+DEVICE_MOTION_DETECTOR: Final = "motion_detector"
+DEVICE_WINDOW_OPENING_DETECTOR: Final = "window_opening_detector"
+DEVICE_DOOR_OPENING_DETECTOR: Final = "door_opening_detector"
+DEVICE_GARAGE_DOOR_OPENING_DETECTOR: Final = "garage_door_opening_detector"
+DEVICE_GLASS_BREAK_DETECTOR: Final = "glass_break_detector"
+DEVICE_SMOKE_DETECTOR: Final = "smoke_detector"
+DEVICE_FLOOD_DETECTOR: Final = "flood_detector"
+DEVICE_GAS_DETECTOR: Final = "gas_detector"
+DEVICE_THERMOSTAT: Final = "thermostat"
+DEVICE_LOCK: Final = "lock"
+DEVICE_CUSTOM: Final = "custom"
+DEVICE_OTHER: Final = "other"
 
-DEVICES = {
+DEVICES: Final = {
 	DEVICE_KEYPAD: "Keypad",
 	DEVICE_SIREN_OUTDOOR: "Outdoor siren",
 	DEVICE_SIREN_INDOOR: "Indoor siren",
@@ -78,9 +79,9 @@ DEVICES = {
 	DEVICE_EMPTY: "Empty",
 }
 
-MAX_SECTIONS = 15
-MAX_DEVICES = 120
-MAX_PG_OUTPUTS = 128
+MAX_SECTIONS: Final = 15
+MAX_DEVICES: Final = 120
+MAX_PG_OUTPUTS: Final = 128
 
-CODE_MIN_LENGTH = 4
-CODE_MAX_LENGTH = 8
+CODE_MIN_LENGTH: Final = 4
+CODE_MAX_LENGTH: Final = 8
