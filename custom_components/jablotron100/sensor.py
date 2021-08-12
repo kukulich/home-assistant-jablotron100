@@ -1,5 +1,10 @@
 from homeassistant import config_entries, core
-from homeassistant.components.sensor import DEVICE_CLASS_BATTERY, DEVICE_CLASS_SIGNAL_STRENGTH
+from homeassistant.components.sensor import (
+	DEVICE_CLASS_BATTERY,
+	DEVICE_CLASS_SIGNAL_STRENGTH,
+	SensorEntity,
+	STATE_CLASS_MEASUREMENT,
+)
 from homeassistant.const import PERCENTAGE
 from .const import (
 	DATA_JABLOTRON,
@@ -19,7 +24,10 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 		async_add_entities([JablotronSignalStrengthEntity(jablotron, gsm_signal_strength_sensor)])
 
 
-class JablotronSensor(JablotronEntity):
+class JablotronSensor(JablotronEntity, SensorEntity):
+
+	_attr_unit_of_measurement = PERCENTAGE
+	_attr_state_class = STATE_CLASS_MEASUREMENT
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
@@ -30,10 +38,8 @@ class JablotronSensor(JablotronEntity):
 class JablotronSignalStrengthEntity(JablotronSensor):
 
 	_attr_device_class = DEVICE_CLASS_SIGNAL_STRENGTH
-	_attr_unit_of_measurement = PERCENTAGE
 
 
 class JablotronBatteryLevelEntity(JablotronSensor):
 
 	_attr_device_class = DEVICE_CLASS_BATTERY
-	_attr_unit_of_measurement = PERCENTAGE
