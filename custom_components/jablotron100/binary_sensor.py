@@ -14,6 +14,7 @@ from homeassistant.components.binary_sensor import (
 	DEVICE_CLASS_WINDOW,
 )
 from homeassistant.const import STATE_ON
+from typing import Final
 from .const import (
 	DATA_JABLOTRON,
 	DEVICE_MOTION_DETECTOR,
@@ -33,33 +34,16 @@ from .const import (
 )
 from .jablotron import Jablotron, JablotronDevice, JablotronEntity
 
-
-def get_control_device_class(control: JablotronDevice) -> str | None:
-	if control.type == DEVICE_MOTION_DETECTOR:
-		return DEVICE_CLASS_MOTION
-
-	if control.type == DEVICE_WINDOW_OPENING_DETECTOR:
-		return DEVICE_CLASS_WINDOW
-
-	if control.type == DEVICE_DOOR_OPENING_DETECTOR:
-		return DEVICE_CLASS_DOOR
-
-	if control.type == DEVICE_GARAGE_DOOR_OPENING_DETECTOR:
-		return DEVICE_CLASS_GARAGE_DOOR
-
-	if control.type == DEVICE_FLOOD_DETECTOR:
-		return DEVICE_CLASS_MOISTURE
-
-	if control.type == DEVICE_GAS_DETECTOR:
-		return DEVICE_CLASS_GAS
-
-	if control.type == DEVICE_SMOKE_DETECTOR:
-		return DEVICE_CLASS_SMOKE
-
-	if control.type == DEVICE_LOCK:
-		return DEVICE_CLASS_LOCK
-
-	return None
+DEVICE_CLASSES: Final = {
+	DEVICE_MOTION_DETECTOR: DEVICE_CLASS_MOTION,
+	DEVICE_WINDOW_OPENING_DETECTOR: DEVICE_CLASS_WINDOW,
+	DEVICE_DOOR_OPENING_DETECTOR: DEVICE_CLASS_DOOR,
+	DEVICE_GARAGE_DOOR_OPENING_DETECTOR: DEVICE_CLASS_GARAGE_DOOR,
+	DEVICE_FLOOD_DETECTOR: DEVICE_CLASS_MOISTURE,
+	DEVICE_GAS_DETECTOR: DEVICE_CLASS_GAS,
+	DEVICE_SMOKE_DETECTOR: DEVICE_CLASS_SMOKE,
+	DEVICE_LOCK: DEVICE_CLASS_LOCK,
+}
 
 
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
@@ -101,7 +85,8 @@ class JablotronDeviceSensorEntity(JablotronBinarySensor):
 		jablotron: Jablotron,
 		control: JablotronDevice,
 	) -> None:
-		self._attr_device_class = get_control_device_class(control)
+
+		self._attr_device_class = DEVICE_CLASSES[control.type] if control.type in DEVICE_CLASSES else None
 
 		super().__init__(jablotron, control)
 
