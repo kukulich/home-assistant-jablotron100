@@ -26,13 +26,13 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 
 class JablotronSensor(JablotronEntity, SensorEntity):
 
-	_attr_unit_of_measurement = PERCENTAGE
+	_attr_native_unit_of_measurement = PERCENTAGE
 	_attr_state_class = STATE_CLASS_MEASUREMENT
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
-		self._attr_state = self._get_state()
+		self._attr_native_value = self._get_state()
 
 
 class JablotronSignalStrengthEntity(JablotronSensor):
