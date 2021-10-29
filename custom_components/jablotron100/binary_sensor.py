@@ -11,6 +11,7 @@ from homeassistant.components.binary_sensor import (
 	DEVICE_CLASS_MOTION,
 	DEVICE_CLASS_PROBLEM,
 	DEVICE_CLASS_SMOKE,
+	DEVICE_CLASS_TAMPER,
 	DEVICE_CLASS_WINDOW,
 )
 from homeassistant.const import STATE_ON
@@ -30,6 +31,7 @@ from .const import (
 	DEVICE_BUTTON,
 	DEVICE_THERMOSTAT,
 	DEVICE_LOCK,
+	DEVICE_TAMPER,
 	DOMAIN,
 )
 from .jablotron import Jablotron, JablotronDevice, JablotronEntity
@@ -43,6 +45,7 @@ DEVICE_CLASSES: Final = {
 	DEVICE_GAS_DETECTOR: DEVICE_CLASS_GAS,
 	DEVICE_SMOKE_DETECTOR: DEVICE_CLASS_SMOKE,
 	DEVICE_LOCK: DEVICE_CLASS_LOCK,
+	DEVICE_TAMPER: DEVICE_CLASS_TAMPER,
 }
 
 

@@ -55,6 +55,7 @@ DEVICE_FLOOD_DETECTOR: Final = "flood_detector"
 DEVICE_GAS_DETECTOR: Final = "gas_detector"
 DEVICE_THERMOSTAT: Final = "thermostat"
 DEVICE_LOCK: Final = "lock"
+DEVICE_TAMPER: Final = "tamper"
 DEVICE_CUSTOM: Final = "custom"
 DEVICE_OTHER: Final = "other"
 
@@ -75,6 +76,7 @@ DEVICES: Final = {
 	DEVICE_THERMOSTAT: "Thermostat",
 	DEVICE_LOCK: "Lock",
 	DEVICE_CUSTOM: "Custom binary sensor",
+	DEVICE_TAMPER: "Tamper",
 	DEVICE_OTHER: "Other",
 	DEVICE_EMPTY: "Empty",
 }
