@@ -3,6 +3,6 @@
 	"content_in_root": false,
 	"domains": ["alarm_control_panel", "binary_sensor"],
 	"country": ["CS", "DA", "DE", "EN", "IT", "NB", "NL", "SK"],
-	"homeassistant": "2021.9.0",
+	"homeassistant": "2021.11.0",
 	"render_readme": true
 }
