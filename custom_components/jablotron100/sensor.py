@@ -5,7 +5,10 @@ from homeassistant.components.sensor import (
 	SensorEntity,
 	STATE_CLASS_MEASUREMENT,
 )
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import (
+	ENTITY_CATEGORY_DIAGNOSTIC,
+	PERCENTAGE,
+)
 from .const import (
 	DATA_JABLOTRON,
 	DOMAIN,
@@ -38,8 +41,10 @@ class JablotronSensor(JablotronEntity, SensorEntity):
 class JablotronSignalStrengthEntity(JablotronSensor):
 
 	_attr_device_class = DEVICE_CLASS_SIGNAL_STRENGTH
+	_attr_entity_category = ENTITY_CATEGORY_DIAGNOSTIC
 
 
 class JablotronBatteryLevelEntity(JablotronSensor):
 
 	_attr_device_class = DEVICE_CLASS_BATTERY
+	_attr_entity_category = ENTITY_CATEGORY_DIAGNOSTIC

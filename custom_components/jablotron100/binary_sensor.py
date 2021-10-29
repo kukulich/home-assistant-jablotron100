@@ -14,7 +14,10 @@ from homeassistant.components.binary_sensor import (
 	DEVICE_CLASS_TAMPER,
 	DEVICE_CLASS_WINDOW,
 )
-from homeassistant.const import STATE_ON
+from homeassistant.const import (
+	ENTITY_CATEGORY_DIAGNOSTIC,
+	STATE_ON,
+)
 from typing import Final
 from .const import (
 	DATA_JABLOTRON,
@@ -77,6 +80,7 @@ class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 class JablotronProblemSensorEntity(JablotronBinarySensor):
 
 	_attr_device_class = DEVICE_CLASS_PROBLEM
+	_attr_entity_category = ENTITY_CATEGORY_DIAGNOSTIC
 
 
 class JablotronDeviceSensorEntity(JablotronBinarySensor):
@@ -109,11 +113,13 @@ class JablotronDeviceSensorEntity(JablotronBinarySensor):
 class JablotronLanConnectionEntity(JablotronBinarySensor):
 
 	_attr_device_class = DEVICE_CLASS_CONNECTIVITY
+	_attr_entity_category = ENTITY_CATEGORY_DIAGNOSTIC
 
 
 class JablotronGsmSignalEntity(JablotronBinarySensor):
 
 	_attr_device_class = DEVICE_CLASS_CONNECTIVITY
+	_attr_entity_category = ENTITY_CATEGORY_DIAGNOSTIC
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
