@@ -100,6 +100,10 @@ JABLOTRON_DEVICE_PACKET_TYPE_SABOTAGE: Final = 6
 JABLOTRON_DEVICE_PACKET_TYPE_FAULT: Final = 7
 JABLOTRON_DEVICE_PACKET_TYPE_HEARTBEAT: Final = 15
 
+JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT: Final = 0
+JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION: Final = 250
+JABLOTRON_DEVICE_NUMBER_USB: Final = 254
+
 # In minutes
 JABLOTRON_TIMEOUT_FOR_DEVICE_STATE_PACKETS: Final = 5
 
@@ -275,6 +279,7 @@ class Jablotron:
 		self.last_update_success: bool = False
 		self.in_service_mode = False
 
+		self._last_active_user: int | None = None
 		self._successful_login = True
 
 	def update_options(self, options: Dict[str, Any]) -> None:
@@ -289,6 +294,9 @@ class Jablotron:
 
 	def code_contains_asterisk(self) -> bool:
 		return self._config[CONF_PASSWORD].find("*") != -1
+
+	def last_active_user(self) -> int | None:
+		return self._last_active_user
 
 	async def initialize(self) -> None:
 		def shutdown_event(_):
@@ -858,6 +866,7 @@ class Jablotron:
 
 						elif Jablotron._is_login_error_packet(packet):
 							self._successful_login = False
+							self._last_active_user = None
 							self._login_error()
 
 					break
@@ -1055,16 +1064,12 @@ class Jablotron:
 	def _parse_device_state_packet(self, packet: bytes) -> None:
 		device_number = Jablotron._parse_device_number_from_state_packet(packet)
 
-		if device_number == 0:
+		if device_number == JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT:
 			LOGGER.debug("State packet of central unit: {}".format(Jablotron.format_packet_to_string(packet)))
 			return
 
-		if device_number == 250:
-			# Mobile application
-			return
-
-		if device_number > 250:
-			# Don't know
+		if device_number in (JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION, JABLOTRON_DEVICE_NUMBER_USB):
+			self._set_last_active_user_from_device_state_packet(packet, device_number)
 			return
 
 		if device_number == self._get_lan_connection_device_number():
@@ -1081,7 +1086,11 @@ class Jablotron:
 
 		device_type = self._get_device_type(device_number)
 
-		if self._is_device_ignored(device_number) or device_type == DEVICE_KEYPAD:
+		if device_type == DEVICE_KEYPAD:
+			self._set_last_active_user_from_device_state_packet(packet, device_number)
+			return;
+
+		if self._is_device_ignored(device_number):
 			LOGGER.debug("State packet of {}: {}".format(DEVICES[device_type].lower(), Jablotron.format_packet_to_string(packet)))
 			return
 
@@ -1332,6 +1341,14 @@ class Jablotron:
 			"{} (device {})".format(DEVICES[device_type], device_number),
 			battery_level,
 		)
+
+	def _set_last_active_user_from_device_state_packet(self, packet: bytes, device_number: int) -> None:
+		offset = 0
+		if device_number not in (JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION, JABLOTRON_DEVICE_NUMBER_USB):
+			offset = 1
+
+		self._last_active_user = int((Jablotron.bytes_to_int(packet[3:4]) - 104 - offset) / 4)
+		LOGGER.debug("Active user: {}".format(self._last_active_user))
 
 	@core.callback
 	def _data_to_store(self) -> dict:
