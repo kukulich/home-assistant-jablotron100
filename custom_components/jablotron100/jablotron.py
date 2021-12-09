@@ -417,7 +417,7 @@ class Jablotron:
 
 	def _update_all_entities(self) -> None:
 		for entity in self._entities.values():
-			entity.async_write_ha_state()
+			entity.refresh_state()
 
 	async def _load_stored_data(self) -> None:
 		self._stored_data = await self._store.async_load()
@@ -1790,10 +1790,13 @@ class JablotronEntity(Entity):
 	async def async_added_to_hass(self) -> None:
 		self._jablotron.substribe_entity_for_updates(self._control.id, self)
 
-	def update_state(self, state: StateType) -> None:
-		self._jablotron.states[self._control.id] = state
+	def refresh_state(self) -> None:
 		self._update_attributes()
 		self.async_write_ha_state()
+
+	def update_state(self, state: StateType) -> None:
+		self._jablotron.states[self._control.id] = state
+		self.refresh_state();
 
 	def _get_state(self) -> StateType:
 		return self._jablotron.states[self._control.id]
