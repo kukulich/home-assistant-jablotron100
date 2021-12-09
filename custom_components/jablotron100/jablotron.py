@@ -1065,7 +1065,7 @@ class Jablotron:
 		device_number = Jablotron._parse_device_number_from_state_packet(packet)
 
 		if device_number == JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT:
-			LOGGER.debug("State packet of central unit: {}".format(Jablotron.format_packet_to_string(packet)))
+			Jablotron._log_packet("State packet of central unit", packet)
 			return
 
 		if device_number in (JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION, JABLOTRON_DEVICE_NUMBER_USB):
@@ -1081,7 +1081,7 @@ class Jablotron:
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			LOGGER.debug("State packet of unknown device: {}".format(Jablotron.format_packet_to_string(packet)))
+			Jablotron._log_packet("State packet of unknown device", packet)
 			return
 
 		device_type = self._get_device_type(device_number)
@@ -1091,7 +1091,7 @@ class Jablotron:
 			return;
 
 		if self._is_device_ignored(device_number):
-			LOGGER.debug("State packet of {}: {}".format(DEVICES[device_type].lower(), Jablotron.format_packet_to_string(packet)))
+			Jablotron._log_packet("State packet of {}".format(DEVICES[device_type].lower()), packet)
 			return
 
 		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, device_number)
@@ -1464,10 +1464,10 @@ class Jablotron:
 		battery_level = Jablotron.bytes_to_int(battery_level_packet)
 
 		if battery_level > 10:
-			LOGGER.debug("Unknown battery level packet of device {}: {}".format(
-				Jablotron._parse_device_number_from_device_info_packet(packet),
-				Jablotron.format_packet_to_string(packet),
-			))
+			Jablotron._log_packet(
+				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_device_info_packet(packet)),
+				packet,
+			)
 			return None
 
 		return battery_level * JABLOTRON_BATTERY_LEVEL_STEP
