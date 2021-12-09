@@ -1241,11 +1241,11 @@ class Jablotron:
 
 	def _log_incoming_packet(self, packet: bytes) -> None:
 		if self._should_be_incoming_packet_logged(packet):
-			Jablotron._log_packet(packet)
+			Jablotron._log_packet("Incoming", packet)
 
 	def _log_outcoming_packet(self, packet: bytes) -> None:
 		if self._should_be_outcoming_packet_logged(packet):
-			Jablotron._log_packet(packet)
+			Jablotron._log_packet("Outcoming", packet)
 
 	def _should_be_incoming_packet_logged(self, packet: bytes) -> bool:
 		if not self._options.get(CONF_ENABLE_DEBUGGING, DEFAULT_CONF_ENABLE_DEBUGGING):
@@ -1355,8 +1355,8 @@ class Jablotron:
 		return self._stored_data
 
 	@staticmethod
-	def _log_packet(packet: bytes) -> None:
-		LOGGER.debug(Jablotron.format_packet_to_string(packet))
+	def _log_packet(description: str, packet: bytes) -> None:
+		LOGGER.debug("{}: {}".format(description, Jablotron.format_packet_to_string(packet)))
 
 	@staticmethod
 	def _is_sections_states_packet(packet: bytes) -> bool:
