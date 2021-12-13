@@ -1,23 +1,14 @@
 from __future__ import annotations
 from homeassistant import config_entries, core
 from homeassistant.components.binary_sensor import (
+	BinarySensorDeviceClass,
 	BinarySensorEntity,
-	DEVICE_CLASS_CONNECTIVITY,
-	DEVICE_CLASS_DOOR,
-	DEVICE_CLASS_GARAGE_DOOR,
-	DEVICE_CLASS_GAS,
-	DEVICE_CLASS_LOCK,
-	DEVICE_CLASS_MOISTURE,
-	DEVICE_CLASS_MOTION,
-	DEVICE_CLASS_PROBLEM,
-	DEVICE_CLASS_SMOKE,
-	DEVICE_CLASS_TAMPER,
-	DEVICE_CLASS_WINDOW,
 )
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.const import (
-	ENTITY_CATEGORY_DIAGNOSTIC,
 	STATE_ON,
 )
+
 from typing import Final
 from .const import (
 	DATA_JABLOTRON,
@@ -40,15 +31,15 @@ from .const import (
 from .jablotron import Jablotron, JablotronDevice, JablotronEntity
 
 DEVICE_CLASSES: Final = {
-	DEVICE_MOTION_DETECTOR: DEVICE_CLASS_MOTION,
-	DEVICE_WINDOW_OPENING_DETECTOR: DEVICE_CLASS_WINDOW,
-	DEVICE_DOOR_OPENING_DETECTOR: DEVICE_CLASS_DOOR,
-	DEVICE_GARAGE_DOOR_OPENING_DETECTOR: DEVICE_CLASS_GARAGE_DOOR,
-	DEVICE_FLOOD_DETECTOR: DEVICE_CLASS_MOISTURE,
-	DEVICE_GAS_DETECTOR: DEVICE_CLASS_GAS,
-	DEVICE_SMOKE_DETECTOR: DEVICE_CLASS_SMOKE,
-	DEVICE_LOCK: DEVICE_CLASS_LOCK,
-	DEVICE_TAMPER: DEVICE_CLASS_TAMPER,
+	DEVICE_MOTION_DETECTOR: BinarySensorDeviceClass.MOTION,
+	DEVICE_WINDOW_OPENING_DETECTOR: BinarySensorDeviceClass.WINDOW,
+	DEVICE_DOOR_OPENING_DETECTOR: BinarySensorDeviceClass.DOOR,
+	DEVICE_GARAGE_DOOR_OPENING_DETECTOR: BinarySensorDeviceClass.GARAGE_DOOR,
+	DEVICE_FLOOD_DETECTOR: BinarySensorDeviceClass.MOISTURE,
+	DEVICE_GAS_DETECTOR: BinarySensorDeviceClass.GAS,
+	DEVICE_SMOKE_DETECTOR: BinarySensorDeviceClass.SMOKE,
+	DEVICE_LOCK: BinarySensorDeviceClass.LOCK,
+	DEVICE_TAMPER: BinarySensorDeviceClass.TAMPER,
 }
 
 
@@ -79,8 +70,8 @@ class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 
 class JablotronProblemSensorEntity(JablotronBinarySensor):
 
-	_attr_device_class = DEVICE_CLASS_PROBLEM
-	_attr_entity_category = ENTITY_CATEGORY_DIAGNOSTIC
+	_attr_device_class = BinarySensorDeviceClass.PROBLEM
+	_attr_entity_category = EntityCategory.DIAGNOSTIC
 
 
 class JablotronDeviceSensorEntity(JablotronBinarySensor):
@@ -112,14 +103,14 @@ class JablotronDeviceSensorEntity(JablotronBinarySensor):
 
 class JablotronLanConnectionEntity(JablotronBinarySensor):
 
-	_attr_device_class = DEVICE_CLASS_CONNECTIVITY
-	_attr_entity_category = ENTITY_CATEGORY_DIAGNOSTIC
+	_attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+	_attr_entity_category = EntityCategory.DIAGNOSTIC
 
 
 class JablotronGsmSignalEntity(JablotronBinarySensor):
 
-	_attr_device_class = DEVICE_CLASS_CONNECTIVITY
-	_attr_entity_category = ENTITY_CATEGORY_DIAGNOSTIC
+	_attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+	_attr_entity_category = EntityCategory.DIAGNOSTIC
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()

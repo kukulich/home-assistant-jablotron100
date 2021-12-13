@@ -1,5 +1,8 @@
 from homeassistant import config_entries, core
-from homeassistant.components.switch import DEVICE_CLASS_SWITCH, SwitchEntity
+from homeassistant.components.switch import (
+	SwitchDeviceClass,
+	SwitchEntity,
+)
 from homeassistant.const import STATE_ON, STATE_OFF
 from .const import (
 	DATA_JABLOTRON,
@@ -17,7 +20,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 
 	_control: JablotronProgrammableOutput
-	_attr_device_class = DEVICE_CLASS_SWITCH
+	_attr_device_class = SwitchDeviceClass.SWITCH
 
 	def __init__(
 		self,
