@@ -1,10 +1,7 @@
 """The Jablotron integration."""
 
 from homeassistant import config_entries, core
-from homeassistant.components.alarm_control_panel import DOMAIN as PLATFORM_ALARM_CONTROL_PANEL
-from homeassistant.components.binary_sensor import DOMAIN as PLATFORM_BINARY_SENSOR
-from homeassistant.components.sensor import DOMAIN as PLATFORM_SENSOR
-from homeassistant.components.switch import DOMAIN as PLATFORM_SWITCH
+from homeassistant.const import Platform
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
@@ -32,7 +29,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	if central_unit.model in ("JA-103K", "JA-103KRY", "JA-107K"):
 		entity_registry = await er.async_get_registry(hass)
 		not_working_gsm_signal_entity_id = entity_registry.async_get_entity_id(
-			PLATFORM_BINARY_SENSOR,
+			Platform.BINARY_SENSOR,
 			DOMAIN,
 			"{}.{}.gsm_signal_sensor".format(DOMAIN, central_unit.serial_port),
 		)
@@ -40,7 +37,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 			entity_registry.async_remove(not_working_gsm_signal_entity_id)
 
 		not_working_gsm_signal_strength_entity_id = entity_registry.async_get_entity_id(
-			PLATFORM_SENSOR,
+			Platform.SENSOR,
 			DOMAIN,
 			"{}.{}.gsm_signal_strength_sensor".format(DOMAIN, central_unit.serial_port),
 		)
@@ -58,7 +55,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 		sw_version=central_unit.firmware_version,
 	)
 
-	for platform in (PLATFORM_ALARM_CONTROL_PANEL, PLATFORM_BINARY_SENSOR, PLATFORM_SENSOR, PLATFORM_SWITCH):
+	for platform in (Platform.ALARM_CONTROL_PANEL, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.SWITCH):
 		hass.async_create_task(
 			hass.config_entries.async_forward_entry_setup(config_entry, platform)
 		)
