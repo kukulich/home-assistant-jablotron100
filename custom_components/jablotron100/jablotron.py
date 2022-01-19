@@ -155,6 +155,7 @@ def check_serial_port(serial_port: str) -> None:
 
 				if detected_model is not None:
 					break
+				time.sleep(1)	
 
 		finally:
 			stream.close()
