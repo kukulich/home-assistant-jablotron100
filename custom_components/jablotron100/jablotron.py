@@ -316,7 +316,7 @@ class Jablotron:
 		self._detect_devices()
 		self._create_devices()
 		self._create_lan_connection()
-		self._create_gsm_sensors()
+		self._create_gsm_sensor()
 
 		# Initialize states checker
 		self._state_checker_thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
@@ -796,7 +796,7 @@ class Jablotron:
 
 		self._set_initial_state(id, STATE_ON)
 
-	def _create_gsm_sensors(self) -> None:
+	def _create_gsm_sensor(self) -> None:
 		if self._get_gsm_device_number() is None:
 			return None
 
