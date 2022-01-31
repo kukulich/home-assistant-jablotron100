@@ -264,6 +264,7 @@ class Jablotron:
 		self._device_signal_strength_sensors: List[JablotronControl] = []
 		self._device_battery_level_sensors: List[JablotronControl] = []
 		self._device_temperature_sensors: List[JablotronControl] = []
+		self._device_voltage_sensors: List[JablotronControl] = []
 		self._lan_connection: JablotronControl | None = None
 		self._gsm_signal_sensor: JablotronControl | None = None
 		self._gsm_signal_strength_sensor: JablotronControl | None = None
@@ -315,6 +316,7 @@ class Jablotron:
 		self._detect_sections_and_pg_outputs()
 		self._detect_devices()
 		self._create_devices()
+		self._create_central_unit_sensors()
 		self._create_lan_connection()
 		self._create_gsm_sensor()
 
@@ -418,6 +420,9 @@ class Jablotron:
 
 	def device_temperature_sensors(self) -> List[JablotronControl]:
 		return self._device_temperature_sensors
+
+	def device_voltage_sensors(self) -> List[JablotronControl]:
+		return self._device_voltage_sensors
 
 	def lan_connection(self) -> JablotronControl | None:
 		return self._lan_connection
@@ -780,6 +785,25 @@ class Jablotron:
 					Jablotron._get_device_temperature_sensor_name(type, device_number),
 				))
 				self._set_initial_state(device_temperature_sensor_id, None)
+
+	def _create_central_unit_sensors(self) -> None:
+		battery_standby_voltage_id = self._get_battery_standby_voltage_id()
+		self._device_voltage_sensors.append(JablotronControl(
+			self._central_unit,
+			None,
+			battery_standby_voltage_id,
+			self._get_battery_standby_voltage_name(),
+		))
+		self._set_initial_state(battery_standby_voltage_id, None)
+
+		battery_load_voltage_id = self._get_battery_load_voltage_id()
+		self._device_voltage_sensors.append(JablotronControl(
+			self._central_unit,
+			None,
+			battery_load_voltage_id,
+			self._get_battery_load_voltage_name(),
+		))
+		self._set_initial_state(battery_load_voltage_id, None)
 
 	def _create_lan_connection(self) -> None:
 		if self._get_lan_connection_device_number() is None:
@@ -1159,7 +1183,7 @@ class Jablotron:
 		device_number = Jablotron._parse_device_number_from_secondary_state_packet(packet)
 
 		if device_number == JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT:
-			Jablotron._log_packet("Secondary state packet of central unit", packet)
+			self._parse_central_unit_secondary_state_packet(packet)
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
@@ -1181,6 +1205,19 @@ class Jablotron:
 				Jablotron._parse_device_battery_level_from_device_secondary_state_packet(packet),
 				store_state=True,
 			)
+
+	def _parse_central_unit_secondary_state_packet(self, packet: bytes) -> None:
+		self._update_state(
+			Jablotron._get_battery_standby_voltage_id(),
+			Jablotron.bytes_to_float(packet[14:15]),
+			store_state=True,
+		)
+
+		self._update_state(
+			Jablotron._get_battery_load_voltage_id(),
+			Jablotron.bytes_to_float(packet[9:10]),
+			store_state=True,
+		)
 
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
 		lan_connection_device_number = self._get_lan_connection_device_number()
@@ -1670,6 +1707,22 @@ class Jablotron:
 		return "Temperature of {} (device {})".format(DEVICES[device_type].lower(), device_number)
 
 	@staticmethod
+	def _get_battery_standby_voltage_id() -> str:
+		return "battery_standby_voltage"
+
+	@staticmethod
+	def _get_battery_standby_voltage_name() -> str:
+		return "Battery standby voltage"
+
+	@staticmethod
+	def _get_battery_load_voltage_id() -> str:
+		return "battery_load_voltage"
+
+	@staticmethod
+	def _get_battery_load_voltage_name() -> str:
+		return "Battery load voltage"
+
+	@staticmethod
 	def _get_lan_connection_id() -> str:
 		return "lan"
 
@@ -1778,6 +1831,10 @@ class Jablotron:
 	@staticmethod
 	def bytes_to_int(packet: bytes) -> int:
 		return int.from_bytes(packet, byteorder=sys.byteorder)
+
+	@staticmethod
+	def bytes_to_float(packet: bytes) -> float:
+		return round(Jablotron.bytes_to_int(packet) / 10, 1)
 
 	@staticmethod
 	def binary_to_int(binary: str) -> int:

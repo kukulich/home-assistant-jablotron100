@@ -5,6 +5,7 @@ from homeassistant.components.sensor import (
 	SensorStateClass,
 )
 from homeassistant.const import (
+	ELECTRIC_POTENTIAL_VOLT,
 	PERCENTAGE,
 	TEMP_CELSIUS,
 )
@@ -22,6 +23,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	async_add_entities((JablotronSignalStrengthEntity(jablotron, control) for control in jablotron.device_signal_strength_sensors()))
 	async_add_entities((JablotronBatteryLevelEntity(jablotron, control) for control in jablotron.device_battery_level_sensors()))
 	async_add_entities((JablotronTemperatureEntity(jablotron, control) for control in jablotron.device_temperature_sensors()))
+	async_add_entities((JablotronVoltageEntity(jablotron, control) for control in jablotron.device_voltage_sensors()))
 
 	gsm_signal_strength_sensor = jablotron.gsm_signal_strength_sensor()
 	if gsm_signal_strength_sensor is not None:
@@ -56,3 +58,10 @@ class JablotronTemperatureEntity(JablotronSensor):
 
 	_attr_native_unit_of_measurement = TEMP_CELSIUS
 	_attr_device_class = SensorDeviceClass.TEMPERATURE
+
+
+class JablotronVoltageEntity(JablotronSensor):
+
+	_attr_native_unit_of_measurement = ELECTRIC_POTENTIAL_VOLT
+	_attr_device_class = SensorDeviceClass.VOLTAGE
+	_attr_entity_category = EntityCategory.DIAGNOSTIC
