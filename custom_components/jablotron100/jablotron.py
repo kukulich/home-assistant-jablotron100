@@ -1044,7 +1044,7 @@ class Jablotron:
 			DEVICE_EMPTY,
 		)
 
-	def _is_wireless_device(self, number: int):
+	def _is_wireless_device(self, number: int) -> bool:
 		device_id = self._get_device_id(number)
 
 		if device_id not in self._devices_data:
@@ -1052,7 +1052,7 @@ class Jablotron:
 
 		return self._devices_data[device_id][DEVICE_DATA_CONNECTION] == DEVICE_CONNECTION_WIRELESS
 
-	def _is_device_with_battery(self, number: int):
+	def _is_device_with_battery(self, number: int) -> bool:
 		device_id = self._get_device_id(number)
 
 		if device_id not in self._devices_data:
