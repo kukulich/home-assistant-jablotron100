@@ -1091,7 +1091,7 @@ class Jablotron:
 
 		if device_type == DEVICE_KEYPAD:
 			self._set_last_active_user_from_device_state_packet(packet, device_number)
-			return;
+			return
 
 		if self._is_device_ignored(device_number):
 			Jablotron._log_packet("State packet of {}".format(DEVICES[device_type].lower()), packet)
@@ -1816,7 +1816,7 @@ class JablotronEntity(Entity):
 
 	def update_state(self, state: StateType) -> None:
 		self._jablotron.states[self._control.id] = state
-		self.refresh_state();
+		self.refresh_state()
 
 	def _get_state(self) -> StateType:
 		return self._jablotron.states[self._control.id]
