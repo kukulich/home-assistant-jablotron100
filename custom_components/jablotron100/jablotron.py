@@ -722,8 +722,6 @@ class Jablotron:
 
 			device_sensor_id = Jablotron._get_device_sensor_id(device_number)
 			device_problem_sensor_id = Jablotron._get_device_problem_sensor_id(device_number)
-			device_signal_strength_sensor_id = Jablotron._get_device_signal_strength_sensor_id(device_number)
-			device_battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(device_number)
 			type = self._get_device_type(device_number)
 
 			if self._is_device_with_activity_sensor(device_number):
@@ -745,6 +743,8 @@ class Jablotron:
 			self._set_initial_state(device_problem_sensor_id, STATE_OFF)
 
 			if self._is_wireless_device(device_number):
+				device_signal_strength_sensor_id = Jablotron._get_device_signal_strength_sensor_id(device_number)
+
 				self._device_signal_strength_sensors.append(JablotronControl(
 					self._central_unit,
 					hass_device,
@@ -754,6 +754,8 @@ class Jablotron:
 				self._set_initial_state(device_signal_strength_sensor_id, self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH])
 
 			if self._is_device_with_battery(device_number):
+				device_battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(device_number)
+
 				self._device_battery_level_sensors.append(JablotronControl(
 					self._central_unit,
 					hass_device,
