@@ -53,6 +53,7 @@ from .const import (
 	DEVICE_EMPTY,
 	DEVICE_KEYPAD,
 	DEVICE_SIREN_OUTDOOR,
+	DEVICE_THERMOSTAT,
 	DEVICE_OTHER,
 	DOMAIN,
 	EVENT_WRONG_CODE,
@@ -78,6 +79,7 @@ JABLOTRON_PACKET_GET_SYSTEM_INFO: Final = b"\x30"
 JABLOTRON_PACKET_SYSTEM_INFO: Final = b"\x40"
 JABLOTRON_PACKET_SECTIONS_STATES: Final = b"\x51"
 JABLOTRON_PACKET_DEVICE_STATE: Final = b"\x55"
+JABLOTRON_PACKET_DEVICE_SECONDARY_STATE: Final = b"\x90"
 JABLOTRON_PACKET_DEVICES_STATES: Final = b"\xd8"
 JABLOTRON_PACKET_PG_OUTPUTS_STATES: Final = b"\x50"
 JABLOTRON_PACKET_COMMAND: Final = b"\x52"
@@ -260,6 +262,7 @@ class Jablotron:
 		self._device_problem_sensors: List[JablotronControl] = []
 		self._device_signal_strength_sensors: List[JablotronControl] = []
 		self._device_battery_level_sensors: List[JablotronControl] = []
+		self._device_temperature_sensors: List[JablotronControl] = []
 		self._lan_connection: JablotronControl | None = None
 		self._gsm_signal_sensor: JablotronControl | None = None
 		self._gsm_signal_strength_sensor: JablotronControl | None = None
@@ -411,6 +414,9 @@ class Jablotron:
 
 	def device_battery_level_sensors(self) -> List[JablotronControl]:
 		return self._device_battery_level_sensors
+
+	def device_temperature_sensors(self) -> List[JablotronControl]:
+		return self._device_temperature_sensors
 
 	def lan_connection(self) -> JablotronControl | None:
 		return self._lan_connection
@@ -764,6 +770,16 @@ class Jablotron:
 				))
 				self._set_initial_state(device_battery_level_sensor_id, self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL])
 
+			if type == DEVICE_THERMOSTAT:
+				device_temperature_sensor_id = Jablotron._get_device_temperature_sensor_id(device_number)
+				self._device_temperature_sensors.append(JablotronControl(
+					self._central_unit,
+					hass_device,
+					device_temperature_sensor_id,
+					Jablotron._get_device_temperature_sensor_name(type, device_number),
+				))
+				self._set_initial_state(device_temperature_sensor_id, None)
+
 	def _create_lan_connection(self) -> None:
 		if self._get_lan_connection_device_number() is None:
 			return None
@@ -863,6 +879,9 @@ class Jablotron:
 
 						elif Jablotron._is_device_state_packet(packet):
 							self._parse_device_state_packet(packet)
+
+						elif Jablotron._is_device_secondary_state_packet(packet):
+							self._parse_device_secondary_state_packet(packet)
 
 						elif Jablotron._is_device_info_packet(packet):
 							self._parse_device_info_packet(packet)
@@ -1135,6 +1154,26 @@ class Jablotron:
 				store_state=True,
 			)
 
+	def _parse_device_secondary_state_packet(self, packet: bytes) -> None:
+		device_number = Jablotron._parse_device_number_from_secondary_state_packet(packet)
+
+		if device_number == JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT:
+			Jablotron._log_packet("Secondary state packet of central unit", packet)
+			return
+
+		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
+			Jablotron._log_packet("Secondary state packet of unknown device", packet)
+			return
+
+		device_type = self._get_device_type(device_number)
+
+		if device_type == DEVICE_THERMOSTAT:
+			self._update_state(
+				Jablotron._get_device_temperature_sensor_id(device_number),
+				Jablotron._parse_device_temperature_from_secondary_state_packet(packet),
+				store_state=True,
+			)
+
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
 		lan_connection_device_number = self._get_lan_connection_device_number()
 
@@ -1393,6 +1432,7 @@ class Jablotron:
 		return (
 			Jablotron._is_devices_states_packet(packet)
 			or Jablotron._is_device_state_packet(packet)
+			or Jablotron._is_device_secondary_state_packet(packet)
 			or Jablotron._is_device_info_packet(packet)
 		)
 
@@ -1411,6 +1451,10 @@ class Jablotron:
 	@staticmethod
 	def _is_device_state_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_DEVICE_STATE
+
+	@staticmethod
+	def _is_device_secondary_state_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_DEVICE_SECONDARY_STATE
 
 	@staticmethod
 	def _is_device_state_packet_for_activity(packet_type: int) -> bool:
@@ -1478,6 +1522,19 @@ class Jablotron:
 	@staticmethod
 	def _parse_device_number_from_state_packet(packet: bytes) -> int:
 		return int(Jablotron.bytes_to_int(packet[4:6]) / 64)
+
+	@staticmethod
+	def _parse_device_number_from_secondary_state_packet(packet: bytes) -> int:
+		return Jablotron.bytes_to_int(packet[2:3])
+
+	@staticmethod
+	def _parse_device_temperature_from_secondary_state_packet(packet: bytes) -> float:
+		modifier = Jablotron.bytes_to_int(packet[11:12])
+
+		if modifier >= 128:
+			modifier -= 256
+
+		return round((Jablotron.bytes_to_int(packet[10:11]) + (255 * modifier)) / 10, 1)
 
 	@staticmethod
 	def _convert_jablotron_device_state_to_state(packet: bytes, device_number: int) -> str | None:
@@ -1567,6 +1624,10 @@ class Jablotron:
 		return "device_battery_level_sensor_{}".format(device_number)
 
 	@staticmethod
+	def _get_device_temperature_sensor_id(device_number: int) -> str:
+		return "device_temperature_sensor_{}".format(device_number)
+
+	@staticmethod
 	def _get_device_problem_sensor_name(device_type: str, device_number: int) -> str:
 		return "Problem of {} (device {})".format(DEVICES[device_type].lower(), device_number)
 
@@ -1577,6 +1638,10 @@ class Jablotron:
 	@staticmethod
 	def _get_device_battery_level_sensor_name(device_type: str, device_number: int) -> str:
 		return "Battery level of {} (device {})".format(DEVICES[device_type].lower(), device_number)
+
+	@staticmethod
+	def _get_device_temperature_sensor_name(device_type: str, device_number: int) -> str:
+		return "Temperature of {} (device {})".format(DEVICES[device_type].lower(), device_number)
 
 	@staticmethod
 	def _get_lan_connection_id() -> str:

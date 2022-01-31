@@ -6,6 +6,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import (
 	PERCENTAGE,
+	TEMP_CELSIUS,
 )
 from homeassistant.helpers.entity import EntityCategory
 from .const import (
@@ -20,6 +21,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 
 	async_add_entities((JablotronSignalStrengthEntity(jablotron, control) for control in jablotron.device_signal_strength_sensors()))
 	async_add_entities((JablotronBatteryLevelEntity(jablotron, control) for control in jablotron.device_battery_level_sensors()))
+	async_add_entities((JablotronTemperatureEntity(jablotron, control) for control in jablotron.device_temperature_sensors()))
 
 	gsm_signal_strength_sensor = jablotron.gsm_signal_strength_sensor()
 	if gsm_signal_strength_sensor is not None:
@@ -28,7 +30,6 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 
 class JablotronSensor(JablotronEntity, SensorEntity):
 
-	_attr_native_unit_of_measurement = PERCENTAGE
 	_attr_state_class = SensorStateClass.MEASUREMENT
 
 	def _update_attributes(self) -> None:
@@ -39,11 +40,19 @@ class JablotronSensor(JablotronEntity, SensorEntity):
 
 class JablotronSignalStrengthEntity(JablotronSensor):
 
+	_attr_native_unit_of_measurement = PERCENTAGE
 	_attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
 	_attr_entity_category = EntityCategory.DIAGNOSTIC
 
 
 class JablotronBatteryLevelEntity(JablotronSensor):
 
+	_attr_native_unit_of_measurement = PERCENTAGE
 	_attr_device_class = SensorDeviceClass.BATTERY
 	_attr_entity_category = EntityCategory.DIAGNOSTIC
+
+
+class JablotronTemperatureEntity(JablotronSensor):
+
+	_attr_native_unit_of_measurement = TEMP_CELSIUS
+	_attr_device_class = SensorDeviceClass.TEMPERATURE

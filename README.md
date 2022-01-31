@@ -18,8 +18,9 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 
 ### Devices
 
-- Only devices with two states (on/off, active/inactive, open/closed etc.) are supported. No other types are currently supported (e.g. temperature of thermostat or smoke detector).
+- Devices with two states (on/off, active/inactive, open/closed etc.) are supported.
 - Sabotage or problem of the device is supported in specific "problem" sensor.
+- Temperature is reported for thermostats.
 - Signal strength is reported for wireless devices.
 - Battery level is reported for devices with battery.
 
