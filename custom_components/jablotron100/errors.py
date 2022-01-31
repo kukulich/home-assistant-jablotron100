@@ -20,3 +20,6 @@ class ModelNotSupported(JablotronException):
 
 class ShouldNotHappen(JablotronException):
 	"""This should not happen."""
+
+class UnknownBatteryLevel(JablotronException):
+	"""Unknown battery level."""

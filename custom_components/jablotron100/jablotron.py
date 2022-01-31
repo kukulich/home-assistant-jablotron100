@@ -65,6 +65,7 @@ from .errors import (
 	ModelNotSupported,
 	ServiceUnavailable,
 	ShouldNotHappen,
+	UnknownBatteryLevel,
 )
 
 MAX_WORKERS: Final = 5
@@ -1174,6 +1175,13 @@ class Jablotron:
 				store_state=True,
 			)
 
+		if self._is_device_with_battery(device_number):
+			self._update_state(
+				Jablotron._get_device_battery_level_sensor_id(device_number),
+				Jablotron._parse_device_battery_level_from_device_secondary_state_packet(packet),
+				store_state=True,
+			)
+
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
 		lan_connection_device_number = self._get_lan_connection_device_number()
 
@@ -1503,21 +1511,15 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> int | None:
-		battery_level_packet = packet[10:11]
-
-		if battery_level_packet in (b"\x0b", b"\x0c"):
-			return None
-
-		battery_level = Jablotron.bytes_to_int(battery_level_packet)
-
-		if battery_level > 10:
+		try:
+			return Jablotron._parse_device_battery_level_packet(packet[10:11])
+		except UnknownBatteryLevel:
 			Jablotron._log_packet(
 				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_device_info_packet(packet)),
 				packet,
 			)
-			return None
 
-		return battery_level * JABLOTRON_BATTERY_LEVEL_STEP
+			return None
 
 	@staticmethod
 	def _parse_device_number_from_state_packet(packet: bytes) -> int:
@@ -1535,6 +1537,30 @@ class Jablotron:
 			modifier -= 256
 
 		return round((Jablotron.bytes_to_int(packet[10:11]) + (255 * modifier)) / 10, 1)
+
+	@staticmethod
+	def _parse_device_battery_level_from_device_secondary_state_packet(packet: bytes) -> int | None:
+		try:
+			return Jablotron._parse_device_battery_level_packet(packet[5:6])
+		except UnknownBatteryLevel:
+			Jablotron._log_packet(
+				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_secondary_state_packet(packet)),
+				packet,
+			)
+
+			return None
+
+	@staticmethod
+	def _parse_device_battery_level_packet(battery_level_packet: bytes) -> int | None:
+		if battery_level_packet in (b"\x0b", b"\x0c"):
+			return None
+
+		battery_level = Jablotron.bytes_to_int(battery_level_packet)
+
+		if battery_level > 10:
+			raise UnknownBatteryLevel
+
+		return battery_level * JABLOTRON_BATTERY_LEVEL_STEP
 
 	@staticmethod
 	def _convert_jablotron_device_state_to_state(packet: bytes, device_number: int) -> str | None:
