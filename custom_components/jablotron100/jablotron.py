@@ -265,6 +265,7 @@ class Jablotron:
 		self._device_battery_level_sensors: List[JablotronControl] = []
 		self._device_temperature_sensors: List[JablotronControl] = []
 		self._device_voltage_sensors: List[JablotronControl] = []
+		self._device_current_sensors: List[JablotronControl] = []
 		self._lan_connection: JablotronControl | None = None
 		self._gsm_signal_sensor: JablotronControl | None = None
 		self._gsm_signal_strength_sensor: JablotronControl | None = None
@@ -423,6 +424,9 @@ class Jablotron:
 
 	def device_voltage_sensors(self) -> List[JablotronControl]:
 		return self._device_voltage_sensors
+
+	def device_current_sensors(self) -> List[JablotronControl]:
+		return self._device_current_sensors
 
 	def lan_connection(self) -> JablotronControl | None:
 		return self._lan_connection
@@ -804,6 +808,24 @@ class Jablotron:
 			self._get_battery_load_voltage_name(),
 		))
 		self._set_initial_state(battery_load_voltage_id, None)
+
+		bus_voltage_id = self._get_bus_voltage_id()
+		self._device_voltage_sensors.append(JablotronControl(
+			self._central_unit,
+			None,
+			bus_voltage_id,
+			self._get_bus_voltage_name(),
+		))
+		self._set_initial_state(bus_voltage_id, None)
+
+		bus_devices_loss_id = self._get_bus_devices_loss_id()
+		self._device_current_sensors.append(JablotronControl(
+			self._central_unit,
+			None,
+			bus_devices_loss_id,
+			self._get_bus_devices_loss_name(),
+		))
+		self._set_initial_state(bus_devices_loss_id, None)
 
 	def _create_lan_connection(self) -> None:
 		if self._get_lan_connection_device_number() is None:
@@ -1216,6 +1238,18 @@ class Jablotron:
 		self._update_state(
 			Jablotron._get_battery_load_voltage_id(),
 			Jablotron.bytes_to_float(packet[9:10]),
+			store_state=True,
+		)
+
+		self._update_state(
+			Jablotron._get_bus_voltage_id(),
+			Jablotron.bytes_to_float(packet[19:20]),
+			store_state=True,
+		)
+
+		self._update_state(
+			Jablotron._get_bus_devices_loss_id(),
+			Jablotron.bytes_to_int(packet[25:26]),
 			store_state=True,
 		)
 
@@ -1721,6 +1755,22 @@ class Jablotron:
 	@staticmethod
 	def _get_battery_load_voltage_name() -> str:
 		return "Battery load voltage"
+
+	@staticmethod
+	def _get_bus_voltage_id() -> str:
+		return "bus_voltage"
+
+	@staticmethod
+	def _get_bus_voltage_name() -> str:
+		return "BUS voltage"
+
+	@staticmethod
+	def _get_bus_devices_loss_id() -> str:
+		return "bus_devices_loss"
+
+	@staticmethod
+	def _get_bus_devices_loss_name() -> str:
+		return "BUS devices loss"
 
 	@staticmethod
 	def _get_lan_connection_id() -> str:
