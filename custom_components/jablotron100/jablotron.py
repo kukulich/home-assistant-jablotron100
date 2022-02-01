@@ -1145,7 +1145,7 @@ class Jablotron:
 		signal_strength_sensor_id = self._get_gsm_signal_strength_sensor_id()
 		signal_strength = self.bytes_to_int(packet[5:6])
 
-		self._update_state(signal_strength_sensor_id, signal_strength, store_state=True)
+		self._update_state(signal_strength_sensor_id, signal_strength)
 
 		self._store_devices_data()
 
@@ -1156,7 +1156,7 @@ class Jablotron:
 		signal_strength = self._parse_device_signal_strength_from_device_info_packet(packet)
 		signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
 
-		self._update_state(signal_strength_sensor_id, signal_strength, store_state=True)
+		self._update_state(signal_strength_sensor_id, signal_strength)
 		self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH] = signal_strength
 
 		battery_level = self._parse_device_battery_level_from_device_info_packet(packet)
@@ -1164,7 +1164,7 @@ class Jablotron:
 		if battery_level is not None:
 			battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
 
-			self._update_state(battery_level_sensor_id, battery_level, store_state=True)
+			self._update_state(battery_level_sensor_id, battery_level)
 			self._device_hass_devices[device_id].battery_level = battery_level
 			self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] = battery_level
 
@@ -1228,7 +1228,6 @@ class Jablotron:
 			self._update_state(
 				self._get_device_problem_sensor_id(device_number),
 				device_state,
-				store_state=True,
 			)
 		else:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, self.format_packet_to_string(packet)))
@@ -1238,7 +1237,6 @@ class Jablotron:
 			self._update_state(
 				self._get_device_signal_strength_sensor_id(device_number),
 				device_signal_strength,
-				store_state=True,
 			)
 
 	def _parse_device_secondary_state_packet(self, packet: bytes) -> None:
@@ -1258,13 +1256,11 @@ class Jablotron:
 			self._update_state(
 				self._get_device_temperature_sensor_id(device_number),
 				self._parse_device_thermostat_temperature_from_secondary_state_packet(packet),
-				store_state=True,
 			)
 		elif device_type == DEVICE_SMOKE_DETECTOR:
 			self._update_state(
 				self._get_device_temperature_sensor_id(device_number),
 				self._parse_device_smoke_detector_temperature_from_secondary_state_packet(packet),
-				store_state=True,
 			)
 		elif device_type == DEVICE_SIREN_OUTDOOR:
 			self._parse_device_siren_outdoor_secondary_state_packet(packet, device_number)
@@ -1273,51 +1269,43 @@ class Jablotron:
 			self._update_state(
 				self._get_device_battery_level_sensor_id(device_number),
 				self._parse_device_battery_level_from_device_secondary_state_packet(packet),
-				store_state=True,
 			)
 
 	def _parse_device_siren_outdoor_secondary_state_packet(self, packet: bytes, device_number: int) -> None:
 		self._update_state(
 			self._get_device_battery_standby_voltage_sensor_id(device_number),
 			self.bytes_to_float(packet[14:15]),
-			store_state=True,
 		)
 
 		self._update_state(
 			self._get_device_battery_load_voltage_sensor_id(device_number),
 			self.bytes_to_float(packet[9:10]),
-			store_state=True,
 		)
 
 	def _parse_central_unit_secondary_state_packet(self, packet: bytes) -> None:
 		self._update_state(
 			self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._parse_device_battery_level_from_device_secondary_state_packet(packet),
-			store_state=True,
 		)
 
 		self._update_state(
 			self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self.bytes_to_float(packet[14:15]),
-			store_state=True,
 		)
 
 		self._update_state(
 			self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self.bytes_to_float(packet[9:10]),
-			store_state=True,
 		)
 
 		self._update_state(
 			self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self.bytes_to_float(packet[19:20]),
-			store_state=True,
 		)
 
 		self._update_state(
 			self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self.bytes_to_int(packet[25:26]),
-			store_state=True,
 		)
 
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
@@ -1332,7 +1320,6 @@ class Jablotron:
 		self._update_state(
 			self._get_lan_connection_id(),
 			STATE_ON if device_state == STATE_OFF else STATE_OFF,
-			store_state=True,
 		)
 
 	def _parse_gsm_device_state_packet(self, packet: bytes) -> None:
@@ -1347,7 +1334,6 @@ class Jablotron:
 		self._update_state(
 			self._get_gsm_signal_sensor_id(),
 			STATE_ON if device_state == STATE_OFF else STATE_OFF,
-			store_state=True,
 		)
 
 	def _parse_devices_states_packet(self, packet: bytes) -> None:
@@ -1381,7 +1367,6 @@ class Jablotron:
 			self._update_state(
 				self._get_pg_output_id(pg_output_number),
 				pg_output_state,
-				store_state=True,
 			)
 
 	def _get_lan_connection_device_number(self) -> int | None:
@@ -1415,7 +1400,7 @@ class Jablotron:
 
 		self._update_state(id, initial_state, store_state=False)
 
-	def _update_state(self, id: str, state: StateType, store_state: bool) -> None:
+	def _update_state(self, id: str, state: StateType, store_state: bool = True) -> None:
 		if store_state is True:
 			self._store_state(id, state)
 
