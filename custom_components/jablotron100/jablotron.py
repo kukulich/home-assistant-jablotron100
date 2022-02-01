@@ -797,6 +797,15 @@ class Jablotron:
 				self._set_initial_state(device_temperature_sensor_id, None)
 
 	def _create_central_unit_sensors(self) -> None:
+		battery_level_id = self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
+		self._device_battery_level_sensors.append(JablotronControl(
+			self._central_unit,
+			None,
+			battery_level_id,
+			self._get_device_battery_level_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
+		))
+		self._set_initial_state(battery_level_id, None)
+
 		battery_standby_voltage_id = self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
 		self._device_voltage_sensors.append(JablotronControl(
 			self._central_unit,
@@ -1065,6 +1074,9 @@ class Jablotron:
 		return self._devices_data[device_id][DEVICE_DATA_CONNECTION] == DEVICE_CONNECTION_WIRELESS
 
 	def _is_device_with_battery(self, number: int) -> bool:
+		if number == DEVICE_CENTRAL_UNIT_NUMBER:
+			return True
+
 		device_id = self._get_device_id(number)
 
 		if device_id not in self._devices_data:
@@ -1255,6 +1267,12 @@ class Jablotron:
 			)
 
 	def _parse_central_unit_secondary_state_packet(self, packet: bytes) -> None:
+		self._update_state(
+			Jablotron._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+			Jablotron._parse_device_battery_level_from_device_secondary_state_packet(packet),
+			store_state=True,
+		)
+
 		self._update_state(
 			Jablotron._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			Jablotron.bytes_to_float(packet[14:15]),
