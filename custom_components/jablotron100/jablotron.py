@@ -610,6 +610,7 @@ class Jablotron:
 			section_hass_device = self._create_section_hass_device(section)
 			section_alarm_id = self._get_section_alarm_id(section)
 			section_problem_sensor_id = self._get_section_problem_sensor_id(section)
+			section_state = self._parse_jablotron_section_state(section_binary)
 
 			self._alarm_control_panels.append(JablotronAlarmControlPanel(
 				self._central_unit,
@@ -618,17 +619,14 @@ class Jablotron:
 				self._get_section_alarm_name(section),
 				section,
 			))
-			self._section_problem_sensors.append(JablotronControl(
-				self._central_unit,
+			self._set_initial_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state))
+
+			self._section_problem_sensors.append(self._create_device_sensor(
 				section_hass_device,
 				section_problem_sensor_id,
 				self._get_section_problem_sensor_name(section),
+				self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
 			))
-
-			section_state = self._parse_jablotron_section_state(section_binary)
-
-			self._update_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state), store_state=False)
-			self._update_state(section_problem_sensor_id, self._convert_jablotron_section_state_to_problem_sensor_state(section_state), store_state=False)
 
 	def _create_pg_outputs(self) -> None:
 		if not self._has_pg_outputs():
@@ -748,161 +746,120 @@ class Jablotron:
 			hass_device = self._create_device_hass_device(device_number)
 			self._device_hass_devices[device_id] = hass_device
 
-			device_sensor_id = self._get_device_sensor_id(device_number)
-			device_problem_sensor_id = self._get_device_problem_sensor_id(device_number)
-			type = self._get_device_type(device_number)
+			device_type = self._get_device_type(device_number)
 
 			if self._is_device_with_activity_sensor(device_number):
+				device_sensor_id = self._get_device_sensor_id(device_number)
+
 				self._device_sensors.append(JablotronDevice(
 					self._central_unit,
 					hass_device,
 					device_sensor_id,
 					self._get_device_sensor_name(device_number),
-					type,
+					device_type,
 				))
 				self._set_initial_state(device_sensor_id, STATE_OFF)
 
-			self._device_problem_sensors.append(JablotronControl(
-				self._central_unit,
+			self._device_problem_sensors.append(self._create_device_sensor(
 				hass_device,
-				device_problem_sensor_id,
+				self._get_device_problem_sensor_id(device_number),
 				self._get_device_problem_sensor_name(device_number),
+				STATE_OFF,
 			))
-			self._set_initial_state(device_problem_sensor_id, STATE_OFF)
 
 			if self._is_wireless_device(device_number):
-				device_signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
-
-				self._device_signal_strength_sensors.append(JablotronControl(
-					self._central_unit,
+				self._device_signal_strength_sensors.append(self._create_device_sensor(
 					hass_device,
-					device_signal_strength_sensor_id,
+					self._get_device_signal_strength_sensor_id(device_number),
 					self._get_device_signal_strength_sensor_name(device_number),
+					self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH],
 				))
-				self._set_initial_state(device_signal_strength_sensor_id, self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH])
 
 			if self._is_device_with_battery(device_number):
-				device_battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
-
-				self._device_battery_level_sensors.append(JablotronControl(
-					self._central_unit,
+				self._device_battery_level_sensors.append(self._create_device_sensor(
 					hass_device,
-					device_battery_level_sensor_id,
+					self._get_device_battery_level_sensor_id(device_number),
 					self._get_device_battery_level_sensor_name(device_number),
+					self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL],
 				))
-				self._set_initial_state(device_battery_level_sensor_id, self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL])
 
-			if type in (DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR):
-				device_temperature_sensor_id = self._get_device_temperature_sensor_id(device_number)
-				self._device_temperature_sensors.append(JablotronControl(
-					self._central_unit,
+			if device_type in (DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR):
+				self._device_temperature_sensors.append(self._create_device_sensor(
 					hass_device,
-					device_temperature_sensor_id,
+					self._get_device_temperature_sensor_id(device_number),
 					self._get_device_temperature_sensor_name(device_number),
 				))
-				self._set_initial_state(device_temperature_sensor_id, None)
-			elif type == DEVICE_SIREN_OUTDOOR:
-				device_battery_standby_voltage_sensor_id = self._get_device_battery_standby_voltage_sensor_id(device_number)
-				self._device_voltage_sensors.append(JablotronControl(
-					self._central_unit,
+			elif device_type == DEVICE_SIREN_OUTDOOR:
+				self._device_voltage_sensors.append(self._create_device_sensor(
 					hass_device,
-					device_battery_standby_voltage_sensor_id,
+					self._get_device_battery_standby_voltage_sensor_id(device_number),
 					self._get_device_battery_standby_voltage_sensor_name(device_number),
 				))
-				self._set_initial_state(device_battery_standby_voltage_sensor_id, None)
 
-				device_battery_load_voltage_sensor_id = self._get_device_battery_load_voltage_sensor_id(device_number)
-				self._device_voltage_sensors.append(JablotronControl(
-					self._central_unit,
+				self._device_voltage_sensors.append(self._create_device_sensor(
 					hass_device,
-					device_battery_load_voltage_sensor_id,
+					self._get_device_battery_load_voltage_sensor_id(device_number),
 					self._get_device_battery_load_voltage_sensor_name(device_number),
 				))
-				self._set_initial_state(device_battery_load_voltage_sensor_id, None)
 
 	def _create_central_unit_sensors(self) -> None:
-		battery_level_id = self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_battery_level_sensors.append(JablotronControl(
-			self._central_unit,
+		self._device_battery_level_sensors.append(self._create_device_sensor(
 			None,
-			battery_level_id,
+			self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_battery_level_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
-		self._set_initial_state(battery_level_id, None)
 
-		battery_standby_voltage_id = self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_voltage_sensors.append(JablotronControl(
-			self._central_unit,
+		self._device_voltage_sensors.append(self._create_device_sensor(
 			None,
-			battery_standby_voltage_id,
+			self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_battery_standby_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
-		self._set_initial_state(battery_standby_voltage_id, None)
 
-		battery_load_voltage_id = self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_voltage_sensors.append(JablotronControl(
-			self._central_unit,
+		self._device_voltage_sensors.append(self._create_device_sensor(
 			None,
-			battery_load_voltage_id,
+			self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_battery_load_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
-		self._set_initial_state(battery_load_voltage_id, None)
 
-		bus_voltage_id = self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_voltage_sensors.append(JablotronControl(
-			self._central_unit,
+		self._device_voltage_sensors.append(self._create_device_sensor(
 			None,
-			bus_voltage_id,
+			self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_bus_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
-		self._set_initial_state(bus_voltage_id, None)
 
-		bus_devices_loss_id = self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_current_sensors.append(JablotronControl(
-			self._central_unit,
+		self._device_current_sensors.append(self._create_device_sensor(
 			None,
-			bus_devices_loss_id,
+			self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_bus_devices_loss_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
-		self._set_initial_state(bus_devices_loss_id, None)
 
 	def _create_lan_connection(self) -> None:
 		if self._get_lan_connection_device_number() is None:
 			return None
 
-		id = self._get_lan_connection_id()
-
-		self._lan_connection = JablotronControl(
-			self._central_unit,
+		self._lan_connection = self._create_device_sensor(
 			None,
-			id,
+			self._get_lan_connection_id(),
 			self._get_lan_connection_name(),
+			STATE_ON,
 		)
-
-		self._set_initial_state(id, STATE_ON)
 
 	def _create_gsm_sensor(self) -> None:
 		if self._get_gsm_device_number() is None:
 			return None
 
-		signal_sensor_id = self._get_gsm_signal_sensor_id()
-		signal_strength_sensor_id = self._get_gsm_signal_strength_sensor_id()
-
-		self._gsm_signal_sensor = JablotronControl(
-			self._central_unit,
+		self._gsm_signal_sensor = self._create_device_sensor(
 			None,
-			signal_sensor_id,
+			self._get_gsm_signal_sensor_id(),
 			self._get_gsm_signal_sensor_name(),
+			STATE_ON,
 		)
-		self._gsm_signal_strength_sensor = JablotronControl(
-			self._central_unit,
+		self._gsm_signal_strength_sensor = self._create_device_sensor(
 			None,
-			signal_strength_sensor_id,
+			self._get_gsm_signal_strength_sensor_id(),
 			self._get_gsm_signal_strength_sensor_name(),
+			100,
 		)
-
-		self._set_initial_state(signal_sensor_id, STATE_ON)
-		self._set_initial_state(signal_strength_sensor_id, 100)
 
 	def _force_devices_secondary_state_update(self) -> None:
 		for device_number in self._get_numbers_of_not_ignored_devices():
@@ -1572,6 +1529,17 @@ class Jablotron:
 			"{} (device {})".format(DEVICES[device_type], device_number),
 			battery_level,
 		)
+
+	def _create_device_sensor(self, hass_device: JablotronHassDevice | None, sensor_id: str, sensor_name: str, initial_state: StateType = None) -> JablotronControl:
+		sensor = JablotronControl(
+			self._central_unit,
+			hass_device,
+			sensor_id,
+			sensor_name,
+		)
+		self._set_initial_state(sensor_id, initial_state)
+
+		return sensor
 
 	def _set_last_active_user_from_device_state_packet(self, packet: bytes, device_number: int) -> None:
 		offset = 0
