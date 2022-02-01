@@ -801,6 +801,24 @@ class Jablotron:
 					self._get_device_temperature_sensor_name(device_number),
 				))
 				self._set_initial_state(device_temperature_sensor_id, None)
+			elif type == DEVICE_SIREN_OUTDOOR:
+				device_battery_standby_voltage_sensor_id = self._get_device_battery_standby_voltage_sensor_id(device_number)
+				self._device_voltage_sensors.append(JablotronControl(
+					self._central_unit,
+					hass_device,
+					device_battery_standby_voltage_sensor_id,
+					self._get_device_battery_standby_voltage_sensor_name(device_number),
+				))
+				self._set_initial_state(device_battery_standby_voltage_sensor_id, None)
+
+				device_battery_load_voltage_sensor_id = self._get_device_battery_load_voltage_sensor_id(device_number)
+				self._device_voltage_sensors.append(JablotronControl(
+					self._central_unit,
+					hass_device,
+					device_battery_load_voltage_sensor_id,
+					self._get_device_battery_load_voltage_sensor_name(device_number),
+				))
+				self._set_initial_state(device_battery_load_voltage_sensor_id, None)
 
 	def _create_central_unit_sensors(self) -> None:
 		battery_level_id = self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
@@ -1291,6 +1309,8 @@ class Jablotron:
 				self._parse_device_smoke_detector_temperature_from_secondary_state_packet(packet),
 				store_state=True,
 			)
+		elif device_type == DEVICE_SIREN_OUTDOOR:
+			self._parse_device_siren_outdoor_secondary_state_packet(packet, device_number)
 
 		if self._is_device_with_battery(device_number):
 			self._update_state(
@@ -1298,6 +1318,19 @@ class Jablotron:
 				self._parse_device_battery_level_from_device_secondary_state_packet(packet),
 				store_state=True,
 			)
+
+	def _parse_device_siren_outdoor_secondary_state_packet(self, packet: bytes, device_number: int) -> None:
+		self._update_state(
+			self._get_device_battery_standby_voltage_sensor_id(device_number),
+			self.bytes_to_float(packet[14:15]),
+			store_state=True,
+		)
+
+		self._update_state(
+			self._get_device_battery_load_voltage_sensor_id(device_number),
+			self.bytes_to_float(packet[9:10]),
+			store_state=True,
+		)
 
 	def _parse_central_unit_secondary_state_packet(self, packet: bytes) -> None:
 		self._update_state(
