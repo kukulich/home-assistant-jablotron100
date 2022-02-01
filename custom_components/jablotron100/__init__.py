@@ -68,7 +68,7 @@ async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entr
 	options_update_unsubscriber()
 
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
-	jablotron_instance.shutdown()
+	jablotron_instance.shutdown_and_clean()
 
 	return True
 

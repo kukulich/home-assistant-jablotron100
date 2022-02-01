@@ -331,18 +331,21 @@ class Jablotron:
 	def central_unit(self) -> JablotronCentralUnit:
 		return self._central_unit
 
-	def shutdown(self) -> None:
-		self._state_checker_stop_event.set()
-
-		# Send packet so read thread can finish
-		self._send_packets([
-			Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
-			Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
-		])
+	def shutdown_and_clean(self) -> None:
+		self.shutdown()
 
 		serial_port = self._config[CONF_SERIAL_PORT]
 		del self._stored_data[serial_port]
 		self._store.async_delay_save(self._data_to_store)
+
+	def shutdown(self) -> None:
+		self._state_checker_stop_event.set()
+
+		# Send packets so read thread can finish
+		self._send_packets([
+			Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
+			Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
+		])
 
 		if self._state_checker_thread_pool_executor is not None:
 			self._state_checker_thread_pool_executor.shutdown()
