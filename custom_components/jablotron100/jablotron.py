@@ -1105,6 +1105,11 @@ class Jablotron:
 		if number == DEVICE_CENTRAL_UNIT_NUMBER:
 			return True
 
+		device_type = self._get_device_type(number)
+
+		if device_type == DEVICE_SIREN_OUTDOOR:
+			return True
+
 		device_id = self._get_device_id(number)
 
 		if device_id not in self._devices_data:
