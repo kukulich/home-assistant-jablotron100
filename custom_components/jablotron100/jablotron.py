@@ -1253,10 +1253,12 @@ class Jablotron:
 		device_type = self._get_device_type(device_number)
 
 		if device_type == DEVICE_THERMOSTAT:
-			self._update_state(
-				self._get_device_temperature_sensor_id(device_number),
-				self._parse_device_thermostat_temperature_from_secondary_state_packet(packet),
-			)
+			temperature = self._parse_device_thermostat_temperature_from_secondary_state_packet(packet)
+			if temperature is not None:
+				self._update_state(
+					self._get_device_temperature_sensor_id(device_number),
+					temperature,
+				)
 		elif device_type == DEVICE_SMOKE_DETECTOR:
 			self._update_state(
 				self._get_device_temperature_sensor_id(device_number),
@@ -1664,7 +1666,11 @@ class Jablotron:
 		return Jablotron.bytes_to_int(packet[2:3])
 
 	@staticmethod
-	def _parse_device_thermostat_temperature_from_secondary_state_packet(packet: bytes) -> float:
+	def _parse_device_thermostat_temperature_from_secondary_state_packet(packet: bytes) -> float | None:
+		# We get shorter packages without the temperature sometimes
+		if len(packet) < 12:
+			return None
+
 		modifier = Jablotron.bytes_to_int(packet[11:12])
 
 		if modifier >= 128:
