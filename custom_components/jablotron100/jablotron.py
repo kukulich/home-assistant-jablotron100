@@ -346,8 +346,8 @@ class Jablotron:
 
 		# Send packets so read thread can finish
 		self._send_packets([
-			Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
-			Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
+			self.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
+			self.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
 		])
 
 		if self._state_checker_thread_pool_executor is not None:
@@ -363,7 +363,7 @@ class Jablotron:
 		if len(code) < CODE_MIN_LENGTH:
 			self._login_error()
 			# Update section states to have actual states
-			self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+			self._send_packet(self.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 			return
 
 		int_packets = {
@@ -377,33 +377,33 @@ class Jablotron:
 
 		if code != self._config[CONF_PASSWORD]:
 			packets = [
-				Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
-				Jablotron.create_packet_authorisation_code(code),
+				self.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
+				self.create_packet_authorisation_code(code),
 			]
 
 			self._send_packets(packets)
 			time.sleep(1)
 
 		if self._successful_login is True:
-			state_packet = Jablotron.int_to_bytes(int_packets[state] + section)
-			self._send_packet(Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet))
+			state_packet = self.int_to_bytes(int_packets[state] + section)
+			self._send_packet(self.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet))
 
 		after_packets = []
 
 		if code != self._config[CONF_PASSWORD]:
-			after_packets.append(Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END))
-			after_packets.extend(Jablotron.create_packets_keepalive(self._config[CONF_PASSWORD]))
+			after_packets.append(self.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END))
+			after_packets.extend(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
 		# Update states - should fix state when invalid code was inserted
-		after_packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+		after_packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 
 		self._send_packets(after_packets)
 
 	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
-		pg_output_number_packet = Jablotron.int_to_bytes(pg_output_number - 1)
-		state_packet = Jablotron.int_to_bytes(JABLOTRON_PG_OUTPUT_TURN_ON if state == STATE_ON else JABLOTRON_PG_OUTPUT_TURN_OFF)
+		pg_output_number_packet = self.int_to_bytes(pg_output_number - 1)
+		state_packet = self.int_to_bytes(JABLOTRON_PG_OUTPUT_TURN_ON if state == STATE_ON else JABLOTRON_PG_OUTPUT_TURN_OFF)
 
-		packet = Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT, pg_output_number_packet + state_packet)
+		packet = self.create_packet_ui_control(JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT, pg_output_number_packet + state_packet)
 
 		self._send_packet(packet)
 
@@ -481,7 +481,7 @@ class Jablotron:
 			try:
 				while not stop_event.is_set():
 					raw_packet = stream.read(PACKET_READ_SIZE)
-					packets = Jablotron.get_packets_from_packet(raw_packet)
+					packets = self.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
 						self._log_incoming_packet(packet)
@@ -490,13 +490,13 @@ class Jablotron:
 							continue
 
 						try:
-							info_type = Jablotron.bytes_to_int(packet[2:3])
+							info_type = self.bytes_to_int(packet[2:3])
 							if info_type == JABLOTRON_SYSTEM_INFO_MODEL:
-								model = Jablotron.decode_system_info_packet(packet)
+								model = self.decode_system_info_packet(packet)
 							elif info_type == JABLOTRON_SYSTEM_INFO_HARDWARE_VERSION:
-								hardware_version = Jablotron.decode_system_info_packet(packet)
+								hardware_version = self.decode_system_info_packet(packet)
 							elif info_type == JABLOTRON_SYSTEM_INFO_FIRMWARE_VERSION:
-								firmware_version = Jablotron.decode_system_info_packet(packet)
+								firmware_version = self.decode_system_info_packet(packet)
 						except UnicodeDecodeError:
 							# Try again
 							pass
@@ -514,9 +514,9 @@ class Jablotron:
 		def writer_thread() -> None:
 			while not stop_event.is_set():
 				self._send_packets([
-					Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_MODEL),
-					Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_HARDWARE_VERSION),
-					Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_FIRMWARE_VERSION),
+					self.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_MODEL),
+					self.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_HARDWARE_VERSION),
+					self.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_FIRMWARE_VERSION),
 				])
 				time.sleep(1)
 
@@ -549,7 +549,7 @@ class Jablotron:
 			try:
 				while not stop_event.is_set():
 					raw_packet = stream.read(PACKET_READ_SIZE)
-					read_packets = Jablotron.get_packets_from_packet(raw_packet)
+					read_packets = self.get_packets_from_packet(raw_packet)
 					for read_packet in read_packets:
 						self._log_incoming_packet(read_packet)
 
@@ -567,7 +567,7 @@ class Jablotron:
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
-				self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+				self._send_packet(self.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 				time.sleep(1)
 
 		try:
@@ -588,53 +588,53 @@ class Jablotron:
 			raise ShouldNotHappen
 
 		for packet in packets:
-			if Jablotron._is_sections_states_packet(packet):
+			if self._is_sections_states_packet(packet):
 				self._create_sections(packet)
 
-			elif Jablotron._is_pg_outputs_states_packet(packet):
+			elif self._is_pg_outputs_states_packet(packet):
 				self._parse_pg_outputs_states_packet(packet)
 
 		# We have to create PG outputs even when no packet arrived
 		self._create_pg_outputs()
 
 	def _create_sections(self, packet: bytes) -> None:
-		sections_states = Jablotron._convert_sections_states_packet_to_binary(packet)
+		sections_states = self._convert_sections_states_packet_to_binary(packet)
 
 		for section, section_binary in sections_states.items():
-			section_hass_device = Jablotron._create_section_hass_device(section)
-			section_alarm_id = Jablotron._get_section_alarm_id(section)
-			section_problem_sensor_id = Jablotron._get_section_problem_sensor_id(section)
+			section_hass_device = self._create_section_hass_device(section)
+			section_alarm_id = self._get_section_alarm_id(section)
+			section_problem_sensor_id = self._get_section_problem_sensor_id(section)
 
 			self._alarm_control_panels.append(JablotronAlarmControlPanel(
 				self._central_unit,
 				section_hass_device,
 				section_alarm_id,
-				Jablotron._get_section_alarm_name(section),
+				self._get_section_alarm_name(section),
 				section,
 			))
 			self._section_problem_sensors.append(JablotronControl(
 				self._central_unit,
 				section_hass_device,
 				section_problem_sensor_id,
-				Jablotron._get_section_problem_sensor_name(section),
+				self._get_section_problem_sensor_name(section),
 			))
 
-			section_state = Jablotron._parse_jablotron_section_state(section_binary)
+			section_state = self._parse_jablotron_section_state(section_binary)
 
-			self._update_state(section_alarm_id, Jablotron._convert_jablotron_section_state_to_alarm_state(section_state), store_state=False)
-			self._update_state(section_problem_sensor_id, Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state), store_state=False)
+			self._update_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state), store_state=False)
+			self._update_state(section_problem_sensor_id, self._convert_jablotron_section_state_to_problem_sensor_state(section_state), store_state=False)
 
 	def _create_pg_outputs(self) -> None:
 		if not self._has_pg_outputs():
 			return
 
 		for pg_output_number in range(1, self._config[CONF_NUMBER_OF_PG_OUTPUTS] + 1):
-			pg_output_id = Jablotron._get_pg_output_id(pg_output_number)
+			pg_output_id = self._get_pg_output_id(pg_output_number)
 
 			self._pg_outputs.append(JablotronProgrammableOutput(
 				self._central_unit,
 				pg_output_id,
-				Jablotron._get_pg_output_name(pg_output_number),
+				self._get_pg_output_name(pg_output_number),
 				pg_output_number,
 			))
 
@@ -667,13 +667,13 @@ class Jablotron:
 			try:
 				while not stop_event.is_set():
 					raw_packet = stream.read(PACKET_READ_SIZE)
-					packets = Jablotron.get_packets_from_packet(raw_packet)
+					packets = self.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
 						self._log_incoming_packet(packet)
 
 						if self._is_device_info_packet(packet):
-							info_packets[Jablotron._get_device_id(Jablotron._parse_device_number_from_device_info_packet(packet))] = packet
+							info_packets[self._get_device_id(self._parse_device_number_from_device_info_packet(packet))] = packet
 
 					if len(info_packets.items()) == not_ignored_devices_count:
 						break
@@ -684,12 +684,12 @@ class Jablotron:
 			return info_packets
 
 		def writer_thread() -> None:
-			self._send_packet(Jablotron.create_packet_authorisation_code(self._config[CONF_PASSWORD]))
+			self._send_packet(self.create_packet_authorisation_code(self._config[CONF_PASSWORD]))
 
 			while not stop_event.is_set():
 				packets = []
 				for number_of_not_ignored_device in numbers_of_not_ignored_devices:
-					packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(number_of_not_ignored_device)))
+					packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(number_of_not_ignored_device)))
 
 				self._send_packets(packets)
 				time.sleep(estimated_duration)
@@ -712,7 +712,7 @@ class Jablotron:
 			raise ShouldNotHappen
 
 		for device_id in devices_info_packets:
-			device_connection = Jablotron._parse_device_connection_type_device_info_packet(devices_info_packets[device_id])
+			device_connection = self._parse_device_connection_type_device_info_packet(devices_info_packets[device_id])
 
 			self._devices_data[device_id] = {
 				DEVICE_DATA_CONNECTION: device_connection,
@@ -721,9 +721,9 @@ class Jablotron:
 			}
 
 			if device_connection == DEVICE_CONNECTION_WIRELESS:
-				battery_level = Jablotron._parse_device_battery_level_from_device_info_packet(devices_info_packets[device_id])
+				battery_level = self._parse_device_battery_level_from_device_info_packet(devices_info_packets[device_id])
 
-				signal_strength = Jablotron._parse_device_signal_strength_from_device_info_packet(devices_info_packets[device_id])
+				signal_strength = self._parse_device_signal_strength_from_device_info_packet(devices_info_packets[device_id])
 				self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH] = signal_strength
 
 				if battery_level is not None:
@@ -920,12 +920,12 @@ class Jablotron:
 						self.last_update_success = True
 						self._update_all_entities()
 
-					packets = Jablotron.get_packets_from_packet(raw_packet)
+					packets = self.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
 						self._log_incoming_packet(packet)
 
-						if Jablotron._is_sections_states_packet(packet):
+						if self._is_sections_states_packet(packet):
 							in_service_mode = self.in_service_mode
 
 							self._parse_sections_states_packet(packet)
@@ -933,22 +933,22 @@ class Jablotron:
 							if in_service_mode != self.in_service_mode:
 								self._update_all_entities()
 
-						elif Jablotron._is_pg_outputs_states_packet(packet):
+						elif self._is_pg_outputs_states_packet(packet):
 							self._parse_pg_outputs_states_packet(packet)
 
-						elif Jablotron._is_devices_states_packet(packet):
+						elif self._is_devices_states_packet(packet):
 							self._parse_devices_states_packet(packet)
 
-						elif Jablotron._is_device_state_packet(packet):
+						elif self._is_device_state_packet(packet):
 							self._parse_device_state_packet(packet)
 
-						elif Jablotron._is_device_secondary_state_packet(packet):
+						elif self._is_device_secondary_state_packet(packet):
 							self._parse_device_secondary_state_packet(packet)
 
-						elif Jablotron._is_device_info_packet(packet):
+						elif self._is_device_info_packet(packet):
 							self._parse_device_info_packet(packet)
 
-						elif Jablotron._is_login_error_packet(packet):
+						elif self._is_login_error_packet(packet):
 							self._successful_login = False
 							self._last_active_user = None
 							self._login_error()
@@ -972,7 +972,7 @@ class Jablotron:
 			if not self._state_checker_data_updating_event.wait(0.5):
 				try:
 					if counter == 0 and not self._is_alarm_active():
-						self._send_packets(Jablotron.create_packets_keepalive(self._config[CONF_PASSWORD]))
+						self._send_packets(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
 						# Check wireless devices once a hour (and on the start too)
 						actual_time = datetime.datetime.now()
@@ -984,18 +984,18 @@ class Jablotron:
 
 							gsm_device_number = self._get_gsm_device_number()
 							if gsm_device_number is not None:
-								packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(gsm_device_number)))
+								packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(gsm_device_number)))
 
 							for device_number in self._get_numbers_of_not_ignored_devices():
 								if self._is_wireless_device(device_number):
-									packets.append(Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, Jablotron.int_to_bytes(device_number)))
+									packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(device_number)))
 
 							if len(packets) > 0:
 								self._send_packets(packets)
 
 							last_wireless_devices_update = actual_time
 					else:
-						self._send_packet(Jablotron.create_packet_command(JABLOTRON_COMMAND_HEARTBEAT))
+						self._send_packet(self.create_packet_command(JABLOTRON_COMMAND_HEARTBEAT))
 				except Exception as ex:
 					LOGGER.error("Write error: {}".format(format(ex)))
 
@@ -1038,7 +1038,7 @@ class Jablotron:
 
 	def _is_alarm_active(self) -> bool:
 		for alarm_control_panel in self._alarm_control_panels:
-			section_alarm_id = Jablotron._get_section_alarm_id(alarm_control_panel.section)
+			section_alarm_id = self._get_section_alarm_id(alarm_control_panel.section)
 
 			if (
 				self.states[section_alarm_id] == STATE_ALARM_TRIGGERED
@@ -1093,10 +1093,10 @@ class Jablotron:
 		)
 
 	def _parse_sections_states_packet(self, packet: bytes) -> None:
-		sections_states = Jablotron._convert_sections_states_packet_to_binary(packet)
+		sections_states = self._convert_sections_states_packet_to_binary(packet)
 
 		for section, section_binary in sections_states.items():
-			section_state = Jablotron._parse_jablotron_section_state(section_binary)
+			section_state = self._parse_jablotron_section_state(section_binary)
 
 			if section_state["state"] == JABLOTRON_SECTION_PRIMARY_STATE_SERVICE:
 				# Service is for all sections - we can check only the first
@@ -1104,13 +1104,13 @@ class Jablotron:
 				return
 
 			self._update_state(
-				Jablotron._get_section_alarm_id(section),
-				Jablotron._convert_jablotron_section_state_to_alarm_state(section_state),
+				self._get_section_alarm_id(section),
+				self._convert_jablotron_section_state_to_alarm_state(section_state),
 				store_state=False,
 			)
 			self._update_state(
-				Jablotron._get_section_problem_sensor_id(section),
-				Jablotron._convert_jablotron_section_state_to_problem_sensor_state(section_state),
+				self._get_section_problem_sensor_id(section),
+				self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
 				store_state=False,
 			)
 
@@ -1118,43 +1118,43 @@ class Jablotron:
 		self.in_service_mode = False
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
-		device_number = Jablotron._parse_device_number_from_device_info_packet(packet)
+		device_number = self._parse_device_number_from_device_info_packet(packet)
 
 		if device_number == self._get_gsm_device_number():
 			self._parse_gsm_info_packet(packet)
 			return
 
-		device_connection = Jablotron._parse_device_connection_type_device_info_packet(packet)
+		device_connection = self._parse_device_connection_type_device_info_packet(packet)
 
 		if device_connection == DEVICE_CONNECTION_WIRELESS:
 			self._parse_wireless_device_info_packet(packet)
 
 	def _parse_gsm_info_packet(self, packet: bytes) -> None:
 		if packet[4:5] not in (b"\xa4", b"\xd5"):
-			LOGGER.error("Unknown info packet of GSM: {}".format(Jablotron.format_packet_to_string(packet)))
+			LOGGER.error("Unknown info packet of GSM: {}".format(self.format_packet_to_string(packet)))
 			return
 
-		signal_strength_sensor_id = Jablotron._get_gsm_signal_strength_sensor_id()
-		signal_strength = Jablotron.bytes_to_int(packet[5:6])
+		signal_strength_sensor_id = self._get_gsm_signal_strength_sensor_id()
+		signal_strength = self.bytes_to_int(packet[5:6])
 
 		self._update_state(signal_strength_sensor_id, signal_strength, store_state=True)
 
 		self._store_devices_data()
 
 	def _parse_wireless_device_info_packet(self, packet: bytes) -> None:
-		device_number = Jablotron._parse_device_number_from_device_info_packet(packet)
-		device_id = Jablotron._get_device_id(device_number)
+		device_number = self._parse_device_number_from_device_info_packet(packet)
+		device_id = self._get_device_id(device_number)
 
-		signal_strength = Jablotron._parse_device_signal_strength_from_device_info_packet(packet)
-		signal_strength_sensor_id = Jablotron._get_device_signal_strength_sensor_id(device_number)
+		signal_strength = self._parse_device_signal_strength_from_device_info_packet(packet)
+		signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
 
 		self._update_state(signal_strength_sensor_id, signal_strength, store_state=True)
 		self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH] = signal_strength
 
-		battery_level = Jablotron._parse_device_battery_level_from_device_info_packet(packet)
+		battery_level = self._parse_device_battery_level_from_device_info_packet(packet)
 
 		if battery_level is not None:
-			battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(device_number)
+			battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
 
 			self._update_state(battery_level_sensor_id, battery_level, store_state=True)
 			self._device_hass_devices[device_id].battery_level = battery_level
@@ -1163,10 +1163,10 @@ class Jablotron:
 		self._store_devices_data()
 
 	def _parse_device_state_packet(self, packet: bytes) -> None:
-		device_number = Jablotron._parse_device_number_from_state_packet(packet)
+		device_number = self._parse_device_number_from_state_packet(packet)
 
 		if device_number == JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT:
-			Jablotron._log_packet("State packet of central unit", packet)
+			self._log_packet("State packet of central unit", packet)
 			return
 
 		if device_number in (JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION, JABLOTRON_DEVICE_NUMBER_USB):
@@ -1182,7 +1182,7 @@ class Jablotron:
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			Jablotron._log_packet("State packet of unknown device", packet)
+			self._log_packet("State packet of unknown device", packet)
 			return
 
 		device_type = self._get_device_type(device_number)
@@ -1192,122 +1192,122 @@ class Jablotron:
 			return
 
 		if self._is_device_ignored(device_number):
-			Jablotron._log_packet("State packet of {}".format(DEVICES[device_type].lower()), packet)
+			self._log_packet("State packet of {}".format(DEVICES[device_type].lower()), packet)
 			return
 
-		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, device_number)
+		device_state = self._convert_jablotron_device_state_to_state(packet, device_number)
 
 		if device_state is None:
-			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
+			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, self.format_packet_to_string(packet)))
 			return
 
-		packet_type_binary = Jablotron._hex_to_bin(packet[2:3])
-		packet_type = Jablotron.binary_to_int(packet_type_binary[4:])
+		packet_type_binary = self._hex_to_bin(packet[2:3])
+		packet_type = self.binary_to_int(packet_type_binary[4:])
 
 		if packet_type == JABLOTRON_DEVICE_PACKET_TYPE_HEARTBEAT:
 			# Ignore
 			pass
 		elif (
 			self._is_device_with_activity_sensor(device_number)
-			and Jablotron._is_device_state_packet_for_activity(packet_type)
+			and self._is_device_state_packet_for_activity(packet_type)
 		):
 			self._update_state(
-				Jablotron._get_device_sensor_id(device_number),
+				self._get_device_sensor_id(device_number),
 				device_state,
 				store_state=False,
 			)
-		elif Jablotron._is_device_state_packet_for_fault(packet_type):
+		elif self._is_device_state_packet_for_fault(packet_type):
 			self._update_state(
-				Jablotron._get_device_problem_sensor_id(device_number),
+				self._get_device_problem_sensor_id(device_number),
 				device_state,
 				store_state=True,
 			)
 		else:
-			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, Jablotron.format_packet_to_string(packet)))
+			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, self.format_packet_to_string(packet)))
 
 		if self._is_wireless_device(device_number):
-			device_signal_strength = Jablotron.bytes_to_int(packet[10:11]) * JABLOTRON_SIGNAL_STRENGTH_STEP
+			device_signal_strength = self.bytes_to_int(packet[10:11]) * JABLOTRON_SIGNAL_STRENGTH_STEP
 			self._update_state(
-				Jablotron._get_device_signal_strength_sensor_id(device_number),
+				self._get_device_signal_strength_sensor_id(device_number),
 				device_signal_strength,
 				store_state=True,
 			)
 
 	def _parse_device_secondary_state_packet(self, packet: bytes) -> None:
-		device_number = Jablotron._parse_device_number_from_secondary_state_packet(packet)
+		device_number = self._parse_device_number_from_secondary_state_packet(packet)
 
 		if device_number == JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT:
 			self._parse_central_unit_secondary_state_packet(packet)
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			Jablotron._log_packet("Secondary state packet of unknown device", packet)
+			self._log_packet("Secondary state packet of unknown device", packet)
 			return
 
 		device_type = self._get_device_type(device_number)
 
 		if device_type == DEVICE_THERMOSTAT:
 			self._update_state(
-				Jablotron._get_device_temperature_sensor_id(device_number),
-				Jablotron._parse_device_thermostat_temperature_from_secondary_state_packet(packet),
+				self._get_device_temperature_sensor_id(device_number),
+				self._parse_device_thermostat_temperature_from_secondary_state_packet(packet),
 				store_state=True,
 			)
 		elif device_type == DEVICE_SMOKE_DETECTOR:
 			self._update_state(
-				Jablotron._get_device_temperature_sensor_id(device_number),
-				Jablotron._parse_device_smoke_detector_temperature_from_secondary_state_packet(packet),
+				self._get_device_temperature_sensor_id(device_number),
+				self._parse_device_smoke_detector_temperature_from_secondary_state_packet(packet),
 				store_state=True,
 			)
 
 		if self._is_device_with_battery(device_number):
 			self._update_state(
-				Jablotron._get_device_battery_level_sensor_id(device_number),
-				Jablotron._parse_device_battery_level_from_device_secondary_state_packet(packet),
+				self._get_device_battery_level_sensor_id(device_number),
+				self._parse_device_battery_level_from_device_secondary_state_packet(packet),
 				store_state=True,
 			)
 
 	def _parse_central_unit_secondary_state_packet(self, packet: bytes) -> None:
 		self._update_state(
-			Jablotron._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			Jablotron._parse_device_battery_level_from_device_secondary_state_packet(packet),
+			self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+			self._parse_device_battery_level_from_device_secondary_state_packet(packet),
 			store_state=True,
 		)
 
 		self._update_state(
-			Jablotron._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			Jablotron.bytes_to_float(packet[14:15]),
+			self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+			self.bytes_to_float(packet[14:15]),
 			store_state=True,
 		)
 
 		self._update_state(
-			Jablotron._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			Jablotron.bytes_to_float(packet[9:10]),
+			self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+			self.bytes_to_float(packet[9:10]),
 			store_state=True,
 		)
 
 		self._update_state(
-			Jablotron._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			Jablotron.bytes_to_float(packet[19:20]),
+			self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+			self.bytes_to_float(packet[19:20]),
 			store_state=True,
 		)
 
 		self._update_state(
-			Jablotron._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			Jablotron.bytes_to_int(packet[25:26]),
+			self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+			self.bytes_to_int(packet[25:26]),
 			store_state=True,
 		)
 
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
 		lan_connection_device_number = self._get_lan_connection_device_number()
 
-		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, lan_connection_device_number)
+		device_state = self._convert_jablotron_device_state_to_state(packet, lan_connection_device_number)
 
 		if device_state is None:
-			LOGGER.error("Unknown state packet of LAN connection: {}".format(Jablotron.format_packet_to_string(packet)))
+			LOGGER.error("Unknown state packet of LAN connection: {}".format(self.format_packet_to_string(packet)))
 			return
 
 		self._update_state(
-			Jablotron._get_lan_connection_id(),
+			self._get_lan_connection_id(),
 			STATE_ON if device_state == STATE_OFF else STATE_OFF,
 			store_state=True,
 		)
@@ -1315,29 +1315,29 @@ class Jablotron:
 	def _parse_gsm_device_state_packet(self, packet: bytes) -> None:
 		gsm_device_number = self._get_gsm_device_number()
 
-		device_state = Jablotron._convert_jablotron_device_state_to_state(packet, gsm_device_number)
+		device_state = self._convert_jablotron_device_state_to_state(packet, gsm_device_number)
 
 		if device_state is None:
-			LOGGER.error("Unknown state packet of GSM: {}".format(Jablotron.format_packet_to_string(packet)))
+			LOGGER.error("Unknown state packet of GSM: {}".format(self.format_packet_to_string(packet)))
 			return
 
 		self._update_state(
-			Jablotron._get_gsm_signal_sensor_id(),
+			self._get_gsm_signal_sensor_id(),
 			STATE_ON if device_state == STATE_OFF else STATE_OFF,
 			store_state=True,
 		)
 
 	def _parse_devices_states_packet(self, packet: bytes) -> None:
 		states_start = 2
-		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
+		states_end = states_start + self.bytes_to_int(packet[1:2])
 
 		# We need to ignore first packet
-		states = Jablotron._hex_to_reverse_bin(packet[(states_start + 1):states_end])
+		states = self._hex_to_reverse_bin(packet[(states_start + 1):states_end])
 
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
 			self._update_state(
-				Jablotron._get_device_sensor_id(device_number),
+				self._get_device_sensor_id(device_number),
 				device_state,
 				store_state=False,
 			)
@@ -1347,16 +1347,16 @@ class Jablotron:
 			return
 
 		states_start = 2
-		states_end = states_start + Jablotron.bytes_to_int(packet[1:2])
+		states_end = states_start + self.bytes_to_int(packet[1:2])
 
-		states = Jablotron._hex_to_reverse_bin(packet[states_start:states_end])
+		states = self._hex_to_reverse_bin(packet[states_start:states_end])
 
 		for index in range(0, self._config[CONF_NUMBER_OF_PG_OUTPUTS]):
 			pg_output_number = index + 1
 			pg_output_state = STATE_ON if states[index:(index + 1)] == "1" else STATE_OFF
 
 			self._update_state(
-				Jablotron._get_pg_output_id(pg_output_number),
+				self._get_pg_output_id(pg_output_number),
 				pg_output_state,
 				store_state=True,
 			)
@@ -1406,11 +1406,11 @@ class Jablotron:
 
 	def _log_incoming_packet(self, packet: bytes) -> None:
 		if self._should_be_incoming_packet_logged(packet):
-			Jablotron._log_packet("Incoming", packet)
+			self._log_packet("Incoming", packet)
 
 	def _log_outcoming_packet(self, packet: bytes) -> None:
 		if self._should_be_outcoming_packet_logged(packet):
-			Jablotron._log_packet("Outcoming", packet)
+			self._log_packet("Outcoming", packet)
 
 	def _should_be_incoming_packet_logged(self, packet: bytes) -> bool:
 		if not self._options.get(CONF_ENABLE_DEBUGGING, DEFAULT_CONF_ENABLE_DEBUGGING):
@@ -1421,19 +1421,19 @@ class Jablotron:
 
 		if (
 			self._options.get(CONF_LOG_SECTIONS_PACKETS, False)
-			and Jablotron._is_sections_states_packet(packet)
+			and self._is_sections_states_packet(packet)
 		):
 			return True
 
 		if (
 			self._options.get(CONF_LOG_PG_OUTPUTS_PACKETS, False)
-			and Jablotron._is_pg_outputs_states_packet(packet)
+			and self._is_pg_outputs_states_packet(packet)
 		):
 			return True
 
 		if (
 			self._options.get(CONF_LOG_DEVICES_PACKETS, False)
-			and Jablotron._is_device_packet(packet)
+			and self._is_device_packet(packet)
 		):
 			return True
 
@@ -1448,19 +1448,19 @@ class Jablotron:
 
 		if (
 			self._options.get(CONF_LOG_SECTIONS_PACKETS, False)
-			and Jablotron._is_section_modify_packet(packet)
+			and self._is_section_modify_packet(packet)
 		):
 			return True
 
 		if (
 			self._options.get(CONF_LOG_PG_OUTPUTS_PACKETS, False)
-			and Jablotron._is_pg_output_toggle_packet(packet)
+			and self._is_pg_output_toggle_packet(packet)
 		):
 			return True
 
 		if (
 			self._options.get(CONF_LOG_DEVICES_PACKETS, False)
-			and Jablotron._is_device_get_info_packet(packet)
+			and self._is_device_get_info_packet(packet)
 		):
 			return True
 
@@ -1494,7 +1494,7 @@ class Jablotron:
 		self._store.async_delay_save(self._data_to_store)
 
 	def _create_device_hass_device(self, device_number: int) -> JablotronHassDevice:
-		device_id = Jablotron._get_device_id(device_number)
+		device_id = self._get_device_id(device_number)
 		device_type = self._get_device_type(device_number)
 
 		battery_level: int | None = None
@@ -1512,7 +1512,7 @@ class Jablotron:
 		if device_number not in (JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION, JABLOTRON_DEVICE_NUMBER_USB):
 			offset = 1
 
-		self._last_active_user = int((Jablotron.bytes_to_int(packet[3:4]) - 104 - offset) / 4)
+		self._last_active_user = int((self.bytes_to_int(packet[3:4]) - 104 - offset) / 4)
 		LOGGER.debug("Active user: {}".format(self._last_active_user))
 
 	@core.callback
