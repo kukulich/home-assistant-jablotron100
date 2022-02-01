@@ -53,6 +53,7 @@ from .const import (
 	DEVICE_EMPTY,
 	DEVICE_KEYPAD,
 	DEVICE_SIREN_OUTDOOR,
+	DEVICE_SMOKE_DETECTOR,
 	DEVICE_THERMOSTAT,
 	DEVICE_OTHER,
 	DOMAIN,
@@ -783,7 +784,7 @@ class Jablotron:
 				))
 				self._set_initial_state(device_battery_level_sensor_id, self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL])
 
-			if type == DEVICE_THERMOSTAT:
+			if type in (DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR):
 				device_temperature_sensor_id = Jablotron._get_device_temperature_sensor_id(device_number)
 				self._device_temperature_sensors.append(JablotronControl(
 					self._central_unit,
@@ -1228,7 +1229,13 @@ class Jablotron:
 		if device_type == DEVICE_THERMOSTAT:
 			self._update_state(
 				Jablotron._get_device_temperature_sensor_id(device_number),
-				Jablotron._parse_device_temperature_from_secondary_state_packet(packet),
+				Jablotron._parse_device_thermostat_temperature_from_secondary_state_packet(packet),
+				store_state=True,
+			)
+		elif device_type == DEVICE_SMOKE_DETECTOR:
+			self._update_state(
+				Jablotron._get_device_temperature_sensor_id(device_number),
+				Jablotron._parse_device_smoke_detector_temperature_from_secondary_state_packet(packet),
 				store_state=True,
 			)
 
@@ -1612,13 +1619,17 @@ class Jablotron:
 		return Jablotron.bytes_to_int(packet[2:3])
 
 	@staticmethod
-	def _parse_device_temperature_from_secondary_state_packet(packet: bytes) -> float:
+	def _parse_device_thermostat_temperature_from_secondary_state_packet(packet: bytes) -> float:
 		modifier = Jablotron.bytes_to_int(packet[11:12])
 
 		if modifier >= 128:
 			modifier -= 256
 
 		return round((Jablotron.bytes_to_int(packet[10:11]) + (255 * modifier)) / 10, 1)
+
+	@staticmethod
+	def _parse_device_smoke_detector_temperature_from_secondary_state_packet(packet: bytes) -> float:
+		return float(Jablotron.bytes_to_int(packet[8:9]))
 
 	@staticmethod
 	def _parse_device_battery_level_from_device_secondary_state_packet(packet: bytes) -> int | None:
