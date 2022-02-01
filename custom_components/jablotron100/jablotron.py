@@ -50,6 +50,8 @@ from .const import (
 	DEVICE_DATA_BATTERY_LEVEL,
 	DEVICE_DATA_SIGNAL_STRENGTH,
 	DEVICES,
+	DEVICE_CENTRAL_UNIT,
+	DEVICE_CENTRAL_UNIT_NUMBER,
 	DEVICE_EMPTY,
 	DEVICE_KEYPAD,
 	DEVICE_SIREN_OUTDOOR,
@@ -740,8 +742,8 @@ class Jablotron:
 			hass_device = self._create_device_hass_device(device_number)
 			self._device_hass_devices[device_id] = hass_device
 
-			device_sensor_id = Jablotron._get_device_sensor_id(device_number)
-			device_problem_sensor_id = Jablotron._get_device_problem_sensor_id(device_number)
+			device_sensor_id = self._get_device_sensor_id(device_number)
+			device_problem_sensor_id = self._get_device_problem_sensor_id(device_number)
 			type = self._get_device_type(device_number)
 
 			if self._is_device_with_activity_sensor(device_number):
@@ -749,7 +751,7 @@ class Jablotron:
 					self._central_unit,
 					hass_device,
 					device_sensor_id,
-					Jablotron._get_device_sensor_name(type, device_number),
+					self._get_device_sensor_name(device_number),
 					type,
 				))
 				self._set_initial_state(device_sensor_id, STATE_OFF)
@@ -758,76 +760,76 @@ class Jablotron:
 				self._central_unit,
 				hass_device,
 				device_problem_sensor_id,
-				Jablotron._get_device_problem_sensor_name(type, device_number),
+				self._get_device_problem_sensor_name(device_number),
 			))
 			self._set_initial_state(device_problem_sensor_id, STATE_OFF)
 
 			if self._is_wireless_device(device_number):
-				device_signal_strength_sensor_id = Jablotron._get_device_signal_strength_sensor_id(device_number)
+				device_signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
 
 				self._device_signal_strength_sensors.append(JablotronControl(
 					self._central_unit,
 					hass_device,
 					device_signal_strength_sensor_id,
-					Jablotron._get_device_signal_strength_sensor_name(type, device_number),
+					self._get_device_signal_strength_sensor_name(device_number),
 				))
 				self._set_initial_state(device_signal_strength_sensor_id, self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH])
 
 			if self._is_device_with_battery(device_number):
-				device_battery_level_sensor_id = Jablotron._get_device_battery_level_sensor_id(device_number)
+				device_battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
 
 				self._device_battery_level_sensors.append(JablotronControl(
 					self._central_unit,
 					hass_device,
 					device_battery_level_sensor_id,
-					Jablotron._get_device_battery_level_sensor_name(type, device_number),
+					self._get_device_battery_level_sensor_name(device_number),
 				))
 				self._set_initial_state(device_battery_level_sensor_id, self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL])
 
 			if type in (DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR):
-				device_temperature_sensor_id = Jablotron._get_device_temperature_sensor_id(device_number)
+				device_temperature_sensor_id = self._get_device_temperature_sensor_id(device_number)
 				self._device_temperature_sensors.append(JablotronControl(
 					self._central_unit,
 					hass_device,
 					device_temperature_sensor_id,
-					Jablotron._get_device_temperature_sensor_name(type, device_number),
+					self._get_device_temperature_sensor_name(device_number),
 				))
 				self._set_initial_state(device_temperature_sensor_id, None)
 
 	def _create_central_unit_sensors(self) -> None:
-		battery_standby_voltage_id = self._get_battery_standby_voltage_id()
+		battery_standby_voltage_id = self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
 		self._device_voltage_sensors.append(JablotronControl(
 			self._central_unit,
 			None,
 			battery_standby_voltage_id,
-			self._get_battery_standby_voltage_name(),
+			self._get_device_battery_standby_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
 		self._set_initial_state(battery_standby_voltage_id, None)
 
-		battery_load_voltage_id = self._get_battery_load_voltage_id()
+		battery_load_voltage_id = self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
 		self._device_voltage_sensors.append(JablotronControl(
 			self._central_unit,
 			None,
 			battery_load_voltage_id,
-			self._get_battery_load_voltage_name(),
+			self._get_device_battery_load_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
 		self._set_initial_state(battery_load_voltage_id, None)
 
-		bus_voltage_id = self._get_bus_voltage_id()
+		bus_voltage_id = self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
 		self._device_voltage_sensors.append(JablotronControl(
 			self._central_unit,
 			None,
 			bus_voltage_id,
-			self._get_bus_voltage_name(),
+			self._get_device_bus_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
 		self._set_initial_state(bus_voltage_id, None)
 
-		bus_devices_loss_id = self._get_bus_devices_loss_id()
+		bus_devices_loss_id = self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
 		self._device_current_sensors.append(JablotronControl(
 			self._central_unit,
 			None,
 			bus_devices_loss_id,
-			self._get_bus_devices_loss_name(),
+			self._get_device_bus_devices_loss_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		))
 		self._set_initial_state(bus_devices_loss_id, None)
 
@@ -1038,7 +1040,13 @@ class Jablotron:
 		return False
 
 	def _get_device_type(self, number: int) -> str:
+		if number == DEVICE_CENTRAL_UNIT_NUMBER:
+			return DEVICE_CENTRAL_UNIT
+
 		return self._config[CONF_DEVICES][number - 1]
+
+	def _get_device_name(self, number: int) -> str:
+		return DEVICES[self._get_device_type(number)]
 
 	def _is_device_ignored(self, number: int) -> bool:
 		type = self._get_device_type(number)
@@ -1248,25 +1256,25 @@ class Jablotron:
 
 	def _parse_central_unit_secondary_state_packet(self, packet: bytes) -> None:
 		self._update_state(
-			Jablotron._get_battery_standby_voltage_id(),
+			Jablotron._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			Jablotron.bytes_to_float(packet[14:15]),
 			store_state=True,
 		)
 
 		self._update_state(
-			Jablotron._get_battery_load_voltage_id(),
+			Jablotron._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			Jablotron.bytes_to_float(packet[9:10]),
 			store_state=True,
 		)
 
 		self._update_state(
-			Jablotron._get_bus_voltage_id(),
+			Jablotron._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			Jablotron.bytes_to_float(packet[19:20]),
 			store_state=True,
 		)
 
 		self._update_state(
-			Jablotron._get_bus_devices_loss_id(),
+			Jablotron._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			Jablotron.bytes_to_int(packet[25:26]),
 			store_state=True,
 		)
@@ -1726,73 +1734,64 @@ class Jablotron:
 	def _get_device_sensor_id(device_number: int) -> str:
 		return "device_sensor_{}".format(device_number)
 
-	@staticmethod
-	def _get_device_sensor_name(device_type: str, device_number: int) -> str:
-		return "{} (device {})".format(DEVICES[device_type], device_number)
+	def _get_device_sensor_name(self, device_number: int) -> str:
+		return "{} (device {})".format(self._get_device_name(device_number), device_number)
 
 	@staticmethod
 	def _get_device_problem_sensor_id(device_number: int) -> str:
 		return "device_problem_sensor_{}".format(device_number)
 
+	def _get_device_problem_sensor_name(self, device_number: int) -> str:
+		return "Problem of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
+
 	@staticmethod
 	def _get_device_signal_strength_sensor_id(device_number: int) -> str:
 		return "device_signal_strength_sensor_{}".format(device_number)
+
+	def _get_device_signal_strength_sensor_name(self, device_number: int) -> str:
+		return "Signal strength of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
 	def _get_device_battery_level_sensor_id(device_number: int) -> str:
 		return "device_battery_level_sensor_{}".format(device_number)
 
+	def _get_device_battery_level_sensor_name(self, device_number: int) -> str:
+		return "Battery level of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
+
 	@staticmethod
 	def _get_device_temperature_sensor_id(device_number: int) -> str:
 		return "device_temperature_sensor_{}".format(device_number)
 
-	@staticmethod
-	def _get_device_problem_sensor_name(device_type: str, device_number: int) -> str:
-		return "Problem of {} (device {})".format(DEVICES[device_type].lower(), device_number)
+	def _get_device_temperature_sensor_name(self, device_number: int) -> str:
+		return "Temperature of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
-	def _get_device_signal_strength_sensor_name(device_type: str, device_number: int) -> str:
-		return "Signal strength of {} (device {})".format(DEVICES[device_type].lower(), device_number)
+	def _get_device_battery_standby_voltage_sensor_id(device_number: int) -> str:
+		return "battery_standby_voltage_{}".format(device_number)
+
+	def _get_device_battery_standby_voltage_sensor_name(self, device_number: int) -> str:
+		return "Battery standby voltage of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
-	def _get_device_battery_level_sensor_name(device_type: str, device_number: int) -> str:
-		return "Battery level of {} (device {})".format(DEVICES[device_type].lower(), device_number)
+	def _get_device_battery_load_voltage_sensor_id(device_number: int) -> str:
+		return "battery_load_voltage_{}".format(device_number)
+
+	def _get_device_battery_load_voltage_sensor_name(self, device_number: int) -> str:
+		return "Battery load voltage of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
-	def _get_device_temperature_sensor_name(device_type: str, device_number: int) -> str:
-		return "Temperature of {} (device {})".format(DEVICES[device_type].lower(), device_number)
+	def _get_device_bus_voltage_sensor_id(device_number: int) -> str:
+		return "bus_voltage_{}".format(device_number)
+
+	def _get_device_bus_voltage_sensor_name(self, device_number: int) -> str:
+		return "BUS voltage of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
-	def _get_battery_standby_voltage_id() -> str:
-		return "battery_standby_voltage"
+	def _get_device_bus_devices_loss_sensor_id(device_number: int) -> str:
+		return "bus_devices_loss_{}".format(device_number)
 
-	@staticmethod
-	def _get_battery_standby_voltage_name() -> str:
-		return "Battery standby voltage"
-
-	@staticmethod
-	def _get_battery_load_voltage_id() -> str:
-		return "battery_load_voltage"
-
-	@staticmethod
-	def _get_battery_load_voltage_name() -> str:
-		return "Battery load voltage"
-
-	@staticmethod
-	def _get_bus_voltage_id() -> str:
-		return "bus_voltage"
-
-	@staticmethod
-	def _get_bus_voltage_name() -> str:
-		return "BUS voltage"
-
-	@staticmethod
-	def _get_bus_devices_loss_id() -> str:
-		return "bus_devices_loss"
-
-	@staticmethod
-	def _get_bus_devices_loss_name() -> str:
-		return "BUS devices loss"
+	def _get_device_bus_devices_loss_sensor_name(self, device_number: int) -> str:
+		return "BUS devices loss of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
 	def _get_lan_connection_id() -> str:

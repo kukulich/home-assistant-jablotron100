@@ -24,6 +24,7 @@ from .const import (
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEFAULT_CONF_ENABLE_DEBUGGING,
 	DEVICES,
+	DEVICE_CENTRAL_UNIT,
 	DOMAIN,
 	DEFAULT_SERIAL_PORT,
 	MAX_DEVICES,
@@ -131,8 +132,11 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 		fields = OrderedDict()
 
+		devices_without_central_unit = dict(filter(lambda device_type: device_type != DEVICE_CENTRAL_UNIT, DEVICES.items()))
+		devices_values = list(devices_without_central_unit.values())
+
 		for i in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
-			fields[vol.Required("device_{:03}".format(i))] = vol.In(list(DEVICES.values()))
+			fields[vol.Required("device_{:03}".format(i))] = vol.In(devices_values)
 
 		return self.async_show_form(
 			step_id="devices",

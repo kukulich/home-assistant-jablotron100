@@ -39,6 +39,9 @@ DEVICE_DATA_SIGNAL_STRENGTH: Final = "signal_strength"
 DEVICE_CONNECTION_WIRED: Final = "wired"
 DEVICE_CONNECTION_WIRELESS: Final = "wireless"
 
+DEVICE_CENTRAL_UNIT_NUMBER: Final = 0
+
+DEVICE_CENTRAL_UNIT: Final = "central_unit"
 DEVICE_EMPTY: Final = "empty"
 DEVICE_BUTTON: Final = "button"
 DEVICE_KEY_FOB: Final = "key_fob"
@@ -60,6 +63,7 @@ DEVICE_CUSTOM: Final = "custom"
 DEVICE_OTHER: Final = "other"
 
 DEVICES: Final = {
+	DEVICE_CENTRAL_UNIT: "Central unit",
 	DEVICE_KEYPAD: "Keypad",
 	DEVICE_SIREN_OUTDOOR: "Outdoor siren",
 	DEVICE_SIREN_INDOOR: "Indoor siren",
