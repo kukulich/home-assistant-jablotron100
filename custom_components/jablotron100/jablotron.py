@@ -93,6 +93,8 @@ JABLOTRON_COMMAND_HEARTBEAT: Final = b"\x02"
 JABLOTRON_COMMAND_GET_DEVICE_INFO: Final = b"\x0a"
 JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES: Final = b"\x0e"
 JABLOTRON_COMMAND_ENABLE_DEVICE_STATE_PACKETS: Final = b"\x13"
+JABLOTRON_COMMAND_DIAGNOSTICS: Final = b"\x94"
+JABLOTRON_COMMAND_DIAGNOSTICS_COMMAND: Final = b"\x96"
 
 JABLOTRON_COMMAND_RESPONSE_DEVICE_INFO: Final = b"\x8a"
 
@@ -100,6 +102,10 @@ JABLOTRON_UI_CONTROL_AUTHORISATION_END: Final = b"\x01"
 JABLOTRON_UI_CONTROL_AUTHORISATION_CODE: Final = b"\x03"
 JABLOTRON_UI_CONTROL_MODIFY_SECTION: Final = b"\x0d"
 JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT: Final = b"\x23"
+
+JABLOTRON_DIAGNOSTICS_ON: Final = b"\x01"
+JABLOTRON_DIAGNOSTICS_OFF: Final = b"\x00"
+JABLOTRON_DIAGNOSTICS_COMMAND_GET_SECONDARY_STATE: Final = b"\x09"
 
 JABLOTRON_DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT: Final = 5
 JABLOTRON_DEVICE_PACKET_TYPE_SABOTAGE: Final = 6
@@ -880,6 +886,22 @@ class Jablotron:
 		self._set_initial_state(signal_sensor_id, STATE_ON)
 		self._set_initial_state(signal_strength_sensor_id, 100)
 
+	def _force_devices_secondary_state_update(self) -> None:
+		for device_number in self._get_numbers_of_not_ignored_devices():
+			device_type = self._get_device_type(device_number)
+
+			if device_type not in (DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR, DEVICE_SIREN_OUTDOOR):
+				continue
+
+			self._send_packets([
+				self._create_packet_device_diagnostics_start(device_number),
+				self._create_packet_device_diagnostics_force_secondary_state(device_number),
+			])
+
+			time.sleep(0.1)
+
+			self._send_packet(self._create_packet_device_diagnostics_end(device_number))
+
 	def _has_pg_outputs(self) -> bool:
 		if CONF_NUMBER_OF_PG_OUTPUTS not in self._config:
 			return False
@@ -965,6 +987,7 @@ class Jablotron:
 		stream.close()
 
 	def _keepalive(self):
+		startup = True
 		counter = 0
 		last_wireless_devices_update = None
 
@@ -996,6 +1019,11 @@ class Jablotron:
 							last_wireless_devices_update = actual_time
 					else:
 						self._send_packet(self.create_packet_command(JABLOTRON_COMMAND_HEARTBEAT))
+
+					if startup is True:
+						startup = False
+						self._force_devices_secondary_state_update()
+
 				except Exception as ex:
 					LOGGER.error("Write error: {}".format(format(ex)))
 
@@ -1952,6 +1980,18 @@ class Jablotron:
 	@staticmethod
 	def create_packet_enable_device_states() -> bytes:
 		return Jablotron.create_packet_command(JABLOTRON_COMMAND_ENABLE_DEVICE_STATE_PACKETS, Jablotron.int_to_bytes(JABLOTRON_TIMEOUT_FOR_DEVICE_STATE_PACKETS))
+
+	@staticmethod
+	def _create_packet_device_diagnostics_start(device_number: int) -> bytes:
+		return Jablotron.create_packet(JABLOTRON_COMMAND_DIAGNOSTICS, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_ON)
+
+	@staticmethod
+	def _create_packet_device_diagnostics_force_secondary_state(device_number: int) -> bytes:
+		return Jablotron.create_packet(JABLOTRON_COMMAND_DIAGNOSTICS_COMMAND, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_COMMAND_GET_SECONDARY_STATE + b"\x00")
+
+	@staticmethod
+	def _create_packet_device_diagnostics_end(device_number: int) -> bytes:
+		return Jablotron.create_packet(JABLOTRON_COMMAND_DIAGNOSTICS, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_OFF)
 
 	@staticmethod
 	def create_packet_authorisation_code(code: str) -> bytes:
