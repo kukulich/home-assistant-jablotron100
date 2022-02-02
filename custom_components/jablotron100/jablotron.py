@@ -55,6 +55,7 @@ from .const import (
 	DEVICE_EMPTY,
 	DEVICE_KEYPAD,
 	DEVICE_MOBILE_APPLICATION_NUMBER,
+	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
 	DEVICE_SIREN_OUTDOOR,
 	DEVICE_SMOKE_DETECTOR,
 	DEVICE_THERMOSTAT,
@@ -273,6 +274,7 @@ class Jablotron:
 		self._device_temperature_sensors: List[JablotronControl] = []
 		self._device_voltage_sensors: List[JablotronControl] = []
 		self._device_current_sensors: List[JablotronControl] = []
+		self._device_pulse_sensors: List[JablotronControl] = []
 		self._lan_connection: JablotronControl | None = None
 		self._gsm_signal_sensor: JablotronControl | None = None
 		self._gsm_signal_strength_sensor: JablotronControl | None = None
@@ -437,6 +439,9 @@ class Jablotron:
 
 	def device_current_sensors(self) -> List[JablotronControl]:
 		return self._device_current_sensors
+
+	def device_pulse_sensors(self) -> List[JablotronControl]:
+		return self._device_pulse_sensors
 
 	def lan_connection(self) -> JablotronControl | None:
 		return self._lan_connection
@@ -799,6 +804,12 @@ class Jablotron:
 					self._get_device_battery_load_voltage_sensor_id(device_number),
 					self._get_device_battery_load_voltage_sensor_name(device_number),
 				))
+			elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
+				self._device_pulse_sensors.append(self._create_device_sensor(
+					hass_device,
+					self._get_device_pulse_sensor_id(device_number),
+					self._get_device_pulse_sensor_name(device_number),
+				))
 
 	def _create_central_unit_sensors(self) -> None:
 		self._device_battery_level_sensors.append(self._create_device_sensor(
@@ -1096,6 +1107,7 @@ class Jablotron:
 		return type not in (
 			DEVICE_KEYPAD,
 			DEVICE_SIREN_OUTDOOR,
+			DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
 		)
 
 	def _parse_sections_states_packet(self, packet: bytes) -> None:
@@ -1264,6 +1276,8 @@ class Jablotron:
 			)
 		elif device_type == DEVICE_SIREN_OUTDOOR:
 			self._parse_device_siren_outdoor_secondary_state_packet(packet, device_number)
+		elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
+			self._parse_device_electricity_meter_with_pulse_secondary_state_packet(packet, device_number)
 
 		if self._is_device_with_battery(device_number):
 			self._update_state(
@@ -1280,6 +1294,17 @@ class Jablotron:
 		self._update_state(
 			self._get_device_battery_load_voltage_sensor_id(device_number),
 			self.bytes_to_float(packet[9:10]),
+		)
+
+	def _parse_device_electricity_meter_with_pulse_secondary_state_packet(self, packet: bytes, device_number: int) -> None:
+		if len(packet) < 21:
+			return
+
+		pulses = self.bytes_to_int(packet[18:19]) + 255 * self.bytes_to_int(packet[19:21])
+
+		self._update_state(
+			self._get_device_pulse_sensor_id(device_number),
+			pulses,
 		)
 
 	def _parse_central_unit_secondary_state_packet(self, packet: bytes) -> None:
@@ -1833,6 +1858,13 @@ class Jablotron:
 
 	def _get_device_bus_devices_loss_sensor_name(self, device_number: int) -> str:
 		return "BUS devices loss of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
+
+	@staticmethod
+	def _get_device_pulse_sensor_id(device_number: int) -> str:
+		return "pulses_{}".format(device_number)
+
+	def _get_device_pulse_sensor_name(self, device_number: int) -> str:
+		return "Pulses of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
 	def _get_lan_connection_id() -> str:

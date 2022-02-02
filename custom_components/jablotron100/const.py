@@ -61,6 +61,7 @@ DEVICE_GAS_DETECTOR: Final = "gas_detector"
 DEVICE_THERMOSTAT: Final = "thermostat"
 DEVICE_LOCK: Final = "lock"
 DEVICE_TAMPER: Final = "tamper"
+DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT: Final = "electricity_meter_with_pulse_output"
 DEVICE_CUSTOM: Final = "custom"
 DEVICE_OTHER: Final = "other"
 
@@ -83,6 +84,7 @@ DEVICES: Final = {
 	DEVICE_LOCK: "Lock",
 	DEVICE_CUSTOM: "Custom binary sensor",
 	DEVICE_TAMPER: "Tamper",
+	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT: "Electricity meter with pulse output",
 	DEVICE_OTHER: "Other",
 	DEVICE_EMPTY: "Empty",
 }

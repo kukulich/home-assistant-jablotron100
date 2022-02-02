@@ -26,6 +26,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	async_add_entities((JablotronTemperatureEntity(jablotron, control) for control in jablotron.device_temperature_sensors()))
 	async_add_entities((JablotronVoltageEntity(jablotron, control) for control in jablotron.device_voltage_sensors()))
 	async_add_entities((JablotronCurrentEntity(jablotron, control) for control in jablotron.device_current_sensors()))
+	async_add_entities((JablotronPulseEntity(jablotron, control) for control in jablotron.device_pulse_sensors()))
 
 	gsm_signal_strength_sensor = jablotron.gsm_signal_strength_sensor()
 	if gsm_signal_strength_sensor is not None:
@@ -74,3 +75,8 @@ class JablotronCurrentEntity(JablotronSensor):
 	_attr_native_unit_of_measurement = ELECTRIC_CURRENT_MILLIAMPERE
 	_attr_device_class = SensorDeviceClass.CURRENT
 	_attr_entity_category = EntityCategory.DIAGNOSTIC
+
+
+class JablotronPulseEntity(JablotronSensor):
+
+	_attr_state_class = SensorStateClass.TOTAL_INCREASING
