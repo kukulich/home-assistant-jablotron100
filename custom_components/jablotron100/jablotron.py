@@ -54,10 +54,12 @@ from .const import (
 	DEVICE_CENTRAL_UNIT_NUMBER,
 	DEVICE_EMPTY,
 	DEVICE_KEYPAD,
+	DEVICE_MOBILE_APPLICATION_NUMBER,
 	DEVICE_SIREN_OUTDOOR,
 	DEVICE_SMOKE_DETECTOR,
 	DEVICE_THERMOSTAT,
 	DEVICE_OTHER,
+	DEVICE_USB_NUMBER,
 	DOMAIN,
 	EVENT_WRONG_CODE,
 	LOGGER,
@@ -111,10 +113,6 @@ JABLOTRON_DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT: Final = 5
 JABLOTRON_DEVICE_PACKET_TYPE_SABOTAGE: Final = 6
 JABLOTRON_DEVICE_PACKET_TYPE_FAULT: Final = 7
 JABLOTRON_DEVICE_PACKET_TYPE_HEARTBEAT: Final = 15
-
-JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT: Final = 0
-JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION: Final = 250
-JABLOTRON_DEVICE_NUMBER_USB: Final = 254
 
 # In minutes
 JABLOTRON_TIMEOUT_FOR_DEVICE_STATE_PACKETS: Final = 5
@@ -1173,11 +1171,11 @@ class Jablotron:
 	def _parse_device_state_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_state_packet(packet)
 
-		if device_number == JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT:
+		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
 			self._log_packet("State packet of central unit", packet)
 			return
 
-		if device_number in (JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION, JABLOTRON_DEVICE_NUMBER_USB):
+		if device_number in (DEVICE_MOBILE_APPLICATION_NUMBER, DEVICE_USB_NUMBER):
 			self._set_last_active_user_from_device_state_packet(packet, device_number)
 			return
 
@@ -1242,7 +1240,7 @@ class Jablotron:
 	def _parse_device_secondary_state_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_secondary_state_packet(packet)
 
-		if device_number == JABLOTRON_DEVICE_NUMBER_CENTRAL_UNIT:
+		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
 			self._parse_central_unit_secondary_state_packet(packet)
 			return
 
@@ -1530,7 +1528,7 @@ class Jablotron:
 
 	def _set_last_active_user_from_device_state_packet(self, packet: bytes, device_number: int) -> None:
 		offset = 0
-		if device_number not in (JABLOTRON_DEVICE_NUMBER_MOBILE_APPLICATION, JABLOTRON_DEVICE_NUMBER_USB):
+		if device_number not in (DEVICE_MOBILE_APPLICATION_NUMBER, DEVICE_USB_NUMBER):
 			offset = 1
 
 		self._last_active_user = int((self.bytes_to_int(packet[3:4]) - 104 - offset) / 4)
