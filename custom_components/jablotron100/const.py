@@ -84,9 +84,9 @@ DEVICES: Final = {
 	DEVICE_THERMOSTAT: "Thermostat",
 	DEVICE_THERMOMETER: "Thermometer",
 	DEVICE_LOCK: "Lock",
-	DEVICE_CUSTOM: "Custom binary sensor",
 	DEVICE_TAMPER: "Tamper",
 	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT: "Electricity meter with pulse output",
+	DEVICE_CUSTOM: "Custom binary sensor",
 	DEVICE_OTHER: "Other",
 	DEVICE_EMPTY: "Empty",
 }
