@@ -44,20 +44,20 @@ DEVICE_CLASSES: Final = {
 
 
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
-	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
+	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronDeviceSensorEntity(jablotron, control) for control in jablotron.device_sensors()))
+	async_add_entities((JablotronDeviceSensorEntity(jablotron_instance, control) for control in jablotron_instance.device_sensors()))
 
-	async_add_entities((JablotronProblemSensorEntity(jablotron, control) for control in jablotron.section_problem_sensors()))
-	async_add_entities((JablotronProblemSensorEntity(jablotron, control) for control in jablotron.device_problem_sensors()))
+	async_add_entities((JablotronProblemSensorEntity(jablotron_instance, control) for control in jablotron_instance.section_problem_sensors()))
+	async_add_entities((JablotronProblemSensorEntity(jablotron_instance, control) for control in jablotron_instance.device_problem_sensors()))
 
-	lan_connection = jablotron.lan_connection()
+	lan_connection = jablotron_instance.lan_connection()
 	if lan_connection is not None:
-		async_add_entities([JablotronLanConnectionEntity(jablotron, lan_connection)])
+		async_add_entities([JablotronLanConnectionEntity(jablotron_instance, lan_connection)])
 
-	gsm_signal_sensor = jablotron.gsm_signal_sensor()
+	gsm_signal_sensor = jablotron_instance.gsm_signal_sensor()
 	if gsm_signal_sensor is not None:
-		async_add_entities([JablotronGsmSignalEntity(jablotron, gsm_signal_sensor)])
+		async_add_entities([JablotronGsmSignalEntity(jablotron_instance, gsm_signal_sensor)])
 
 
 class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):

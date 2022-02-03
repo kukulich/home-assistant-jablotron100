@@ -15,22 +15,22 @@ from .const import (
 	DATA_JABLOTRON,
 	DOMAIN,
 )
-from .jablotron import JablotronEntity
+from .jablotron import Jablotron, JablotronEntity
 
 
 async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
-	jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
+	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronSignalStrengthEntity(jablotron, control) for control in jablotron.device_signal_strength_sensors()))
-	async_add_entities((JablotronBatteryLevelEntity(jablotron, control) for control in jablotron.device_battery_level_sensors()))
-	async_add_entities((JablotronTemperatureEntity(jablotron, control) for control in jablotron.device_temperature_sensors()))
-	async_add_entities((JablotronVoltageEntity(jablotron, control) for control in jablotron.device_voltage_sensors()))
-	async_add_entities((JablotronCurrentEntity(jablotron, control) for control in jablotron.device_current_sensors()))
-	async_add_entities((JablotronPulseEntity(jablotron, control) for control in jablotron.device_pulse_sensors()))
+	async_add_entities((JablotronSignalStrengthEntity(jablotron_instance, control) for control in jablotron_instance.device_signal_strength_sensors()))
+	async_add_entities((JablotronBatteryLevelEntity(jablotron_instance, control) for control in jablotron_instance.device_battery_level_sensors()))
+	async_add_entities((JablotronTemperatureEntity(jablotron_instance, control) for control in jablotron_instance.device_temperature_sensors()))
+	async_add_entities((JablotronVoltageEntity(jablotron_instance, control) for control in jablotron_instance.device_voltage_sensors()))
+	async_add_entities((JablotronCurrentEntity(jablotron_instance, control) for control in jablotron_instance.device_current_sensors()))
+	async_add_entities((JablotronPulseEntity(jablotron_instance, control) for control in jablotron_instance.device_pulse_sensors()))
 
-	gsm_signal_strength_sensor = jablotron.gsm_signal_strength_sensor()
+	gsm_signal_strength_sensor = jablotron_instance.gsm_signal_strength_sensor()
 	if gsm_signal_strength_sensor is not None:
-		async_add_entities([JablotronSignalStrengthEntity(jablotron, gsm_signal_strength_sensor)])
+		async_add_entities([JablotronSignalStrengthEntity(jablotron_instance, gsm_signal_strength_sensor)])
 
 
 class JablotronSensor(JablotronEntity, SensorEntity):
