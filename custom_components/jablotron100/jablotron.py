@@ -768,7 +768,7 @@ class Jablotron:
 				STATE_OFF,
 			))
 
-			if self._is_wireless_device(device_number):
+			if self.is_wireless_device(device_number):
 				self._device_signal_strength_sensors.append(self._create_device_sensor(
 					hass_device,
 					self._get_device_signal_strength_sensor_id(device_number),
@@ -776,7 +776,7 @@ class Jablotron:
 					self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH],
 				))
 
-			if self._is_device_with_battery(device_number):
+			if self.is_device_with_battery(device_number):
 				self._device_battery_level_sensors.append(self._create_device_sensor(
 					hass_device,
 					self._get_device_battery_level_sensor_id(device_number),
@@ -992,7 +992,7 @@ class Jablotron:
 								packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(gsm_device_number)))
 
 							for device_number in self._get_numbers_of_not_ignored_devices():
-								if self._is_wireless_device(device_number):
+								if self.is_wireless_device(device_number):
 									packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(device_number)))
 
 							if len(packets) > 0:
@@ -1075,7 +1075,7 @@ class Jablotron:
 			DEVICE_EMPTY,
 		)
 
-	def _is_wireless_device(self, number: int) -> bool:
+	def is_wireless_device(self, number: int) -> bool:
 		device_id = self._get_device_id(number)
 
 		if device_id not in self._devices_data:
@@ -1083,7 +1083,7 @@ class Jablotron:
 
 		return self._devices_data[device_id][DEVICE_DATA_CONNECTION] == DEVICE_CONNECTION_WIRELESS
 
-	def _is_device_with_battery(self, number: int) -> bool:
+	def is_device_with_battery(self, number: int) -> bool:
 		if number == DEVICE_CENTRAL_UNIT_NUMBER:
 			return True
 
@@ -1240,7 +1240,7 @@ class Jablotron:
 		else:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, self.format_packet_to_string(packet)))
 
-		if self._is_wireless_device(device_number):
+		if self.is_wireless_device(device_number):
 			device_signal_strength = self.bytes_to_int(packet[10:11]) * JABLOTRON_SIGNAL_STRENGTH_STEP
 			self._update_state(
 				self._get_device_signal_strength_sensor_id(device_number),
@@ -1277,7 +1277,7 @@ class Jablotron:
 		elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
 			self._parse_device_electricity_meter_with_pulse_secondary_state_packet(packet, device_number)
 
-		if self._is_device_with_battery(device_number):
+		if self.is_device_with_battery(device_number):
 			self._update_state(
 				self._get_device_battery_level_sensor_id(device_number),
 				self._parse_device_battery_level_from_device_secondary_state_packet(packet),
@@ -1529,7 +1529,7 @@ class Jablotron:
 		device_type = self._get_device_type(device_number)
 
 		battery_level: int | None = None
-		if self._is_device_with_battery(device_number):
+		if self.is_device_with_battery(device_number):
 			battery_level = self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL]
 
 		return JablotronHassDevice(
