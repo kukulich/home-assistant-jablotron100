@@ -58,6 +58,7 @@ from .const import (
 	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
 	DEVICE_SIREN_OUTDOOR,
 	DEVICE_SMOKE_DETECTOR,
+	DEVICE_THERMOMETER,
 	DEVICE_THERMOSTAT,
 	DEVICE_OTHER,
 	DEVICE_USB_NUMBER,
@@ -784,7 +785,7 @@ class Jablotron:
 					self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL],
 				))
 
-			if device_type in (DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR):
+			if device_type in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR):
 				self._device_temperature_sensors.append(self._create_device_sensor(
 					hass_device,
 					self._get_device_temperature_sensor_id(device_number),
@@ -872,7 +873,7 @@ class Jablotron:
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_type = self._get_device_type(device_number)
 
-			if device_type not in (DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR, DEVICE_SIREN_OUTDOOR):
+			if device_type not in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR, DEVICE_SIREN_OUTDOOR):
 				continue
 
 			self._send_packets([
@@ -1260,7 +1261,7 @@ class Jablotron:
 
 		device_type = self._get_device_type(device_number)
 
-		if device_type == DEVICE_THERMOSTAT:
+		if device_type in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT):
 			temperature = self._parse_device_thermostat_temperature_from_secondary_state_packet(packet)
 			if temperature is not None:
 				self._update_state(

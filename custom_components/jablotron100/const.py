@@ -59,6 +59,7 @@ DEVICE_SMOKE_DETECTOR: Final = "smoke_detector"
 DEVICE_FLOOD_DETECTOR: Final = "flood_detector"
 DEVICE_GAS_DETECTOR: Final = "gas_detector"
 DEVICE_THERMOSTAT: Final = "thermostat"
+DEVICE_THERMOMETER: Final = "thermometer"
 DEVICE_LOCK: Final = "lock"
 DEVICE_TAMPER: Final = "tamper"
 DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT: Final = "electricity_meter_with_pulse_output"
@@ -81,6 +82,7 @@ DEVICES: Final = {
 	DEVICE_KEY_FOB: "Key fob",
 	DEVICE_BUTTON: "Button",
 	DEVICE_THERMOSTAT: "Thermostat",
+	DEVICE_THERMOMETER: "Thermometer",
 	DEVICE_LOCK: "Lock",
 	DEVICE_CUSTOM: "Custom binary sensor",
 	DEVICE_TAMPER: "Tamper",
