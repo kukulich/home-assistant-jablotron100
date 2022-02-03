@@ -36,6 +36,6 @@ async def async_get_config_entry_diagnostics(
 			"hardware_version": central_unit.hardware_version,
 		},
 		"configuration": configuration,
-		"options": {key:value for key, value in config_entry.options.items()},
+		"options": dict(config_entry.options),
 		"devices": devices,
 	}
