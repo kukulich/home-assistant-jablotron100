@@ -657,11 +657,7 @@ class Jablotron:
 			return
 
 		if len(self._devices_data.items()) == not_ignored_devices_count:
-			items = list(self._devices_data.values())
-
-			if DEVICE_DATA_SIGNAL_STRENGTH in items[0]:
-				# Latest version with signal strength
-				return
+			return
 
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
