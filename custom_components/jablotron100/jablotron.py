@@ -200,7 +200,8 @@ def check_serial_port(serial_port: str) -> None:
 			LOGGER.debug("Unsupported model: {}", model)
 			raise ModelNotSupported("Model {} not supported".format(model))
 
-	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError):
+	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
+		LOGGER.error(format(ex))
 		raise ServiceUnavailable
 
 	finally:
