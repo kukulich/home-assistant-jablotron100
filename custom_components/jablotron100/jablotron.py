@@ -1080,8 +1080,6 @@ class Jablotron:
 				counter = 0
 
 	def _send_packets(self, batch: List[bytes]) -> None:
-		stream = open(self._config[CONF_SERIAL_PORT], "wb")
-
 		batch_packet = b""
 		for packet in batch:
 			self._log_outcoming_packet(packet)
@@ -1094,8 +1092,6 @@ class Jablotron:
 
 		if batch_packet != b"":
 			self._send_packet_by_stream(batch_packet)
-
-		stream.close()
 
 	def _send_packet(self, packet: bytes) -> None:
 		self._log_outcoming_packet(packet)
