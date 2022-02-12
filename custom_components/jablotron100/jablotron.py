@@ -72,7 +72,7 @@ from .errors import (
 	ModelNotSupported,
 	ServiceUnavailable,
 	ShouldNotHappen,
-	UnknownBatteryLevel,
+	InvalidBatteryLevel,
 )
 
 MAX_WORKERS: Final = 5
@@ -130,6 +130,19 @@ JABLOTRON_SECTION_PRIMARY_STATE_ARMED_PARTIALLY: Final = 2
 JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL: Final = 3
 JABLOTRON_SECTION_PRIMARY_STATE_SERVICE: Final = 5
 JABLOTRON_SECTION_PRIMARY_STATE_BLOCKED: Final = 6
+
+JABLOTRON_BATTERY_LEVEL_UNKNOWN_STATE: Final = b"\x0b"
+JABLOTRON_BATTERY_LEVEL_EXTERNAL_POWER_SUPPLY: Final = b"\x0c"
+JABLOTRON_BATTERY_LEVEL_MEASURING: Final = b"\x0d"
+JABLOTRON_BATTERY_LEVEL_NO_MEASUREMENT: Final = b"\x0e"
+JABLOTRON_BATTERY_LEVEL_NO_BATTERY: Final = b"\x0f"
+JABLOTRON_BATTERY_LEVELS_TO_IGNORE: Final = (
+	JABLOTRON_BATTERY_LEVEL_UNKNOWN_STATE,
+	JABLOTRON_BATTERY_LEVEL_EXTERNAL_POWER_SUPPLY,
+	JABLOTRON_BATTERY_LEVEL_MEASURING,
+	JABLOTRON_BATTERY_LEVEL_NO_MEASUREMENT,
+	JABLOTRON_BATTERY_LEVEL_NO_BATTERY,
+)
 
 JABLOTRON_SIGNAL_STRENGTH_STEP: Final = 5
 JABLOTRON_BATTERY_LEVEL_STEP: Final = 10
@@ -1731,7 +1744,7 @@ class Jablotron:
 	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> int | None:
 		try:
 			return Jablotron._parse_device_battery_level_packet(packet[10:11])
-		except UnknownBatteryLevel:
+		except InvalidBatteryLevel:
 			Jablotron._log_packet(
 				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_device_info_packet(packet)),
 				packet,
@@ -1772,7 +1785,7 @@ class Jablotron:
 	def _parse_device_battery_level_from_device_secondary_state_packet(packet: bytes) -> int | None:
 		try:
 			return Jablotron._parse_device_battery_level_packet(packet[5:6])
-		except UnknownBatteryLevel:
+		except InvalidBatteryLevel:
 			Jablotron._log_packet(
 				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_secondary_state_packet(packet)),
 				packet,
@@ -1782,13 +1795,13 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_battery_level_packet(battery_level_packet: bytes) -> int | None:
-		if battery_level_packet in (b"\x0b", b"\x0c", b"\x0e"):
+		if battery_level_packet in JABLOTRON_BATTERY_LEVELS_TO_IGNORE:
 			return None
 
 		battery_level = Jablotron.bytes_to_int(battery_level_packet)
 
 		if battery_level > 10:
-			raise UnknownBatteryLevel
+			raise InvalidBatteryLevel
 
 		return battery_level * JABLOTRON_BATTERY_LEVEL_STEP
 
