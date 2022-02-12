@@ -956,6 +956,24 @@ class Jablotron:
 			100,
 		)
 
+	def _force_devices_info_update(self) -> None:
+		packets = []
+
+		gsm_device_number = self._get_gsm_device_number()
+		if gsm_device_number is not None:
+			packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(gsm_device_number)))
+
+		lan_connection_device_number = self._get_lan_connection_device_number()
+		if lan_connection_device_number is not None:
+			packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(lan_connection_device_number)))
+
+		for device_number in self._get_numbers_of_not_ignored_devices():
+			if self.is_wireless_device(device_number):
+				packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(device_number)))
+
+		if len(packets) > 0:
+			self._send_packets(packets)
+
 	def _force_devices_secondary_state_update(self) -> None:
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_type = self._get_device_type(device_number)
@@ -1066,29 +1084,13 @@ class Jablotron:
 					if counter == 0 and not self._is_alarm_active():
 						self._send_packets(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
-						# Check wireless devices once a hour (and on the start too)
+						# Check some devices once a hour (and on the start too)
 						actual_time = datetime.datetime.now()
 						if (
 							last_devices_update is None
 							or (actual_time - last_devices_update).total_seconds() > 3600
 						):
-							packets = []
-
-							gsm_device_number = self._get_gsm_device_number()
-							if gsm_device_number is not None:
-								packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(gsm_device_number)))
-
-							lan_connection_device_number = self._get_lan_connection_device_number()
-							if lan_connection_device_number is not None:
-								packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(lan_connection_device_number)))
-
-							for device_number in self._get_numbers_of_not_ignored_devices():
-								if self.is_wireless_device(device_number):
-									packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(device_number)))
-
-							if len(packets) > 0:
-								self._send_packets(packets)
-
+							self._force_devices_info_update()
 							self._force_devices_secondary_state_update()
 
 							last_devices_update = actual_time
