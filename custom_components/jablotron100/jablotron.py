@@ -1565,7 +1565,10 @@ class Jablotron:
 
 		if (
 			self._options.get(CONF_LOG_DEVICES_PACKETS, False)
-			and self._is_device_get_info_packet(packet)
+			and (
+				self._is_device_get_info_packet(packet)
+				or self._is_device_get_diagnostics_packet(packet)
+			)
 		):
 			return True
 
@@ -1686,6 +1689,10 @@ class Jablotron:
 	@staticmethod
 	def _is_device_get_info_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_COMMAND and packet[2:3] == JABLOTRON_COMMAND_GET_DEVICE_INFO
+
+	@staticmethod
+	def _is_device_get_diagnostics_packet(packet: bytes) -> bool:
+		return packet[:1] in (JABLOTRON_PACKET_DIAGNOSTICS, JABLOTRON_PACKET_DIAGNOSTICS_COMMAND)
 
 	@staticmethod
 	def _is_device_state_packet(packet: bytes) -> bool:
