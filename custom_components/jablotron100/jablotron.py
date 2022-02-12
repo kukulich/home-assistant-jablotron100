@@ -1321,8 +1321,8 @@ class Jablotron:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, self.format_packet_to_string(packet)))
 			return
 
-		packet_type_binary = self._hex_to_bin(packet[2:3])
-		packet_type = self.binary_to_int(packet_type_binary[4:])
+		packet_state_binary = self._hex_to_bin(packet[2:3])
+		packet_type = self.binary_to_int(packet_state_binary[4:])
 
 		if packet_type == JABLOTRON_DEVICE_PACKET_TYPE_HEARTBEAT:
 			# Ignore
