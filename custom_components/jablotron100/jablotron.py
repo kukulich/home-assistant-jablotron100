@@ -1822,8 +1822,10 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_battery_level_from_device_secondary_state_packet(packet: bytes) -> int | None:
+		packet_binary = Jablotron._hex_to_bin(packet[5:6])
+
 		try:
-			return Jablotron._parse_device_battery_level_packet(packet[5:6])
+			return Jablotron._parse_device_battery_level_packet(Jablotron.int_to_bytes(Jablotron.binary_to_int(packet_binary[4:])))
 		except InvalidBatteryLevel:
 			Jablotron._log_packet(
 				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_secondary_state_packet(packet)),
