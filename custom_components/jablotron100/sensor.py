@@ -32,6 +32,10 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	if gsm_signal_strength_sensor is not None:
 		async_add_entities([JablotronSignalStrengthEntity(jablotron_instance, gsm_signal_strength_sensor)])
 
+	lan_connection_ip = jablotron_instance.lan_connection_ip()
+	if lan_connection_ip is not None:
+		async_add_entities([JablotronLanIpEntity(jablotron_instance, lan_connection_ip)])
+
 
 class JablotronSensor(JablotronEntity, SensorEntity):
 
@@ -80,3 +84,9 @@ class JablotronCurrentEntity(JablotronSensor):
 class JablotronPulseEntity(JablotronSensor):
 
 	_attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+
+class JablotronLanIpEntity(JablotronSensor):
+
+	_attr_state_class = None
+	_attr_entity_category = EntityCategory.DIAGNOSTIC

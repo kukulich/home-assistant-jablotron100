@@ -293,6 +293,7 @@ class Jablotron:
 		self._device_current_sensors: Dict[str, JablotronControl] = {}
 		self._device_pulse_sensors: Dict[str, JablotronControl] = {}
 		self._lan_connection: JablotronControl | None = None
+		self._lan_connection_ip: JablotronControl | None = None
 		self._gsm_signal_sensor: JablotronControl | None = None
 		self._gsm_signal_strength_sensor: JablotronControl | None = None
 		self._pg_outputs: Dict[int, JablotronProgrammableOutput] = {}
@@ -465,6 +466,9 @@ class Jablotron:
 
 	def lan_connection(self) -> JablotronControl | None:
 		return self._lan_connection
+
+	def lan_connection_ip(self) -> JablotronControl | None:
+		return self._lan_connection_ip
 
 	def gsm_signal_sensor(self) -> JablotronControl | None:
 		return self._gsm_signal_sensor
@@ -929,6 +933,12 @@ class Jablotron:
 			STATE_ON,
 		)
 
+		self._lan_connection_ip = self._create_device_sensor(
+			None,
+			self._get_lan_connection_ip_id(),
+			self._get_lan_connection_ip_name(),
+		)
+
 	def _create_gsm_sensor(self) -> None:
 		if self._get_gsm_device_number() is None:
 			return None
@@ -1049,7 +1059,7 @@ class Jablotron:
 	def _keepalive(self):
 		startup = True
 		counter = 0
-		last_wireless_devices_update = None
+		last_devices_update = None
 
 		while not self._state_checker_stop_event.is_set():
 			if not self._state_checker_data_updating_event.wait(0.5):
@@ -1060,14 +1070,18 @@ class Jablotron:
 						# Check wireless devices once a hour (and on the start too)
 						actual_time = datetime.datetime.now()
 						if (
-							last_wireless_devices_update is None
-							or (actual_time - last_wireless_devices_update).total_seconds() > 3600
+							last_devices_update is None
+							or (actual_time - last_devices_update).total_seconds() > 3600
 						):
 							packets = []
 
 							gsm_device_number = self._get_gsm_device_number()
 							if gsm_device_number is not None:
 								packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(gsm_device_number)))
+
+							lan_connection_device_number = self._get_lan_connection_device_number()
+							if lan_connection_device_number is not None:
+								packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_INFO, self.int_to_bytes(lan_connection_device_number)))
 
 							for device_number in self._get_numbers_of_not_ignored_devices():
 								if self.is_wireless_device(device_number):
@@ -1076,7 +1090,7 @@ class Jablotron:
 							if len(packets) > 0:
 								self._send_packets(packets)
 
-							last_wireless_devices_update = actual_time
+							last_devices_update = actual_time
 					else:
 						self._send_packet(self.create_packet_command(JABLOTRON_COMMAND_HEARTBEAT))
 
@@ -1214,6 +1228,10 @@ class Jablotron:
 			self._parse_gsm_info_packet(packet)
 			return
 
+		if device_number == self._get_lan_connection_device_number():
+			self._parse_lan_connection_info_packet(packet)
+			return
+
 		device_connection = self._parse_device_connection_type_device_info_packet(packet)
 
 		if device_connection == DEVICE_CONNECTION_WIRELESS:
@@ -1228,6 +1246,19 @@ class Jablotron:
 		signal_strength = self.bytes_to_int(packet[5:6])
 
 		self._update_state(signal_strength_sensor_id, signal_strength)
+
+		self._store_devices_data()
+
+	def _parse_lan_connection_info_packet(self, packet: bytes) -> None:
+		lan_connection_ip_id = self._get_lan_connection_ip_id()
+
+		ip_parts = []
+		for packet_position in range(6, 10):
+			ip_parts.append(str(self.bytes_to_int(packet[packet_position:(packet_position + 1)])))
+
+		lan_ip = ".".join(ip_parts)
+
+		self._update_state(lan_connection_ip_id, lan_ip)
 
 		self._store_devices_data()
 
@@ -1958,6 +1989,14 @@ class Jablotron:
 	@staticmethod
 	def _get_lan_connection_name() -> str:
 		return "LAN connection"
+
+	@staticmethod
+	def _get_lan_connection_ip_id() -> str:
+		return "lan_ip"
+
+	@staticmethod
+	def _get_lan_connection_ip_name() -> str:
+		return "LAN IP"
 
 	@staticmethod
 	def _get_gsm_signal_sensor_id() -> str:
