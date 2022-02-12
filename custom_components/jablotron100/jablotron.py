@@ -1875,14 +1875,14 @@ class Jablotron:
 		return None
 
 	@staticmethod
-	def _hex_to_bin(hex):
+	def _hex_to_bin(hex) -> str:
 		dec = Jablotron.bytes_to_int(hex)
 		bin_dec = bin(dec)
 		bin_string = bin_dec[2:]
 		return bin_string.zfill(len(hex) * 8)
 
 	@staticmethod
-	def _hex_to_reverse_bin(hex):
+	def _hex_to_reverse_bin(hex) -> str:
 		bin_string = Jablotron._hex_to_bin(hex)
 		return bin_string[::-1]
 
