@@ -1392,12 +1392,12 @@ class Jablotron:
 	def _parse_device_siren_outdoor_secondary_state_packet(self, packet: bytes, device_number: int) -> None:
 		self._update_state(
 			self._get_device_battery_standby_voltage_sensor_id(device_number),
-			self.bytes_to_float(packet[14:15]),
+			self.bytes_to_float(packet[9:10]),
 		)
 
 		self._update_state(
 			self._get_device_battery_load_voltage_sensor_id(device_number),
-			self.bytes_to_float(packet[9:10]),
+			self.bytes_to_float(packet[14:15]),
 		)
 
 	def _parse_device_electricity_meter_with_pulse_secondary_state_packet(self, packet: bytes, device_number: int) -> None:
