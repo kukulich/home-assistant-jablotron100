@@ -566,6 +566,8 @@ class Jablotron:
 		if self._central_unit is None:
 			raise ShouldNotHappen
 
+		LOGGER.debug("Central unit: {} (hardware: {}, firmware: {})".format(self._central_unit.model, self._central_unit.hardware_version, self._central_unit.firmware_version))
+
 	def _detect_sections_and_pg_outputs(self) -> None:
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
