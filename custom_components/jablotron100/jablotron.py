@@ -1057,7 +1057,6 @@ class Jablotron:
 		stream.close()
 
 	def _keepalive(self):
-		startup = True
 		counter = 0
 		last_devices_update = None
 
@@ -1090,13 +1089,11 @@ class Jablotron:
 							if len(packets) > 0:
 								self._send_packets(packets)
 
+							self._force_devices_secondary_state_update()
+
 							last_devices_update = actual_time
 					else:
 						self._send_packet(self.create_packet_command(JABLOTRON_COMMAND_HEARTBEAT))
-
-					if startup is True:
-						startup = False
-						self._force_devices_secondary_state_update()
 
 				except Exception as ex:
 					LOGGER.error("Write error: {}".format(format(ex)))
