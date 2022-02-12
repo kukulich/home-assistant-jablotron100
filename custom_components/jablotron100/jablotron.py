@@ -1429,7 +1429,7 @@ class Jablotron:
 
 		self._update_state(
 			self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self.bytes_to_float(packet[19:20]),
+			self.bytes_to_float(packet[24:25]),
 		)
 
 		self._update_state(
