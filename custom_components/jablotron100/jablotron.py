@@ -92,13 +92,13 @@ JABLOTRON_PACKET_DEVICES_STATES: Final = b"\xd8"
 JABLOTRON_PACKET_PG_OUTPUTS_STATES: Final = b"\x50"
 JABLOTRON_PACKET_COMMAND: Final = b"\x52"
 JABLOTRON_PACKET_UI_CONTROL: Final = b"\x80"
+JABLOTRON_PACKET_DIAGNOSTICS: Final = b"\x94"
+JABLOTRON_PACKET_DIAGNOSTICS_COMMAND: Final = b"\x96"
 
 JABLOTRON_COMMAND_HEARTBEAT: Final = b"\x02"
 JABLOTRON_COMMAND_GET_DEVICE_INFO: Final = b"\x0a"
 JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES: Final = b"\x0e"
 JABLOTRON_COMMAND_ENABLE_DEVICE_STATE_PACKETS: Final = b"\x13"
-JABLOTRON_COMMAND_DIAGNOSTICS: Final = b"\x94"
-JABLOTRON_COMMAND_DIAGNOSTICS_COMMAND: Final = b"\x96"
 
 JABLOTRON_COMMAND_RESPONSE_DEVICE_INFO: Final = b"\x8a"
 
@@ -2086,15 +2086,15 @@ class Jablotron:
 
 	@staticmethod
 	def _create_packet_device_diagnostics_start(device_number: int) -> bytes:
-		return Jablotron.create_packet(JABLOTRON_COMMAND_DIAGNOSTICS, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_ON)
+		return Jablotron.create_packet(JABLOTRON_PACKET_DIAGNOSTICS, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_ON)
 
 	@staticmethod
 	def _create_packet_device_diagnostics_force_secondary_state(device_number: int) -> bytes:
-		return Jablotron.create_packet(JABLOTRON_COMMAND_DIAGNOSTICS_COMMAND, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_COMMAND_GET_SECONDARY_STATE + b"\x00")
+		return Jablotron.create_packet(JABLOTRON_PACKET_DIAGNOSTICS_COMMAND, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_COMMAND_GET_SECONDARY_STATE + b"\x00")
 
 	@staticmethod
 	def _create_packet_device_diagnostics_end(device_number: int) -> bytes:
-		return Jablotron.create_packet(JABLOTRON_COMMAND_DIAGNOSTICS, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_OFF)
+		return Jablotron.create_packet(JABLOTRON_PACKET_DIAGNOSTICS, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_OFF)
 
 	@staticmethod
 	def create_packet_authorisation_code(code: str) -> bytes:
