@@ -1327,10 +1327,12 @@ class Jablotron:
 					temperature,
 				)
 		elif device_type == DEVICE_SMOKE_DETECTOR:
-			self._update_state(
-				self._get_device_temperature_sensor_id(device_number),
-				self._parse_device_smoke_detector_temperature_from_secondary_state_packet(packet),
-			)
+			temperature = self._parse_device_smoke_detector_temperature_from_secondary_state_packet(packet)
+			if temperature is not None:
+				self._update_state(
+					self._get_device_temperature_sensor_id(device_number),
+					temperature,
+				)
 		elif device_type == DEVICE_SIREN_OUTDOOR:
 			self._parse_device_siren_outdoor_secondary_state_packet(packet, device_number)
 		elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
@@ -1759,7 +1761,11 @@ class Jablotron:
 		return round((Jablotron.bytes_to_int(packet[10:11]) + (255 * modifier)) / 10, 1)
 
 	@staticmethod
-	def _parse_device_smoke_detector_temperature_from_secondary_state_packet(packet: bytes) -> float:
+	def _parse_device_smoke_detector_temperature_from_secondary_state_packet(packet: bytes) -> float | None:
+		# We get shorter packages without the temperature sometimes
+		if len(packet) < 9:
+			return None
+
 		return float(Jablotron.bytes_to_int(packet[8:9]))
 
 	@staticmethod
