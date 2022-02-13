@@ -319,7 +319,7 @@ class Jablotron:
 		self._lan_connection_ip: JablotronControl | None = None
 		self._gsm_signal_sensor: JablotronControl | None = None
 		self._gsm_signal_strength_sensor: JablotronControl | None = None
-		self._pg_outputs: Dict[int, JablotronProgrammableOutput] = {}
+		self._pg_outputs: Dict[str, JablotronProgrammableOutput] = {}
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
@@ -710,12 +710,12 @@ class Jablotron:
 			return
 
 		for pg_output_number in range(1, self._config[CONF_NUMBER_OF_PG_OUTPUTS] + 1):
-			if pg_output_number in self._pg_outputs:
-				continue
-
 			pg_output_id = self._get_pg_output_id(pg_output_number)
 
-			self._pg_outputs[pg_output_number] = JablotronProgrammableOutput(
+			if pg_output_id in self._pg_outputs:
+				continue
+
+			self._pg_outputs[pg_output_id] = JablotronProgrammableOutput(
 				self._central_unit,
 				pg_output_id,
 				self._get_pg_output_name(pg_output_number),
