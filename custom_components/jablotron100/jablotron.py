@@ -1175,9 +1175,9 @@ class Jablotron:
 		return DEVICES[self._get_device_type(number)]
 
 	def _is_device_ignored(self, number: int) -> bool:
-		type = self._get_device_type(number)
+		device_type = self._get_device_type(number)
 
-		return type in (
+		return device_type in (
 			DEVICE_OTHER,
 			DEVICE_EMPTY,
 		)
@@ -1207,9 +1207,9 @@ class Jablotron:
 		return self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] is not None
 
 	def _is_device_with_state(self, number: int) -> bool:
-		type = self._get_device_type(number)
+		device_type = self._get_device_type(number)
 
-		return type not in (
+		return device_type not in (
 			DEVICE_KEYPAD,
 			DEVICE_SIREN_OUTDOOR,
 			DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
@@ -1341,7 +1341,7 @@ class Jablotron:
 			LOGGER.error("Unknown state packet of device {}: {}".format(device_number, self.format_packet_to_string(packet)))
 			return
 
-		packet_state_binary = self._hex_to_bin(packet[2:3])
+		packet_state_binary = self._bytes_to_binary(packet[2:3])
 		packet_type = self.binary_to_int(packet_state_binary[4:])
 
 		if packet_type == JABLOTRON_DEVICE_PACKET_TYPE_HEARTBEAT:
@@ -1565,7 +1565,7 @@ class Jablotron:
 		states_end = states_start + self.bytes_to_int(packet[1:2])
 
 		# We need to ignore first packet
-		states = self._hex_to_reverse_bin(packet[(states_start + 1):states_end])
+		states = self._bytes_to_reverse_binary(packet[(states_start + 1):states_end])
 
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
@@ -1582,7 +1582,7 @@ class Jablotron:
 		states_start = 2
 		states_end = states_start + self.bytes_to_int(packet[1:2])
 
-		states = self._hex_to_reverse_bin(packet[states_start:states_end])
+		states = self._bytes_to_reverse_binary(packet[states_start:states_end])
 
 		for index in range(0, self._config[CONF_NUMBER_OF_PG_OUTPUTS]):
 			pg_output_number = index + 1
@@ -1617,24 +1617,24 @@ class Jablotron:
 
 		return numbers_of_not_ignored_devices
 
-	def _set_initial_state(self, id: str, initial_state: StateType):
-		if id in self.states:
+	def _set_initial_state(self, entity_id: str, initial_state: StateType):
+		if entity_id in self.states:
 			# Loaded from stored data
 			return
 
-		self._update_state(id, initial_state, store_state=False)
+		self._update_state(entity_id, initial_state, store_state=False)
 
-	def _update_state(self, id: str, state: StateType, store_state: bool = True) -> None:
+	def _update_state(self, entity_id: str, state: StateType, store_state: bool = True) -> None:
 		if store_state is True:
-			self._store_state(id, state)
+			self._store_state(entity_id, state)
 
-		if id in self.states and state == self.states[id]:
+		if entity_id in self.states and state == self.states[entity_id]:
 			return
 
-		if id in self._entities:
-			self._entities[id].update_state(state)
+		if entity_id in self._entities:
+			self._entities[entity_id].update_state(state)
 		else:
-			self.states[id] = state
+			self.states[entity_id] = state
 
 	def _log_incoming_packet(self, packet: bytes) -> None:
 		if self._should_be_incoming_packet_logged(packet):
@@ -1701,7 +1701,7 @@ class Jablotron:
 
 		return False
 
-	def _store_state(self, id: str, state: StateType):
+	def _store_state(self, entity_id: str, state: StateType):
 		serial_port = self._config[CONF_SERIAL_PORT]
 
 		if serial_port not in self._stored_data:
@@ -1711,12 +1711,12 @@ class Jablotron:
 			self._stored_data[serial_port][STORAGE_STATES_KEY] = {}
 
 		if (
-			id in self._stored_data[serial_port][STORAGE_STATES_KEY]
-			and self._stored_data[serial_port][STORAGE_STATES_KEY][id] == state
+			entity_id in self._stored_data[serial_port][STORAGE_STATES_KEY]
+			and self._stored_data[serial_port][STORAGE_STATES_KEY][entity_id] == state
 		):
 			return
 
-		self._stored_data[serial_port][STORAGE_STATES_KEY][id] = state
+		self._stored_data[serial_port][STORAGE_STATES_KEY][entity_id] = state
 		self._store.async_delay_save(self._data_to_store)
 
 	def _store_devices_data(self):
@@ -1856,7 +1856,7 @@ class Jablotron:
 			if state_packet == b"\x07\x00":
 				break
 
-			section_states[section] = Jablotron._hex_to_bin(state_packet[:1]) + Jablotron._hex_to_bin(state_packet[1:])
+			section_states[section] = Jablotron._bytes_to_binary(state_packet[:1]) + Jablotron._bytes_to_binary(state_packet[1:])
 
 		return section_states
 
@@ -1929,7 +1929,7 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_battery_level_from_info_packet(packet: bytes) -> int | None:
-		packet_binary = Jablotron._hex_to_bin(packet[5:6])
+		packet_binary = Jablotron._bytes_to_binary(packet[5:6])
 
 		try:
 			return Jablotron._parse_device_battery_level_packet(Jablotron.int_to_bytes(Jablotron.binary_to_int(packet_binary[4:])))
@@ -1982,16 +1982,16 @@ class Jablotron:
 		return None
 
 	@staticmethod
-	def _hex_to_bin(hex) -> str:
-		dec = Jablotron.bytes_to_int(hex)
+	def _bytes_to_binary(packet: bytes) -> str:
+		dec = Jablotron.bytes_to_int(packet)
 		bin_dec = bin(dec)
-		bin_string = bin_dec[2:]
-		return bin_string.zfill(len(hex) * 8)
+		binary_string = bin_dec[2:]
+		return binary_string.zfill(len(packet) * 8)
 
 	@staticmethod
-	def _hex_to_reverse_bin(hex) -> str:
-		bin_string = Jablotron._hex_to_bin(hex)
-		return bin_string[::-1]
+	def _bytes_to_reverse_binary(packet: bytes) -> str:
+		binary_string = Jablotron._bytes_to_binary(packet)
+		return binary_string[::-1]
 
 	@staticmethod
 	def _get_device_id(device_number: int) -> str:
@@ -2221,20 +2221,20 @@ class Jablotron:
 		return int.to_bytes(number, 1, byteorder=sys.byteorder)
 
 	@staticmethod
-	def create_packet(type: bytes, data: bytes) -> bytes:
-		return type + Jablotron.int_to_bytes(len(data)) + data
+	def create_packet(packet_type: bytes, data: bytes) -> bytes:
+		return packet_type + Jablotron.int_to_bytes(len(data)) + data
 
 	@staticmethod
 	def create_packet_get_system_info(info_type: int) -> bytes:
 		return Jablotron.create_packet(JABLOTRON_PACKET_GET_SYSTEM_INFO, Jablotron.int_to_bytes(info_type))
 
 	@staticmethod
-	def create_packet_command(type: bytes, data: bytes | None = b"") -> bytes:
-		return Jablotron.create_packet(JABLOTRON_PACKET_COMMAND, type + data)
+	def create_packet_command(command_type: bytes, data: bytes | None = b"") -> bytes:
+		return Jablotron.create_packet(JABLOTRON_PACKET_COMMAND, command_type + data)
 
 	@staticmethod
-	def create_packet_ui_control(type: bytes, data: bytes | None = b"") -> bytes:
-		return Jablotron.create_packet(JABLOTRON_PACKET_UI_CONTROL, type + data)
+	def create_packet_ui_control(control_type: bytes, data: bytes | None = b"") -> bytes:
+		return Jablotron.create_packet(JABLOTRON_PACKET_UI_CONTROL, control_type + data)
 
 	@staticmethod
 	def create_packet_enable_device_states() -> bytes:
