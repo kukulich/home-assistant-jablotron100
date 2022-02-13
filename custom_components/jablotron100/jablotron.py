@@ -78,7 +78,7 @@ from .errors import (
 
 MAX_WORKERS: Final = 5
 TIMEOUT: Final = 10
-PACKET_READ_SIZE: Final = 64
+PACKET_SIZE: Final = 64
 
 STORAGE_VERSION: Final = 1
 STORAGE_STATES_KEY: Final = "states"
@@ -185,7 +185,7 @@ def check_serial_port(serial_port: str) -> None:
 
 		try:
 			while not stop_event.is_set():
-				raw_packet = stream.read(PACKET_READ_SIZE)
+				raw_packet = stream.read(PACKET_SIZE)
 				LOGGER.debug("Check serial port: {}".format(Jablotron.format_packet_to_string(raw_packet)))
 
 				packets = Jablotron.get_packets_from_packet(raw_packet)
@@ -535,7 +535,7 @@ class Jablotron:
 
 			try:
 				while not stop_event.is_set():
-					raw_packet = stream.read(PACKET_READ_SIZE)
+					raw_packet = stream.read(PACKET_SIZE)
 					packets = self.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
@@ -605,7 +605,7 @@ class Jablotron:
 
 			try:
 				while not stop_event.is_set():
-					raw_packet = stream.read(PACKET_READ_SIZE)
+					raw_packet = stream.read(PACKET_SIZE)
 					read_packets = self.get_packets_from_packet(raw_packet)
 					for read_packet in read_packets:
 						self._log_incoming_packet(read_packet)
@@ -734,7 +734,7 @@ class Jablotron:
 
 			try:
 				while not stop_event.is_set():
-					raw_packet = stream.read(PACKET_READ_SIZE)
+					raw_packet = stream.read(PACKET_SIZE)
 					parsed_packets = self.get_packets_from_packet(raw_packet)
 
 					for parsed_packet in parsed_packets:
@@ -1071,7 +1071,7 @@ class Jablotron:
 
 					self._state_checker_data_updating_event.clear()
 
-					raw_packet = stream.read(PACKET_READ_SIZE)
+					raw_packet = stream.read(PACKET_SIZE)
 
 					self._state_checker_data_updating_event.set()
 
@@ -1166,7 +1166,7 @@ class Jablotron:
 		for packet in batch:
 			self._log_outcoming_packet(packet)
 
-			if len(batch_packet) + len(packet) > 64:
+			if len(batch_packet) + len(packet) > PACKET_SIZE:
 				self._send_packet_by_stream(batch_packet)
 				batch_packet = b""
 
