@@ -1057,7 +1057,7 @@ class Jablotron:
 				self._create_packet_device_diagnostics_force_info(device_number),
 			])
 
-			time.sleep(0.1)
+			time.sleep(0.5)
 
 			self._send_packet(self._create_packet_device_diagnostics_end(device_number))
 
