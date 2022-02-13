@@ -214,7 +214,6 @@ def check_serial_port(serial_port: str) -> None:
 			stream = open(serial_port, "wb", buffering=0)
 
 			stream.write(Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_MODEL))
-			time.sleep(0.1)
 
 			stream.close()
 
@@ -1149,7 +1148,6 @@ class Jablotron:
 		stream = self._open_write_stream()
 
 		stream.write(packet)
-		time.sleep(0.1)
 
 		stream.close()
 
