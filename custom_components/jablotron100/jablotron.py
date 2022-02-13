@@ -2263,7 +2263,7 @@ class Jablotron:
 
 	@staticmethod
 	def _convert_jablotron_section_state_to_problem_sensor_state(state: Dict[str, int | bool]) -> StateType:
-		return STATE_ON if state["problem"] is True else STATE_OFF
+		return STATE_ON if state["problem"] or state["sabotage"] else STATE_OFF
 
 	@staticmethod
 	def _parse_jablotron_section_state(section_binary: str) -> Dict[str, int | bool]:
@@ -2275,6 +2275,9 @@ class Jablotron:
 			"arming": section_binary[0:1] == "1",
 			"triggered": section_binary[3:4] == "1" or section_binary[4:5] == "1",
 			"problem": section_binary[2:3] == "1",
+			"sabotage": section_binary[11:12] == "1",
+			"fire": section_binary[14:15] == "1",
+			"alert": section_binary[13:14] == "1",
 		}
 
 	@staticmethod
