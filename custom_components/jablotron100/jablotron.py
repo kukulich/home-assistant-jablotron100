@@ -1322,7 +1322,7 @@ class Jablotron:
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			self._log_packet("State packet of unknown device", packet)
+			LOGGER.error("State packet of unknown device {}: {}".format(device_number, self.format_packet_to_string(packet)))
 			return
 
 		device_type = self._get_device_type(device_number)
@@ -1375,7 +1375,7 @@ class Jablotron:
 		device_number = self._parse_device_number_from_device_info_packet(packet)
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			self._log_packet("Info packet of unknown device", packet)
+			LOGGER.error("Info packet of unknown device {}: {}".format(device_number, self.format_packet_to_string(packet)))
 			return
 
 		subpacket_type = packet[3:4]
