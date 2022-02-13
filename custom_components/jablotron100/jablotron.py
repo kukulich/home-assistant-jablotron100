@@ -1303,7 +1303,7 @@ class Jablotron:
 		self._store_devices_data()
 
 	def _parse_device_state_packet(self, packet: bytes) -> None:
-		device_number = self._parse_device_number_from_state_packet(packet)
+		device_number = self._parse_device_number_from_device_state_packet(packet)
 
 		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
 			self._log_packet("State packet of central unit", packet)
@@ -1378,7 +1378,7 @@ class Jablotron:
 			LOGGER.error("Unknown device info subpacket: {}".format(Jablotron.format_packet_to_string(packet)))
 			return
 
-		device_number = self._parse_device_number_from_info_packet(packet)
+		device_number = self._parse_device_number_from_device_info_packet(packet)
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
 			self._log_packet("Info packet of unknown device", packet)
@@ -1387,7 +1387,7 @@ class Jablotron:
 		if self.is_device_with_battery(device_number):
 			self._update_state(
 				self._get_device_battery_level_sensor_id(device_number),
-				self._parse_device_battery_level_from_info_packet(packet),
+				self._parse_device_battery_level_from_device_info_packet(packet),
 			)
 
 		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
@@ -1405,7 +1405,7 @@ class Jablotron:
 				self._parse_device_electricity_meter_with_pulse_info_packet(packet, device_number)
 
 	def _parse_device_input_value_info_packet(self, packet: bytes, device_number: int) -> None:
-		info_packets = self._parse_device_info_packets_from_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
 			info_packet_type = info_packet[0:1]
@@ -1435,7 +1435,7 @@ class Jablotron:
 				LOGGER.error("Unexpected info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 
 	def _parse_device_smoke_detector_info_packet(self, packet: bytes, device_number: int) -> None:
-		info_packets = self._parse_device_info_packets_from_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
 			info_packet_type = info_packet[0:1]
@@ -1450,7 +1450,7 @@ class Jablotron:
 			)
 
 	def _parse_device_siren_outdoor_info_packet(self, packet: bytes, device_number: int) -> None:
-		info_packets = self._parse_device_info_packets_from_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
 			info_packet_type = info_packet[0:1]
@@ -1475,7 +1475,7 @@ class Jablotron:
 				LOGGER.error("Unknown channel of outdoor siren power info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 
 	def _parse_device_electricity_meter_with_pulse_info_packet(self, packet: bytes, device_number: int) -> None:
-		info_packets = self._parse_device_info_packets_from_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		info_packet_number = 0
 		for info_packet in info_packets:
@@ -1496,7 +1496,7 @@ class Jablotron:
 				)
 
 	def _parse_central_unit_info_packet(self, packet: bytes) -> None:
-		info_packets = self._parse_device_info_packets_from_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
 			info_packet_type = info_packet[0:1]
@@ -1887,15 +1887,15 @@ class Jablotron:
 			return None
 
 	@staticmethod
-	def _parse_device_number_from_state_packet(packet: bytes) -> int:
+	def _parse_device_number_from_device_state_packet(packet: bytes) -> int:
 		return int(Jablotron.bytes_to_int(packet[4:6]) / 64)
 
 	@staticmethod
-	def _parse_device_number_from_info_packet(packet: bytes) -> int:
+	def _parse_device_number_from_device_info_packet(packet: bytes) -> int:
 		return Jablotron.bytes_to_int(packet[2:3])
 
 	@staticmethod
-	def _parse_device_info_packets_from_info_packet(packet: bytes) -> List[bytes]:
+	def _parse_device_info_packets_from_device_info_packet(packet: bytes) -> List[bytes]:
 		raw_info_packet = packet[7:]
 
 		info_packets = []
@@ -1928,14 +1928,14 @@ class Jablotron:
 		return info_packets
 
 	@staticmethod
-	def _parse_device_battery_level_from_info_packet(packet: bytes) -> int | None:
+	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> int | None:
 		packet_binary = Jablotron._bytes_to_binary(packet[5:6])
 
 		try:
 			return Jablotron._parse_device_battery_level_packet(Jablotron.int_to_bytes(Jablotron.binary_to_int(packet_binary[4:])))
 		except InvalidBatteryLevel:
 			Jablotron._log_packet(
-				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_info_packet(packet)),
+				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_device_info_packet(packet)),
 				packet,
 			)
 
