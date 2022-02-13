@@ -730,7 +730,7 @@ class Jablotron:
 			while not stop_event.is_set():
 				packets = []
 				for number_of_not_ignored_device in numbers_of_not_ignored_devices:
-					packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_STATUS, self.int_to_bytes(number_of_not_ignored_device)))
+					packets.append(self.create_packet_device_info(number_of_not_ignored_device))
 
 				self._send_packets(packets)
 				time.sleep(estimated_duration)
@@ -961,15 +961,15 @@ class Jablotron:
 
 		gsm_device_number = self._get_gsm_device_number()
 		if gsm_device_number is not None:
-			packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_STATUS, self.int_to_bytes(gsm_device_number)))
+			packets.append(self.create_packet_device_info(gsm_device_number))
 
 		lan_connection_device_number = self._get_lan_connection_device_number()
 		if lan_connection_device_number is not None:
-			packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_STATUS, self.int_to_bytes(lan_connection_device_number)))
+			packets.append(self.create_packet_device_info(lan_connection_device_number))
 
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			if self.is_wireless_device(device_number):
-				packets.append(self.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_STATUS, self.int_to_bytes(device_number)))
+				packets.append(self.create_packet_device_info(device_number))
 
 		if len(packets) > 0:
 			self._send_packets(packets)
@@ -2132,6 +2132,10 @@ class Jablotron:
 	@staticmethod
 	def create_packet_enable_device_states() -> bytes:
 		return Jablotron.create_packet_command(JABLOTRON_COMMAND_ENABLE_DEVICE_STATE_PACKETS, Jablotron.int_to_bytes(JABLOTRON_TIMEOUT_FOR_DEVICE_STATE_PACKETS))
+
+	@staticmethod
+	def create_packet_device_info(device_number: int) -> bytes:
+		return Jablotron.create_packet_command(JABLOTRON_COMMAND_GET_DEVICE_STATUS, Jablotron.int_to_bytes(device_number))
 
 	@staticmethod
 	def _create_packet_device_diagnostics_start(device_number: int) -> bytes:
