@@ -337,7 +337,7 @@ class Jablotron:
 		self.in_service_mode = False
 
 		self._last_active_user: int | None = None
-		self._successful_login = True
+		self._successful_login: bool = True
 
 	def update_options(self, options: Dict[str, Any]) -> None:
 		self._options = options
