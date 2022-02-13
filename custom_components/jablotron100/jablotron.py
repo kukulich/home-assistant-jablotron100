@@ -1767,6 +1767,11 @@ class Jablotron:
 
 	@staticmethod
 	def _log_packet(description: str, packet: bytes) -> None:
+		device_number = Jablotron._parse_device_number_from_packet(packet)
+
+		if device_number is not None:
+			description = "{} (device {})".format(description, device_number)
+
 		LOGGER.debug("{}: {}".format(description, Jablotron.format_packet_to_string(packet)))
 
 	@staticmethod
@@ -1893,6 +1898,25 @@ class Jablotron:
 	@staticmethod
 	def _parse_device_number_from_device_info_packet(packet: bytes) -> int:
 		return Jablotron.bytes_to_int(packet[2:3])
+
+	@staticmethod
+	def _parse_device_number_from_packet(packet: bytes) -> int | None:
+		if Jablotron._is_device_status_packet(packet):
+			return Jablotron._parse_device_number_from_device_status_packet(packet)
+
+		if Jablotron._is_device_info_packet(packet):
+			return Jablotron._parse_device_number_from_device_info_packet(packet)
+
+		if Jablotron._is_device_state_packet(packet):
+			return Jablotron._parse_device_number_from_device_state_packet(packet)
+
+		if Jablotron._is_device_get_status_packet(packet):
+			return Jablotron.bytes_to_int(packet[3:4])
+
+		if Jablotron._is_device_get_diagnostics_packet(packet):
+			return Jablotron.bytes_to_int(packet[2:3])
+
+		return None
 
 	@staticmethod
 	def _parse_device_info_packets_from_device_info_packet(packet: bytes) -> List[bytes]:
