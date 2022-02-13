@@ -23,6 +23,7 @@ async def async_get_config_entry_diagnostics(
 		devices.append({
 			"number": device_number,
 			"type": device_type,
+			"section": jablotron_instance.get_device_section(device_number),
 			"wireless": jablotron_instance.is_wireless_device(device_number),
 			"battery": jablotron_instance.is_device_with_battery(device_number),
 		})

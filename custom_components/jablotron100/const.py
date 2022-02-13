@@ -35,6 +35,7 @@ DEFAULT_CONF_ENABLE_DEBUGGING: Final = False
 DEVICE_DATA_CONNECTION: Final = "connection"
 DEVICE_DATA_BATTERY_LEVEL: Final = "battery_level"
 DEVICE_DATA_SIGNAL_STRENGTH: Final = "signal_strength"
+DEVICE_DATA_SECTION: Final = "section"
 
 DEVICE_CONNECTION_WIRED: Final = "wired"
 DEVICE_CONNECTION_WIRELESS: Final = "wireless"
