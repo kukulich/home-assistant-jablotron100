@@ -131,6 +131,26 @@ JABLOTRON_SECTION_PRIMARY_STATE_ARMED_FULL: Final = 3
 JABLOTRON_SECTION_PRIMARY_STATE_SERVICE: Final = 5
 JABLOTRON_SECTION_PRIMARY_STATE_BLOCKED: Final = 6
 
+JABLOTRON_DEVICE_INFO_SUBPACKET_PERIODIC: Final = b"\x9c"
+JABLOTRON_DEVICE_INFO_SUBPACKET_REQUESTED: Final = b"\x0a"
+JABLOTRON_DEVICE_INFO_KNOWN_SUBPACKETS: Final = (
+	JABLOTRON_DEVICE_INFO_SUBPACKET_PERIODIC,
+	JABLOTRON_DEVICE_INFO_SUBPACKET_REQUESTED,
+)
+
+JABLOTRON_DEVICE_INFO_TYPE_POWER: Final = b"\x8a"
+JABLOTRON_DEVICE_INFO_TYPE_SMOKE: Final = b"\x83"
+JABLOTRON_DEVICE_INFO_TYPE_PULSE: Final = b"\x90"
+JABLOTRON_DEVICE_INFO_TYPE_INPUT_VALUE: Final = b"\xae"
+JABLOTRON_DEVICE_INFO_TYPE_INPUT_EXTENDED: Final = b"\x4f"
+JABLOTRON_DEVICE_INFO_KNOWN_TYPES: Final = (
+	JABLOTRON_DEVICE_INFO_TYPE_POWER,
+	JABLOTRON_DEVICE_INFO_TYPE_SMOKE,
+	JABLOTRON_DEVICE_INFO_TYPE_PULSE,
+	JABLOTRON_DEVICE_INFO_TYPE_INPUT_VALUE,
+	JABLOTRON_DEVICE_INFO_TYPE_INPUT_EXTENDED,
+)
+
 JABLOTRON_BATTERY_LEVEL_UNKNOWN_STATE: Final = b"\x0b"
 JABLOTRON_BATTERY_LEVEL_EXTERNAL_POWER_SUPPLY: Final = b"\x0c"
 JABLOTRON_BATTERY_LEVEL_MEASURING: Final = b"\x0d"
@@ -1352,36 +1372,17 @@ class Jablotron:
 			)
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
-		device_number = self._parse_device_number_from_info_packet(packet)
+		subpacket_type = packet[3:4]
 
-		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
-			self._parse_central_unit_info_packet(packet)
+		if subpacket_type not in JABLOTRON_DEVICE_INFO_KNOWN_SUBPACKETS:
+			LOGGER.error("Unknown device info subpacket: {}".format(Jablotron.format_packet_to_string(packet)))
 			return
+
+		device_number = self._parse_device_number_from_info_packet(packet)
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
 			self._log_packet("Info packet of unknown device", packet)
 			return
-
-		device_type = self._get_device_type(device_number)
-
-		if device_type in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT):
-			temperature = self._parse_device_thermostat_temperature_from_info_packet(packet)
-			if temperature is not None:
-				self._update_state(
-					self._get_device_temperature_sensor_id(device_number),
-					temperature,
-				)
-		elif device_type == DEVICE_SMOKE_DETECTOR:
-			temperature = self._parse_device_smoke_detector_temperature_from_info_packet(packet)
-			if temperature is not None:
-				self._update_state(
-					self._get_device_temperature_sensor_id(device_number),
-					temperature,
-				)
-		elif device_type == DEVICE_SIREN_OUTDOOR:
-			self._parse_device_siren_outdoor_info_packet(packet, device_number)
-		elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
-			self._parse_device_electricity_meter_with_pulse_info_packet(packet, device_number)
 
 		if self.is_device_with_battery(device_number):
 			self._update_state(
@@ -1389,53 +1390,147 @@ class Jablotron:
 				self._parse_device_battery_level_from_info_packet(packet),
 			)
 
-	def _parse_device_siren_outdoor_info_packet(self, packet: bytes, device_number: int) -> None:
-		self._update_state(
-			self._get_device_battery_standby_voltage_sensor_id(device_number),
-			self.bytes_to_float(packet[9:10]),
-		)
+		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
+			self._parse_central_unit_info_packet(packet)
+		else:
+			device_type = self._get_device_type(device_number)
 
-		self._update_state(
-			self._get_device_battery_load_voltage_sensor_id(device_number),
-			self.bytes_to_float(packet[14:15]),
-		)
+			if device_type in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT):
+				self._parse_device_input_value_info_packet(packet, device_number)
+			elif device_type == DEVICE_SMOKE_DETECTOR:
+				self._parse_device_smoke_detector_info_packet(packet, device_number)
+			elif device_type == DEVICE_SIREN_OUTDOOR:
+				self._parse_device_siren_outdoor_info_packet(packet, device_number)
+			elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
+				self._parse_device_electricity_meter_with_pulse_info_packet(packet, device_number)
+
+	def _parse_device_input_value_info_packet(self, packet: bytes, device_number: int) -> None:
+		info_packets = self._parse_device_info_packets_from_info_packet(packet)
+
+		for info_packet in info_packets:
+			info_packet_type = info_packet[0:1]
+
+			if info_packet_type == JABLOTRON_DEVICE_INFO_TYPE_INPUT_VALUE:
+				input_type = info_packet[1:2]
+
+				# Temperature
+				if input_type == b"\x00":
+					modifier = Jablotron.bytes_to_int(info_packet[4:5])
+
+					if modifier >= 128:
+						modifier -= 256
+
+					temperature = round((Jablotron.bytes_to_int(info_packet[3:4]) + (255 * modifier)) / 10, 1)
+
+					self._update_state(
+						self._get_device_temperature_sensor_id(device_number),
+						temperature,
+					)
+				else:
+					LOGGER.error("Unknown input type of value info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+			elif info_packet == JABLOTRON_DEVICE_INFO_TYPE_INPUT_EXTENDED:
+				# Ignore
+				pass
+			else:
+				LOGGER.error("Unexpected info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+
+	def _parse_device_smoke_detector_info_packet(self, packet: bytes, device_number: int) -> None:
+		info_packets = self._parse_device_info_packets_from_info_packet(packet)
+
+		for info_packet in info_packets:
+			info_packet_type = info_packet[0:1]
+
+			if info_packet_type != JABLOTRON_DEVICE_INFO_TYPE_SMOKE:
+				LOGGER.error("Unexpected smoke detector info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				continue
+
+			self._update_state(
+				self._get_device_temperature_sensor_id(device_number),
+				float(Jablotron.bytes_to_int(info_packet[1:2])),
+			)
+
+	def _parse_device_siren_outdoor_info_packet(self, packet: bytes, device_number: int) -> None:
+		info_packets = self._parse_device_info_packets_from_info_packet(packet)
+
+		for info_packet in info_packets:
+			info_packet_type = info_packet[0:1]
+
+			if info_packet_type != JABLOTRON_DEVICE_INFO_TYPE_POWER:
+				LOGGER.error("Unexpected outdoor siren info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				continue
+
+			channel = info_packet[1:2]
+
+			if channel == b"\x00":
+				self._update_state(
+					self._get_device_battery_standby_voltage_sensor_id(device_number),
+					self.bytes_to_float(info_packet[2:3]),
+				)
+			elif channel == b"\x01":
+				self._update_state(
+					self._get_device_battery_load_voltage_sensor_id(device_number),
+					self.bytes_to_float(info_packet[2:3]),
+				)
+			else:
+				LOGGER.error("Unknown channel of outdoor siren power info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 
 	def _parse_device_electricity_meter_with_pulse_info_packet(self, packet: bytes, device_number: int) -> None:
-		if len(packet) < 21:
-			return
+		info_packets = self._parse_device_info_packets_from_info_packet(packet)
 
-		pulses = self.bytes_to_int(packet[18:19]) + 255 * self.bytes_to_int(packet[19:21])
+		info_packet_number = 0
+		for info_packet in info_packets:
+			info_packet_type = info_packet[0:1]
+			info_packet_number += 1
 
-		self._update_state(
-			self._get_device_pulse_sensor_id(device_number),
-			pulses,
-		)
+			if info_packet_type != JABLOTRON_DEVICE_INFO_TYPE_PULSE:
+				LOGGER.error("Unexpected electricity meter with pulse info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				continue
+
+			# We parse only first pulse packet
+			if info_packet_number == 1:
+				pulses = self.bytes_to_int(info_packet[11:12]) + 255 * self.bytes_to_int(info_packet[12:13])
+
+				self._update_state(
+					self._get_device_pulse_sensor_id(device_number),
+					pulses,
+				)
 
 	def _parse_central_unit_info_packet(self, packet: bytes) -> None:
-		self._update_state(
-			self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self._parse_device_battery_level_from_info_packet(packet),
-		)
+		info_packets = self._parse_device_info_packets_from_info_packet(packet)
 
-		self._update_state(
-			self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self.bytes_to_float(packet[14:15]),
-		)
+		for info_packet in info_packets:
+			info_packet_type = info_packet[0:1]
 
-		self._update_state(
-			self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self.bytes_to_float(packet[9:10]),
-		)
+			if info_packet_type != JABLOTRON_DEVICE_INFO_TYPE_POWER:
+				LOGGER.error("Unexpected central unit info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				continue
 
-		self._update_state(
-			self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self.bytes_to_float(packet[24:25]),
-		)
+			channel = info_packet[1:2]
 
-		self._update_state(
-			self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self.bytes_to_int(packet[25:26]),
-		)
+			if channel == b"\x00":
+				self._update_state(
+					self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+					self.bytes_to_float(info_packet[2:3]),
+				)
+			elif channel == b"\x10":
+				self._update_state(
+					self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+					self.bytes_to_float(info_packet[2:3]),
+				)
+			elif channel == b"\x11":
+				# Battery in test
+				pass
+			elif channel == b"\x01":
+				self._update_state(
+					self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+					self.bytes_to_float(info_packet[2:3]),
+				)
+				self._update_state(
+					self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+					self.bytes_to_int(info_packet[3:4]),
+				)
+			else:
+				LOGGER.error("Unknown channel of central unit power info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
 		lan_connection_device_number = self._get_lan_connection_device_number()
@@ -1800,25 +1895,37 @@ class Jablotron:
 		return Jablotron.bytes_to_int(packet[2:3])
 
 	@staticmethod
-	def _parse_device_thermostat_temperature_from_info_packet(packet: bytes) -> float | None:
-		# We get shorter packages without the temperature sometimes
-		if len(packet) < 12:
-			return None
+	def _parse_device_info_packets_from_info_packet(packet: bytes) -> List[bytes]:
+		raw_info_packet = packet[7:]
 
-		modifier = Jablotron.bytes_to_int(packet[11:12])
+		info_packets = []
 
-		if modifier >= 128:
-			modifier -= 256
+		info_type_length = {
+			JABLOTRON_DEVICE_INFO_TYPE_POWER: 4,
+			JABLOTRON_DEVICE_INFO_TYPE_SMOKE: 4,
+			JABLOTRON_DEVICE_INFO_TYPE_PULSE: 14,
+			JABLOTRON_DEVICE_INFO_TYPE_INPUT_VALUE: 5,
+			JABLOTRON_DEVICE_INFO_TYPE_INPUT_EXTENDED: 2,
+		}
 
-		return round((Jablotron.bytes_to_int(packet[10:11]) + (255 * modifier)) / 10, 1)
+		start = 0
+		while start < len(raw_info_packet):
+			info_type = raw_info_packet[start:(start + 1)]
 
-	@staticmethod
-	def _parse_device_smoke_detector_temperature_from_info_packet(packet: bytes) -> float | None:
-		# We get shorter packages without the temperature sometimes
-		if len(packet) < 9:
-			return None
+			if info_type == b"\x00":
+				break
 
-		return float(Jablotron.bytes_to_int(packet[8:9]))
+			if info_type not in JABLOTRON_DEVICE_INFO_KNOWN_TYPES:
+				LOGGER.error("Unknown device info type: {} ({})".format(Jablotron.format_packet_to_string(info_type), Jablotron.format_packet_to_string(packet)))
+				break
+
+			end = start + info_type_length[info_type] + 1
+
+			info_packets.append(raw_info_packet[start:end])
+
+			start = end
+
+		return info_packets
 
 	@staticmethod
 	def _parse_device_battery_level_from_info_packet(packet: bytes) -> int | None:
