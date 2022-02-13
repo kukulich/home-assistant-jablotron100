@@ -178,7 +178,7 @@ def check_serial_port(serial_port: str) -> None:
 	def reader_thread() -> str | None:
 		detected_model = None
 
-		stream = open(serial_port, "rb")
+		stream = open(serial_port, "rb", buffering=0)
 
 		try:
 			while not stop_event.is_set():
@@ -211,7 +211,7 @@ def check_serial_port(serial_port: str) -> None:
 
 	def writer_thread() -> None:
 		while not stop_event.is_set():
-			stream = open(serial_port, "wb")
+			stream = open(serial_port, "wb", buffering=0)
 
 			stream.write(Jablotron.create_packet_get_system_info(JABLOTRON_SYSTEM_INFO_MODEL))
 			time.sleep(0.1)
@@ -529,7 +529,7 @@ class Jablotron:
 			hardware_version = None
 			firmware_version = None
 
-			stream = open(self._config[CONF_SERIAL_PORT], "rb")
+			stream = self._open_read_stream()
 
 			try:
 				while not stop_event.is_set():
@@ -599,7 +599,7 @@ class Jablotron:
 		def reader_thread() -> List[bytes] | None:
 			states_packets = None
 
-			stream = open(self._config[CONF_SERIAL_PORT], "rb")
+			stream = self._open_read_stream()
 
 			try:
 				while not stop_event.is_set():
@@ -723,7 +723,7 @@ class Jablotron:
 		def reader_thread() -> Dict[str, bytes]:
 			status_packets: Dict[str, bytes] = {}
 
-			stream = open(self._config[CONF_SERIAL_PORT], "rb")
+			stream = self._open_read_stream()
 
 			try:
 				while not stop_event.is_set():
@@ -1020,7 +1020,7 @@ class Jablotron:
 		self._hass.bus.fire(EVENT_WRONG_CODE)
 
 	def _read_packets(self) -> None:
-		stream = open(self._config[CONF_SERIAL_PORT], "rb")
+		stream = self._open_read_stream()
 		last_restarted_at_hour = datetime.datetime.now().hour
 
 		while not self._state_checker_stop_event.is_set():
@@ -1032,7 +1032,7 @@ class Jablotron:
 					actual_hour = datetime.datetime.now().hour
 					if last_restarted_at_hour != actual_hour:
 						stream.close()
-						stream = open(self._config[CONF_SERIAL_PORT], "rb")
+						stream = self._open_read_stream()
 						last_restarted_at_hour = actual_hour
 
 					self._state_checker_data_updating_event.clear()
@@ -1146,12 +1146,18 @@ class Jablotron:
 		self._send_packet_by_stream(packet)
 
 	def _send_packet_by_stream(self, packet: bytes) -> None:
-		stream = open(self._config[CONF_SERIAL_PORT], "wb")
+		stream = self._open_write_stream()
 
 		stream.write(packet)
 		time.sleep(0.1)
 
 		stream.close()
+
+	def _open_write_stream(self):
+		return open(self._config[CONF_SERIAL_PORT], "wb", buffering=0)
+
+	def _open_read_stream(self):
+		return open(self._config[CONF_SERIAL_PORT], "rb", buffering=0)
 
 	def _is_alarm_active(self) -> bool:
 		for alarm_control_panel in self._alarm_control_panels.values():
