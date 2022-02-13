@@ -306,6 +306,7 @@ class Jablotron:
 
 		self._alarm_control_panels: Dict[str, JablotronAlarmControlPanel] = {}
 		self._section_problem_sensors: Dict[str, JablotronControl] = {}
+		self._section_fire_sensors: Dict[str, JablotronControl] = {}
 		self._device_state_sensors: Dict[str, JablotronDevice] = {}
 		self._device_problem_sensors: Dict[str, JablotronControl] = {}
 		self._device_signal_strength_sensors: Dict[str, JablotronControl] = {}
@@ -376,9 +377,10 @@ class Jablotron:
 		self.last_update_success = True
 
 	def detect_and_create_devices_and_pg_outputs(self):
-		self._detect_sections_and_pg_outputs()
 		self._detect_devices()
 		self._create_devices()
+		# We need to detect devices first
+		self._detect_sections_and_pg_outputs()
 
 	def central_unit(self) -> JablotronCentralUnit:
 		return self._central_unit
@@ -461,6 +463,9 @@ class Jablotron:
 
 	def section_problem_sensors(self) -> List[JablotronControl]:
 		return list(self._section_problem_sensors.values())
+
+	def section_fire_sensors(self) -> List[JablotronControl]:
+		return list(self._section_fire_sensors.values())
 
 	def device_state_sensors(self) -> List[JablotronDevice]:
 		return list(self._device_state_sensors.values())
@@ -660,10 +665,14 @@ class Jablotron:
 		for section, section_binary in sections_states.items():
 			section_alarm_id = self._get_section_alarm_id(section)
 			section_problem_sensor_id = self._get_section_problem_sensor_id(section)
+			section_fire_sensor_id = self._get_section_fire_sensor_id(section)
+
+			section_has_smoke_detector = self._is_smoke_detector_in_section(section)
 
 			if (
 				section_alarm_id in self._alarm_control_panels
 				and section_problem_sensor_id in self._section_problem_sensors
+				and (not section_has_smoke_detector or section_fire_sensor_id in self._section_fire_sensors)
 			):
 				continue
 
@@ -686,6 +695,14 @@ class Jablotron:
 					section_problem_sensor_id,
 					self._get_section_problem_sensor_name(section),
 					self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
+				)
+
+			if section_has_smoke_detector and section_fire_sensor_id not in self._section_fire_sensors:
+				self._section_fire_sensors[section_fire_sensor_id] = self._create_device_sensor(
+					section_hass_device,
+					section_fire_sensor_id,
+					self._get_section_fire_sensor_name(section),
+					self._convert_jablotron_section_state_to_fire_sensor_state(section_state),
 				)
 
 	def _create_pg_outputs(self) -> None:
@@ -1281,6 +1298,14 @@ class Jablotron:
 				store_state=False,
 			)
 
+			section_fire_sensor_id = self._get_section_fire_sensor_id(section)
+			if section_fire_sensor_id in self._section_fire_sensors:
+				self._update_state(
+					section_fire_sensor_id,
+					self._convert_jablotron_section_state_to_fire_sensor_state(section_state),
+					store_state=False,
+				)
+
 		# No service mode found
 		self.in_service_mode = False
 
@@ -1822,6 +1847,13 @@ class Jablotron:
 
 		return sensor
 
+	def _is_smoke_detector_in_section(self, section: int) -> bool:
+		for device_id in self._devices_data:
+			if self._devices_data[device_id][DEVICE_DATA_SECTION] == section:
+				return True
+
+		return False
+
 	def _set_last_active_user_from_device_state_packet(self, packet: bytes, device_number: int) -> None:
 		offset = 0
 		if device_number not in (DEVICE_MOBILE_APPLICATION_NUMBER, DEVICE_USB_NUMBER):
@@ -2130,6 +2162,14 @@ class Jablotron:
 		return "Problem of section {}".format(section)
 
 	@staticmethod
+	def _get_section_fire_sensor_id(section: int) -> str:
+		return "section_fire_sensor_{}".format(section)
+
+	@staticmethod
+	def _get_section_fire_sensor_name(section: int) -> str:
+		return "Fire in section {}".format(section)
+
+	@staticmethod
 	def _get_device_state_sensor_id(device_number: int) -> str:
 		return "device_sensor_{}".format(device_number)
 
@@ -2264,6 +2304,10 @@ class Jablotron:
 	@staticmethod
 	def _convert_jablotron_section_state_to_problem_sensor_state(state: Dict[str, int | bool]) -> StateType:
 		return STATE_ON if state["problem"] or state["sabotage"] else STATE_OFF
+
+	@staticmethod
+	def _convert_jablotron_section_state_to_fire_sensor_state(state: Dict[str, int | bool]) -> StateType:
+		return STATE_ON if state["fire"] else STATE_OFF
 
 	@staticmethod
 	def _parse_jablotron_section_state(section_binary: str) -> Dict[str, int | bool]:

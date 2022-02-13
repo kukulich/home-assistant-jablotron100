@@ -49,6 +49,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	async_add_entities((JablotronDeviceSensorEntity(jablotron_instance, control) for control in jablotron_instance.device_state_sensors()))
 
 	async_add_entities((JablotronProblemSensorEntity(jablotron_instance, control) for control in jablotron_instance.section_problem_sensors()))
+	async_add_entities((JablotronFireSensorEntity(jablotron_instance, control) for control in jablotron_instance.section_fire_sensors()))
 	async_add_entities((JablotronProblemSensorEntity(jablotron_instance, control) for control in jablotron_instance.device_problem_sensors()))
 
 	lan_connection = jablotron_instance.lan_connection()
@@ -72,6 +73,14 @@ class JablotronProblemSensorEntity(JablotronBinarySensor):
 
 	_attr_device_class = BinarySensorDeviceClass.PROBLEM
 	_attr_entity_category = EntityCategory.DIAGNOSTIC
+
+
+class JablotronFireSensorEntity(JablotronBinarySensor):
+
+	def _update_attributes(self) -> None:
+		super()._update_attributes()
+
+		self._attr_icon = "mdi:fire" if self._attr_is_on else "mdi:fire-off"
 
 
 class JablotronDeviceSensorEntity(JablotronBinarySensor):
