@@ -64,6 +64,7 @@ DEVICE_THERMOMETER: Final = "thermometer"
 DEVICE_LOCK: Final = "lock"
 DEVICE_TAMPER: Final = "tamper"
 DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT: Final = "electricity_meter_with_pulse_output"
+DEVICE_RADIO_MODULE: Final = "radio_module"
 DEVICE_CUSTOM: Final = "custom"
 DEVICE_OTHER: Final = "other"
 
@@ -87,6 +88,7 @@ DEVICES: Final = {
 	DEVICE_LOCK: "Lock",
 	DEVICE_TAMPER: "Tamper",
 	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT: "Electricity meter with pulse output",
+	DEVICE_RADIO_MODULE: "Radio module",
 	DEVICE_CUSTOM: "Custom binary sensor",
 	DEVICE_OTHER: "Other",
 	DEVICE_EMPTY: "Empty",

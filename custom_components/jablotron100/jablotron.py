@@ -57,6 +57,7 @@ from .const import (
 	DEVICE_KEYPAD,
 	DEVICE_MOBILE_APPLICATION_NUMBER,
 	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
+	DEVICE_RADIO_MODULE,
 	DEVICE_SIREN_OUTDOOR,
 	DEVICE_SMOKE_DETECTOR,
 	DEVICE_THERMOMETER,
@@ -1274,6 +1275,7 @@ class Jablotron:
 			DEVICE_KEYPAD,
 			DEVICE_SIREN_OUTDOOR,
 			DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
+			DEVICE_RADIO_MODULE,
 		)
 
 	def _parse_sections_states_packet(self, packet: bytes) -> None:
@@ -1475,6 +1477,8 @@ class Jablotron:
 				self._parse_device_siren_outdoor_info_packet(packet, device_number)
 			elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
 				self._parse_device_electricity_meter_with_pulse_info_packet(packet, device_number)
+			elif device_type == DEVICE_RADIO_MODULE:
+				self._log_debug_with_packet("Info packet of radio module", packet)
 
 	def _parse_device_input_value_info_packet(self, packet: bytes, device_number: int) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
