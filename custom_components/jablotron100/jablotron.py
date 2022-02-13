@@ -1372,16 +1372,16 @@ class Jablotron:
 			)
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
-		subpacket_type = packet[3:4]
-
-		if subpacket_type not in JABLOTRON_DEVICE_INFO_KNOWN_SUBPACKETS:
-			LOGGER.error("Unknown device info subpacket: {}".format(Jablotron.format_packet_to_string(packet)))
-			return
-
 		device_number = self._parse_device_number_from_device_info_packet(packet)
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
 			self._log_packet("Info packet of unknown device", packet)
+			return
+
+		subpacket_type = packet[3:4]
+
+		if subpacket_type not in JABLOTRON_DEVICE_INFO_KNOWN_SUBPACKETS:
+			LOGGER.error("Unknown info subpacket (device {}): {}".format(device_number, Jablotron.format_packet_to_string(packet)))
 			return
 
 		if self.is_device_with_battery(device_number):
@@ -1427,12 +1427,12 @@ class Jablotron:
 						temperature,
 					)
 				else:
-					LOGGER.error("Unknown input type of value info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+					LOGGER.error("Unknown input type of value info packet (device {}): {} ({})".format(device_number, Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 			elif info_packet == JABLOTRON_DEVICE_INFO_TYPE_INPUT_EXTENDED:
 				# Ignore
 				pass
 			else:
-				LOGGER.error("Unexpected info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				LOGGER.error("Unexpected info packet (device {}): {} ({})".format(device_number, Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 
 	def _parse_device_smoke_detector_info_packet(self, packet: bytes, device_number: int) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
@@ -1441,7 +1441,7 @@ class Jablotron:
 			info_packet_type = info_packet[0:1]
 
 			if info_packet_type != JABLOTRON_DEVICE_INFO_TYPE_SMOKE:
-				LOGGER.error("Unexpected smoke detector info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				LOGGER.error("Unexpected smoke detector (device {}) info packet: {} ({})".format(device_number, Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 				continue
 
 			self._update_state(
@@ -1456,7 +1456,7 @@ class Jablotron:
 			info_packet_type = info_packet[0:1]
 
 			if info_packet_type != JABLOTRON_DEVICE_INFO_TYPE_POWER:
-				LOGGER.error("Unexpected outdoor siren info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				LOGGER.error("Unexpected outdoor siren (device {}) info packet: {} ({})".format(device_number, Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 				continue
 
 			channel = info_packet[1:2]
@@ -1472,7 +1472,7 @@ class Jablotron:
 					self.bytes_to_float(info_packet[2:3]),
 				)
 			else:
-				LOGGER.error("Unknown channel of outdoor siren power info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				LOGGER.error("Unknown channel of outdoor siren (device {}) power info packet: {} ({})".format(device_number, Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 
 	def _parse_device_electricity_meter_with_pulse_info_packet(self, packet: bytes, device_number: int) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
@@ -1483,7 +1483,7 @@ class Jablotron:
 			info_packet_number += 1
 
 			if info_packet_type != JABLOTRON_DEVICE_INFO_TYPE_PULSE:
-				LOGGER.error("Unexpected electricity meter with pulse info packet: {} ({})".format(Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
+				LOGGER.error("Unexpected electricity meter (device {}) with pulse info packet: {} ({})".format(device_number, Jablotron.format_packet_to_string(info_packet), Jablotron.format_packet_to_string(packet)))
 				continue
 
 			# We parse only first pulse packet
