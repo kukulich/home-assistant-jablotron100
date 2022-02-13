@@ -87,7 +87,7 @@ JABLOTRON_PACKET_GET_SYSTEM_INFO: Final = b"\x30"
 JABLOTRON_PACKET_SYSTEM_INFO: Final = b"\x40"
 JABLOTRON_PACKET_SECTIONS_STATES: Final = b"\x51"
 JABLOTRON_PACKET_DEVICE_STATE: Final = b"\x55"
-JABLOTRON_PACKET_DEVICE_SECONDARY_STATE: Final = b"\x90"
+JABLOTRON_PACKET_DEVICE_INFO: Final = b"\x90"
 JABLOTRON_PACKET_DEVICES_STATES: Final = b"\xd8"
 JABLOTRON_PACKET_PG_OUTPUTS_STATES: Final = b"\x50"
 JABLOTRON_PACKET_COMMAND: Final = b"\x52"
@@ -109,7 +109,7 @@ JABLOTRON_UI_CONTROL_TOGGLE_PG_OUTPUT: Final = b"\x23"
 
 JABLOTRON_DIAGNOSTICS_ON: Final = b"\x01"
 JABLOTRON_DIAGNOSTICS_OFF: Final = b"\x00"
-JABLOTRON_DIAGNOSTICS_COMMAND_GET_SECONDARY_STATE: Final = b"\x09"
+JABLOTRON_DIAGNOSTICS_COMMAND_GET_INFO: Final = b"\x09"
 
 JABLOTRON_DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT: Final = 5
 JABLOTRON_DEVICE_PACKET_TYPE_SABOTAGE: Final = 6
@@ -974,7 +974,7 @@ class Jablotron:
 		if len(packets) > 0:
 			self._send_packets(packets)
 
-	def _force_devices_secondary_state_update(self) -> None:
+	def _force_devices_info_update(self) -> None:
 		for device_number in self._get_numbers_of_not_ignored_devices():
 			device_type = self._get_device_type(device_number)
 
@@ -983,7 +983,7 @@ class Jablotron:
 
 			self._send_packets([
 				self._create_packet_device_diagnostics_start(device_number),
-				self._create_packet_device_diagnostics_force_secondary_state(device_number),
+				self._create_packet_device_diagnostics_force_info(device_number),
 			])
 
 			time.sleep(0.1)
@@ -1052,8 +1052,8 @@ class Jablotron:
 						elif self._is_device_state_packet(packet):
 							self._parse_device_state_packet(packet)
 
-						elif self._is_device_secondary_state_packet(packet):
-							self._parse_device_secondary_state_packet(packet)
+						elif self._is_device_info_packet(packet):
+							self._parse_device_info_packet(packet)
 
 						elif self._is_device_status_packet(packet):
 							self._parse_device_status_packet(packet)
@@ -1091,7 +1091,7 @@ class Jablotron:
 							or (actual_time - last_devices_update).total_seconds() > 3600
 						):
 							self._force_devices_status_update()
-							self._force_devices_secondary_state_update()
+							self._force_devices_info_update()
 
 							last_devices_update = actual_time
 					else:
@@ -1351,45 +1351,45 @@ class Jablotron:
 				device_signal_strength,
 			)
 
-	def _parse_device_secondary_state_packet(self, packet: bytes) -> None:
-		device_number = self._parse_device_number_from_secondary_state_packet(packet)
+	def _parse_device_info_packet(self, packet: bytes) -> None:
+		device_number = self._parse_device_number_from_info_packet(packet)
 
 		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
-			self._parse_central_unit_secondary_state_packet(packet)
+			self._parse_central_unit_info_packet(packet)
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			self._log_packet("Secondary state packet of unknown device", packet)
+			self._log_packet("Info packet of unknown device", packet)
 			return
 
 		device_type = self._get_device_type(device_number)
 
 		if device_type in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT):
-			temperature = self._parse_device_thermostat_temperature_from_secondary_state_packet(packet)
+			temperature = self._parse_device_thermostat_temperature_from_info_packet(packet)
 			if temperature is not None:
 				self._update_state(
 					self._get_device_temperature_sensor_id(device_number),
 					temperature,
 				)
 		elif device_type == DEVICE_SMOKE_DETECTOR:
-			temperature = self._parse_device_smoke_detector_temperature_from_secondary_state_packet(packet)
+			temperature = self._parse_device_smoke_detector_temperature_from_info_packet(packet)
 			if temperature is not None:
 				self._update_state(
 					self._get_device_temperature_sensor_id(device_number),
 					temperature,
 				)
 		elif device_type == DEVICE_SIREN_OUTDOOR:
-			self._parse_device_siren_outdoor_secondary_state_packet(packet, device_number)
+			self._parse_device_siren_outdoor_info_packet(packet, device_number)
 		elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
-			self._parse_device_electricity_meter_with_pulse_secondary_state_packet(packet, device_number)
+			self._parse_device_electricity_meter_with_pulse_info_packet(packet, device_number)
 
 		if self.is_device_with_battery(device_number):
 			self._update_state(
 				self._get_device_battery_level_sensor_id(device_number),
-				self._parse_device_battery_level_from_device_secondary_state_packet(packet),
+				self._parse_device_battery_level_from_info_packet(packet),
 			)
 
-	def _parse_device_siren_outdoor_secondary_state_packet(self, packet: bytes, device_number: int) -> None:
+	def _parse_device_siren_outdoor_info_packet(self, packet: bytes, device_number: int) -> None:
 		self._update_state(
 			self._get_device_battery_standby_voltage_sensor_id(device_number),
 			self.bytes_to_float(packet[9:10]),
@@ -1400,7 +1400,7 @@ class Jablotron:
 			self.bytes_to_float(packet[14:15]),
 		)
 
-	def _parse_device_electricity_meter_with_pulse_secondary_state_packet(self, packet: bytes, device_number: int) -> None:
+	def _parse_device_electricity_meter_with_pulse_info_packet(self, packet: bytes, device_number: int) -> None:
 		if len(packet) < 21:
 			return
 
@@ -1411,10 +1411,10 @@ class Jablotron:
 			pulses,
 		)
 
-	def _parse_central_unit_secondary_state_packet(self, packet: bytes) -> None:
+	def _parse_central_unit_info_packet(self, packet: bytes) -> None:
 		self._update_state(
 			self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self._parse_device_battery_level_from_device_secondary_state_packet(packet),
+			self._parse_device_battery_level_from_info_packet(packet),
 		)
 
 		self._update_state(
@@ -1706,7 +1706,7 @@ class Jablotron:
 		return (
 			Jablotron._is_devices_states_packet(packet)
 			or Jablotron._is_device_state_packet(packet)
-			or Jablotron._is_device_secondary_state_packet(packet)
+			or Jablotron._is_device_info_packet(packet)
 			or Jablotron._is_device_status_packet(packet)
 		)
 
@@ -1731,8 +1731,8 @@ class Jablotron:
 		return packet[:1] == JABLOTRON_PACKET_DEVICE_STATE
 
 	@staticmethod
-	def _is_device_secondary_state_packet(packet: bytes) -> bool:
-		return packet[:1] == JABLOTRON_PACKET_DEVICE_SECONDARY_STATE
+	def _is_device_info_packet(packet: bytes) -> bool:
+		return packet[:1] == JABLOTRON_PACKET_DEVICE_INFO
 
 	@staticmethod
 	def _is_device_state_packet_for_state(packet_type: int) -> bool:
@@ -1796,11 +1796,11 @@ class Jablotron:
 		return int(Jablotron.bytes_to_int(packet[4:6]) / 64)
 
 	@staticmethod
-	def _parse_device_number_from_secondary_state_packet(packet: bytes) -> int:
+	def _parse_device_number_from_info_packet(packet: bytes) -> int:
 		return Jablotron.bytes_to_int(packet[2:3])
 
 	@staticmethod
-	def _parse_device_thermostat_temperature_from_secondary_state_packet(packet: bytes) -> float | None:
+	def _parse_device_thermostat_temperature_from_info_packet(packet: bytes) -> float | None:
 		# We get shorter packages without the temperature sometimes
 		if len(packet) < 12:
 			return None
@@ -1813,7 +1813,7 @@ class Jablotron:
 		return round((Jablotron.bytes_to_int(packet[10:11]) + (255 * modifier)) / 10, 1)
 
 	@staticmethod
-	def _parse_device_smoke_detector_temperature_from_secondary_state_packet(packet: bytes) -> float | None:
+	def _parse_device_smoke_detector_temperature_from_info_packet(packet: bytes) -> float | None:
 		# We get shorter packages without the temperature sometimes
 		if len(packet) < 9:
 			return None
@@ -1821,14 +1821,14 @@ class Jablotron:
 		return float(Jablotron.bytes_to_int(packet[8:9]))
 
 	@staticmethod
-	def _parse_device_battery_level_from_device_secondary_state_packet(packet: bytes) -> int | None:
+	def _parse_device_battery_level_from_info_packet(packet: bytes) -> int | None:
 		packet_binary = Jablotron._hex_to_bin(packet[5:6])
 
 		try:
 			return Jablotron._parse_device_battery_level_packet(Jablotron.int_to_bytes(Jablotron.binary_to_int(packet_binary[4:])))
 		except InvalidBatteryLevel:
 			Jablotron._log_packet(
-				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_secondary_state_packet(packet)),
+				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_info_packet(packet)),
 				packet,
 			)
 
@@ -2138,8 +2138,8 @@ class Jablotron:
 		return Jablotron.create_packet(JABLOTRON_PACKET_DIAGNOSTICS, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_ON)
 
 	@staticmethod
-	def _create_packet_device_diagnostics_force_secondary_state(device_number: int) -> bytes:
-		return Jablotron.create_packet(JABLOTRON_PACKET_DIAGNOSTICS_COMMAND, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_COMMAND_GET_SECONDARY_STATE + b"\x00")
+	def _create_packet_device_diagnostics_force_info(device_number: int) -> bytes:
+		return Jablotron.create_packet(JABLOTRON_PACKET_DIAGNOSTICS_COMMAND, Jablotron.int_to_bytes(device_number) + JABLOTRON_DIAGNOSTICS_COMMAND_GET_INFO + b"\x00")
 
 	@staticmethod
 	def _create_packet_device_diagnostics_end(device_number: int) -> bytes:
