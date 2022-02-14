@@ -8,6 +8,7 @@ from .const import (
 	DATA_JABLOTRON,
 	DATA_OPTIONS_UPDATE_UNSUBSCRIBER,
 	DOMAIN,
+	LOGGER,
 )
 from .jablotron import Jablotron
 
@@ -55,4 +56,5 @@ async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entr
 
 async def options_update_listener(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
+	jablotron_instance.detect_and_create_devices_and_sections_and_pg_outputs()
 	jablotron_instance.update_options(config_entry.options)

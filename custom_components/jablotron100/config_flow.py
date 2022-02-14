@@ -311,7 +311,4 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			}
 		)
 
-		jablotron_instance: Jablotron = self.hass.data[DOMAIN][self._config_entry.entry_id][DATA_JABLOTRON]
-		jablotron_instance.detect_and_create_devices_and_sections_and_pg_outputs()
-
 		return self.async_create_entry(title=NAME, data=self._options)
