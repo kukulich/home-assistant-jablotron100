@@ -726,8 +726,8 @@ class Jablotron:
 			self._set_initial_state(pg_output_id, STATE_OFF)
 
 	def _detect_devices(self) -> None:
-		numbers_of_not_ignored_devices = self._get_numbers_of_not_ignored_devices()
-		not_ignored_devices_count = len(numbers_of_not_ignored_devices)
+		not_ignored_devices = self._get_not_ignored_devices()
+		not_ignored_devices_count = len(not_ignored_devices)
 
 		if not_ignored_devices_count == 0:
 			return
@@ -778,12 +778,12 @@ class Jablotron:
 			while not stop_event.is_set():
 				packets_to_send = []
 
-				for number_of_not_ignored_device in numbers_of_not_ignored_devices:
+				for number_of_not_ignored_device in not_ignored_devices:
 					packets_to_send.append(self.create_packet_device_info(number_of_not_ignored_device))
 
 				packets_to_send.append(self.create_packet(
 					JABLOTRON_PACKET_GET_DEVICES_SECTIONS,
-					self.int_to_bytes(1) + self.int_to_bytes(max(numbers_of_not_ignored_devices)),
+					self.int_to_bytes(1) + self.int_to_bytes(max(not_ignored_devices)),
 				))
 
 				self._send_packets(packets_to_send)
@@ -845,7 +845,7 @@ class Jablotron:
 		self._store_devices_data()
 
 	def _create_devices(self) -> None:
-		numbers_of_not_ignored_devices = self._get_numbers_of_not_ignored_devices()
+		numbers_of_not_ignored_devices = self._get_not_ignored_devices()
 
 		if len(numbers_of_not_ignored_devices) == 0:
 			return
@@ -1039,7 +1039,7 @@ class Jablotron:
 		if lan_connection_device_number is not None:
 			packets.append(self.create_packet_device_info(lan_connection_device_number))
 
-		for device_number in self._get_numbers_of_not_ignored_devices():
+		for device_number in self._get_not_ignored_devices():
 			if self.is_wireless_device(device_number):
 				packets.append(self.create_packet_device_info(device_number))
 
@@ -1047,7 +1047,7 @@ class Jablotron:
 			self._send_packets(packets)
 
 	def _force_devices_info_update(self) -> None:
-		for device_number in self._get_numbers_of_not_ignored_devices():
+		for device_number in self._get_not_ignored_devices():
 			device_type = self._get_device_type(device_number)
 
 			if device_type not in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR, DEVICE_SIREN_OUTDOOR):
@@ -1664,7 +1664,7 @@ class Jablotron:
 		# We need to ignore first packet
 		states = self._bytes_to_reverse_binary(packet[(states_start + 1):states_end])
 
-		for device_number in self._get_numbers_of_not_ignored_devices():
+		for device_number in self._get_not_ignored_devices():
 			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
 			self._update_state(
 				self._get_device_state_sensor_id(device_number),
@@ -1705,14 +1705,14 @@ class Jablotron:
 
 		return None
 
-	def _get_numbers_of_not_ignored_devices(self) -> List[int]:
-		numbers_of_not_ignored_devices = []
+	def _get_not_ignored_devices(self) -> List[int]:
+		not_ignored_devices = []
 
 		for number in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
 			if not self._is_device_ignored(number):
-				numbers_of_not_ignored_devices.append(number)
+				not_ignored_devices.append(number)
 
-		return numbers_of_not_ignored_devices
+		return not_ignored_devices
 
 	def _set_initial_state(self, entity_id: str, initial_state: StateType):
 		if entity_id in self.states:
