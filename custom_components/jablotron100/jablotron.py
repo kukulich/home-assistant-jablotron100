@@ -327,6 +327,7 @@ class Jablotron:
 		self._state_checker_thread_pool_executor: ThreadPoolExecutor | None = None
 		self._state_checker_stop_event: threading.Event = threading.Event()
 		self._state_checker_data_updating_event: threading.Event = threading.Event()
+		self._state_checker_diagnostics_event: threading.Event = threading.Event()
 
 		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
 		self._stored_data: dict | None = None
@@ -1047,12 +1048,15 @@ class Jablotron:
 			if device_type not in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR, DEVICE_SIREN_OUTDOOR):
 				continue
 
+			self._state_checker_diagnostics_event.clear()
+
 			self._send_packets([
 				self._create_packet_device_diagnostics_start(device_number),
 				self._create_packet_device_diagnostics_force_info(device_number),
 			])
 
-			time.sleep(0.5)
+			while not self._state_checker_diagnostics_event.wait(0.5):
+				break
 
 			self._send_packet(self._create_packet_device_diagnostics_end(device_number))
 
@@ -1119,6 +1123,9 @@ class Jablotron:
 							self._parse_device_state_packet(packet)
 
 						elif self._is_device_info_packet(packet):
+							if self._is_requested_device_info_packet(packet):
+								self._state_checker_diagnostics_event.set()
+
 							self._parse_device_info_packet(packet)
 
 						elif self._is_device_status_packet(packet):
@@ -1945,6 +1952,10 @@ class Jablotron:
 	@staticmethod
 	def _is_device_info_packet(packet: bytes) -> bool:
 		return packet[:1] == JABLOTRON_PACKET_DEVICE_INFO
+
+	@staticmethod
+	def _is_requested_device_info_packet(packet: bytes) -> bool:
+		return Jablotron._is_device_info_packet(packet) and packet[3:4] == JABLOTRON_DEVICE_INFO_SUBPACKET_REQUESTED
 
 	@staticmethod
 	def _is_device_state_packet_for_state(packet_type: int) -> bool:
