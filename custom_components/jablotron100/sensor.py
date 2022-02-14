@@ -11,6 +11,7 @@ from homeassistant.const import (
 	TEMP_CELSIUS,
 )
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
 	DATA_JABLOTRON,
 	DOMAIN,
@@ -18,7 +19,7 @@ from .const import (
 from .jablotron import Jablotron, JablotronEntity
 
 
-async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
+async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
 	async_add_entities((JablotronSignalStrengthEntity(jablotron_instance, control) for control in jablotron_instance.device_signal_strength_sensors()))

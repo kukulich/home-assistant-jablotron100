@@ -5,6 +5,7 @@ from homeassistant.components.binary_sensor import (
 	BinarySensorEntity,
 )
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import (
 	STATE_ON,
 )
@@ -43,7 +44,7 @@ DEVICE_CLASSES: Final = {
 }
 
 
-async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
+async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
 	async_add_entities((JablotronDeviceSensorEntity(jablotron_instance, control) for control in jablotron_instance.device_state_sensors()))

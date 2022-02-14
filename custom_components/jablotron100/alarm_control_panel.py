@@ -12,12 +12,13 @@ from homeassistant.components.alarm_control_panel import (
 	SUPPORT_ALARM_ARM_AWAY,
 	SUPPORT_ALARM_ARM_NIGHT,
 )
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from .const import DATA_JABLOTRON, DOMAIN
 from .jablotron import Jablotron, JablotronEntity, JablotronAlarmControlPanel
 
 
-async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities) -> None:
+async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
 	async_add_entities((JablotronAlarmControlPanelEntity(jablotron_instance, control) for control in jablotron_instance.alarm_control_panels()))
