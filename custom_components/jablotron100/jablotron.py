@@ -242,7 +242,7 @@ def check_serial_port(serial_port: str) -> None:
 
 	finally:
 		stop_event.set()
-		thread_pool_executor.shutdown()
+		thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
 
 class JablotronCentralUnit:
@@ -396,14 +396,8 @@ class Jablotron:
 	def shutdown(self) -> None:
 		self._state_checker_stop_event.set()
 
-		# Send packets so read thread can finish
-		self._send_packets([
-			self.create_packet_command(JABLOTRON_COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
-			self.create_packet_ui_control(JABLOTRON_UI_CONTROL_AUTHORISATION_END),
-		])
-
 		if self._state_checker_thread_pool_executor is not None:
-			self._state_checker_thread_pool_executor.shutdown()
+			self._state_checker_thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
 	def substribe_entity_for_updates(self, control_id: str, entity) -> None:
 		self._entities[control_id] = entity
@@ -593,7 +587,7 @@ class Jablotron:
 
 		finally:
 			stop_event.set()
-			thread_pool_executor.shutdown()
+			thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
 		if self._central_unit is None:
 			raise ShouldNotHappen
@@ -645,7 +639,7 @@ class Jablotron:
 
 		finally:
 			stop_event.set()
-			thread_pool_executor.shutdown()
+			thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
 		if packets is None:
 			raise ShouldNotHappen
@@ -801,7 +795,7 @@ class Jablotron:
 
 		finally:
 			stop_event.set()
-			thread_pool_executor.shutdown()
+			thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
 		if len(packets) != expected_packets_count:
 			raise ShouldNotHappen
