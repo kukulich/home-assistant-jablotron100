@@ -324,10 +324,10 @@ class Jablotron:
 
 		self._entities: Dict[str, JablotronEntity] = {}
 
-		self._state_checker_thread_pool_executor: ThreadPoolExecutor | None = None
-		self._state_checker_stop_event: threading.Event = threading.Event()
-		self._state_checker_data_updating_event: threading.Event = threading.Event()
-		self._state_checker_diagnostics_event: threading.Event = threading.Event()
+		self._stream_thread_pool_executor: ThreadPoolExecutor | None = None
+		self._stream_stop_event: threading.Event = threading.Event()
+		self._stream_data_updating_event: threading.Event = threading.Event()
+		self._stream_diagnostics_event: threading.Event = threading.Event()
 
 		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
 		self._stored_data: dict | None = None
@@ -371,10 +371,10 @@ class Jablotron:
 		self._create_lan_connection()
 		self._create_gsm_sensor()
 
-		# Initialize states checker
-		self._state_checker_thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-		self._state_checker_thread_pool_executor.submit(self._read_packets)
-		self._state_checker_thread_pool_executor.submit(self._keepalive)
+		# Initialize stream threads
+		self._stream_thread_pool_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+		self._stream_thread_pool_executor.submit(self._read_packets)
+		self._stream_thread_pool_executor.submit(self._keepalive)
 
 		self.last_update_success = True
 
@@ -395,10 +395,10 @@ class Jablotron:
 		self._store.async_delay_save(self._data_to_store)
 
 	def shutdown(self) -> None:
-		self._state_checker_stop_event.set()
+		self._stream_stop_event.set()
 
-		if self._state_checker_thread_pool_executor is not None:
-			self._state_checker_thread_pool_executor.shutdown(wait=False, cancel_futures=True)
+		if self._stream_thread_pool_executor is not None:
+			self._stream_thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
 	def substribe_entity_for_updates(self, control_id: str, entity) -> None:
 		self._entities[control_id] = entity
@@ -1048,14 +1048,14 @@ class Jablotron:
 			if device_type not in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR, DEVICE_SIREN_OUTDOOR):
 				continue
 
-			self._state_checker_diagnostics_event.clear()
+			self._stream_diagnostics_event.clear()
 
 			self._send_packets([
 				self._create_packet_device_diagnostics_start(device_number),
 				self._create_packet_device_diagnostics_force_info(device_number),
 			])
 
-			while not self._state_checker_diagnostics_event.wait(0.5):
+			while not self._stream_diagnostics_event.wait(0.5):
 				break
 
 			self._send_packet(self._create_packet_device_diagnostics_end(device_number))
@@ -1073,7 +1073,7 @@ class Jablotron:
 		stream = self._open_read_stream()
 		last_restarted_at_hour = datetime.datetime.now().hour
 
-		while not self._state_checker_stop_event.is_set():
+		while not self._stream_stop_event.is_set():
 
 			try:
 
@@ -1085,11 +1085,11 @@ class Jablotron:
 						stream = self._open_read_stream()
 						last_restarted_at_hour = actual_hour
 
-					self._state_checker_data_updating_event.clear()
+					self._stream_data_updating_event.clear()
 
 					raw_packet = stream.read(PACKET_SIZE)
 
-					self._state_checker_data_updating_event.set()
+					self._stream_data_updating_event.set()
 
 					if not raw_packet:
 						self.last_update_success = False
@@ -1124,7 +1124,7 @@ class Jablotron:
 
 						elif self._is_device_info_packet(packet):
 							if self._is_requested_device_info_packet(packet):
-								self._state_checker_diagnostics_event.set()
+								self._stream_diagnostics_event.set()
 
 							self._parse_device_info_packet(packet)
 
@@ -1151,8 +1151,8 @@ class Jablotron:
 		counter = 0
 		last_devices_update = None
 
-		while not self._state_checker_stop_event.is_set():
-			if not self._state_checker_data_updating_event.wait(0.5):
+		while not self._stream_stop_event.is_set():
+			if not self._stream_data_updating_event.wait(0.5):
 				try:
 					if counter == 0 and not self._is_alarm_active():
 						self._send_packets(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
