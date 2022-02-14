@@ -366,7 +366,7 @@ class Jablotron:
 		await self._load_stored_data()
 
 		self._detect_central_unit()
-		self.detect_and_create_devices_and_pg_outputs()
+		self.detect_and_create_devices_and_sections_and_pg_outputs()
 		self._create_central_unit_sensors()
 		self._create_lan_connection()
 		self._create_gsm_sensor()
@@ -378,7 +378,7 @@ class Jablotron:
 
 		self.last_update_success = True
 
-	def detect_and_create_devices_and_pg_outputs(self):
+	def detect_and_create_devices_and_sections_and_pg_outputs(self):
 		self._detect_devices()
 		self._create_devices()
 		# We need to detect devices first
