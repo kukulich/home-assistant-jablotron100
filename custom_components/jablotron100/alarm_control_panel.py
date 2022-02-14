@@ -1,5 +1,4 @@
 from __future__ import annotations
-from homeassistant import config_entries, core
 from homeassistant.const import (
 	STATE_ALARM_DISARMED,
 	STATE_ALARM_ARMED_AWAY,
@@ -12,16 +11,33 @@ from homeassistant.components.alarm_control_panel import (
 	SUPPORT_ALARM_ARM_AWAY,
 	SUPPORT_ALARM_ARM_NIGHT,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
-from .const import DATA_JABLOTRON, DOMAIN
+from .const import DATA_JABLOTRON, DOMAIN, EntityType
 from .jablotron import Jablotron, JablotronEntity, JablotronAlarmControlPanel
 
 
-async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronAlarmControlPanelEntity(jablotron_instance, control) for control in jablotron_instance.alarm_control_panels()))
+	@callback
+	def add_entities() -> None:
+		entities = []
+
+		for entity in jablotron_instance.entities[EntityType.ALARM_CONTROL_PANEL].values():
+			if entity.id not in jablotron_instance.hass_entities:
+				entities.append(JablotronAlarmControlPanelEntity(jablotron_instance, entity))
+
+		async_add_entities(entities)
+
+	config_entry.async_on_unload(
+		async_dispatcher_connect(hass, jablotron_instance.signal_entities_added(), add_entities)
+	)
+
+	add_entities()
 
 
 class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity):

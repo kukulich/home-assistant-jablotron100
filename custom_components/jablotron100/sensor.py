@@ -1,4 +1,3 @@
-from homeassistant import config_entries, core
 from homeassistant.components.sensor import (
 	SensorDeviceClass,
 	SensorEntity,
@@ -10,32 +9,48 @@ from homeassistant.const import (
 	PERCENTAGE,
 	TEMP_CELSIUS,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import (
 	DATA_JABLOTRON,
 	DOMAIN,
+	EntityType,
 )
 from .jablotron import Jablotron, JablotronEntity
 
 
-async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronSignalStrengthEntity(jablotron_instance, control) for control in jablotron_instance.device_signal_strength_sensors()))
-	async_add_entities((JablotronBatteryLevelEntity(jablotron_instance, control) for control in jablotron_instance.device_battery_level_sensors()))
-	async_add_entities((JablotronTemperatureEntity(jablotron_instance, control) for control in jablotron_instance.device_temperature_sensors()))
-	async_add_entities((JablotronVoltageEntity(jablotron_instance, control) for control in jablotron_instance.device_voltage_sensors()))
-	async_add_entities((JablotronCurrentEntity(jablotron_instance, control) for control in jablotron_instance.device_current_sensors()))
-	async_add_entities((JablotronPulseEntity(jablotron_instance, control) for control in jablotron_instance.device_pulse_sensors()))
+	@callback
+	def add_entities() -> None:
+		entities = []
 
-	gsm_signal_strength_sensor = jablotron_instance.gsm_signal_strength_sensor()
-	if gsm_signal_strength_sensor is not None:
-		async_add_entities([JablotronSignalStrengthEntity(jablotron_instance, gsm_signal_strength_sensor)])
+		mapping = {
+			EntityType.SIGNAL_STRENGTH: JablotronSignalStrengthEntity,
+			EntityType.BATTERY_LEVEL: JablotronBatteryLevelEntity,
+			EntityType.TEMPERATURE: JablotronTemperatureEntity,
+			EntityType.VOLTAGE: JablotronVoltageEntity,
+			EntityType.CURRENT: JablotronCurrentEntity,
+			EntityType.PULSE: JablotronPulseEntity,
+			EntityType.IP: JablotronIpEntity,
+		}
 
-	lan_connection_ip = jablotron_instance.lan_connection_ip()
-	if lan_connection_ip is not None:
-		async_add_entities([JablotronLanIpEntity(jablotron_instance, lan_connection_ip)])
+		for entity_type, entity_class in mapping.items():
+			for entity in jablotron_instance.entities[entity_type].values():
+				if entity.id not in jablotron_instance.hass_entities:
+					entities.append(entity_class(jablotron_instance, entity))
+
+		async_add_entities(entities)
+
+	config_entry.async_on_unload(
+		async_dispatcher_connect(hass, jablotron_instance.signal_entities_added(), add_entities)
+	)
+
+	add_entities()
 
 
 class JablotronSensor(JablotronEntity, SensorEntity):
@@ -87,7 +102,7 @@ class JablotronPulseEntity(JablotronSensor):
 	_attr_state_class = SensorStateClass.TOTAL_INCREASING
 
 
-class JablotronLanIpEntity(JablotronSensor):
+class JablotronIpEntity(JablotronSensor):
 
 	_attr_state_class = None
 	_attr_entity_category = EntityCategory.DIAGNOSTIC

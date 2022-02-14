@@ -21,6 +21,7 @@ from homeassistant.const import (
 from homeassistant.helpers import storage
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import StateType
+from homeassistant.helpers import entity_registry as er
 import math
 import re
 import sys
@@ -68,6 +69,7 @@ from .const import (
 	EVENT_WRONG_CODE,
 	LOGGER,
 	MAX_SECTIONS,
+	EntityType,
 )
 from .errors import (
 	ModelNotDetected,
@@ -297,32 +299,33 @@ class JablotronProgrammableOutput(JablotronControl):
 
 class Jablotron:
 
-	def __init__(self, hass: core.HomeAssistant, config: Dict[str, Any], options: Dict[str, Any]) -> None:
+	def __init__(self, hass: core.HomeAssistant, config_entry_id: str, config: Dict[str, Any], options: Dict[str, Any]) -> None:
 		self._hass: core.HomeAssistant = hass
+		self._config_entry_id: str = config_entry_id
 		self._config: Dict[str, Any] = config
 		self._options: Dict[str, Any] = options
 
 		self._central_unit: JablotronCentralUnit | None = None
 		self._device_hass_devices: Dict[str, JablotronHassDevice] = {}
 
-		self._alarm_control_panels: Dict[str, JablotronAlarmControlPanel] = {}
-		self._section_problem_sensors: Dict[str, JablotronControl] = {}
-		self._section_fire_sensors: Dict[str, JablotronControl] = {}
-		self._device_state_sensors: Dict[str, JablotronDevice] = {}
-		self._device_problem_sensors: Dict[str, JablotronControl] = {}
-		self._device_signal_strength_sensors: Dict[str, JablotronControl] = {}
-		self._device_battery_level_sensors: Dict[str, JablotronControl] = {}
-		self._device_temperature_sensors: Dict[str, JablotronControl] = {}
-		self._device_voltage_sensors: Dict[str, JablotronControl] = {}
-		self._device_current_sensors: Dict[str, JablotronControl] = {}
-		self._device_pulse_sensors: Dict[str, JablotronControl] = {}
-		self._lan_connection: JablotronControl | None = None
-		self._lan_connection_ip: JablotronControl | None = None
-		self._gsm_signal_sensor: JablotronControl | None = None
-		self._gsm_signal_strength_sensor: JablotronControl | None = None
-		self._pg_outputs: Dict[str, JablotronProgrammableOutput] = {}
-
-		self._entities: Dict[str, JablotronEntity] = {}
+		self.entities: Dict[EntityType, Dict[str, JablotronControl]] = {
+			EntityType.ALARM_CONTROL_PANEL: {},
+			EntityType.BATTERY_LEVEL: {},
+			EntityType.CURRENT: {},
+			EntityType.DEVICE_STATE: {},
+			EntityType.FIRE: {},
+			EntityType.GSM_SIGNAL: {},
+			EntityType.IP: {},
+			EntityType.LAN_CONNECTION: {},
+			EntityType.PULSE: {},
+			EntityType.PROBLEM: {},
+			EntityType.PROGRAMMABLE_OUTPUT: {},
+			EntityType.SIGNAL_STRENGTH: {},
+			EntityType.TEMPERATURE: {},
+			EntityType.VOLTAGE: {},
+		}
+		self.entities_states: Dict[str, StateType] = {}
+		self.hass_entities: Dict[str, JablotronEntity] = {}
 
 		self._stream_thread_pool_executor: ThreadPoolExecutor | None = None
 		self._stream_stop_event: threading.Event = threading.Event()
@@ -334,16 +337,22 @@ class Jablotron:
 
 		self._devices_data: Dict[str, Dict[str, str | int | None]] = {}
 
-		self.states: Dict[str, StateType] = {}
 		self.last_update_success: bool = False
 		self.in_service_mode = False
 
 		self._last_active_user: int | None = None
 		self._successful_login: bool = True
 
-	def update_options(self, options: Dict[str, Any]) -> None:
+	def signal_entities_added(self) -> str:
+		return "{}_{}_entities_added".format(DOMAIN, self._config_entry_id)
+
+	async def update_config_and_options(self, config: Dict[str, Any], options: Dict[str, Any]) -> None:
+		self._config = config
 		self._options = options
-		self._update_all_entities()
+
+		await self._detect_and_create_devices_and_sections_and_pg_outputs()
+
+		self._update_all_hass_entities()
 
 	def is_code_required_for_disarm(self) -> bool:
 		return self._options.get(CONF_REQUIRE_CODE_TO_DISARM, DEFAULT_CONF_REQUIRE_CODE_TO_DISARM)
@@ -366,7 +375,7 @@ class Jablotron:
 		await self._load_stored_data()
 
 		self._detect_central_unit()
-		self.detect_and_create_devices_and_sections_and_pg_outputs()
+		await self._detect_and_create_devices_and_sections_and_pg_outputs()
 		self._create_central_unit_sensors()
 		self._create_lan_connection()
 		self._create_gsm_sensor()
@@ -378,9 +387,9 @@ class Jablotron:
 
 		self.last_update_success = True
 
-	def detect_and_create_devices_and_sections_and_pg_outputs(self):
+	async def _detect_and_create_devices_and_sections_and_pg_outputs(self):
 		self._detect_devices()
-		self._create_devices()
+		await self._create_devices()
 		# We need to detect devices first
 		self._detect_sections_and_pg_outputs()
 
@@ -400,8 +409,8 @@ class Jablotron:
 		if self._stream_thread_pool_executor is not None:
 			self._stream_thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
-	def substribe_entity_for_updates(self, control_id: str, entity) -> None:
-		self._entities[control_id] = entity
+	def substribe_hass_entity_for_updates(self, control_id: str, hass_entity: JablotronEntity) -> None:
+		self.hass_entities[control_id] = hass_entity
 
 	def modify_alarm_control_panel_section_state(self, section: int, state: str, code: str | None) -> None:
 		if code is None:
@@ -454,57 +463,9 @@ class Jablotron:
 
 		self._send_packet(packet)
 
-	def alarm_control_panels(self) -> List[JablotronAlarmControlPanel]:
-		return list(self._alarm_control_panels.values())
-
-	def section_problem_sensors(self) -> List[JablotronControl]:
-		return list(self._section_problem_sensors.values())
-
-	def section_fire_sensors(self) -> List[JablotronControl]:
-		return list(self._section_fire_sensors.values())
-
-	def device_state_sensors(self) -> List[JablotronDevice]:
-		return list(self._device_state_sensors.values())
-
-	def device_problem_sensors(self) -> List[JablotronControl]:
-		return list(self._device_problem_sensors.values())
-
-	def device_signal_strength_sensors(self) -> List[JablotronControl]:
-		return list(self._device_signal_strength_sensors.values())
-
-	def device_battery_level_sensors(self) -> List[JablotronControl]:
-		return list(self._device_battery_level_sensors.values())
-
-	def device_temperature_sensors(self) -> List[JablotronControl]:
-		return list(self._device_temperature_sensors.values())
-
-	def device_voltage_sensors(self) -> List[JablotronControl]:
-		return list(self._device_voltage_sensors.values())
-
-	def device_current_sensors(self) -> List[JablotronControl]:
-		return list(self._device_current_sensors.values())
-
-	def device_pulse_sensors(self) -> List[JablotronControl]:
-		return list(self._device_pulse_sensors.values())
-
-	def lan_connection(self) -> JablotronControl | None:
-		return self._lan_connection
-
-	def lan_connection_ip(self) -> JablotronControl | None:
-		return self._lan_connection_ip
-
-	def gsm_signal_sensor(self) -> JablotronControl | None:
-		return self._gsm_signal_sensor
-
-	def gsm_signal_strength_sensor(self) -> JablotronControl | None:
-		return self._gsm_signal_strength_sensor
-
-	def pg_outputs(self) -> List[JablotronProgrammableOutput]:
-		return list(self._pg_outputs.values())
-
-	def _update_all_entities(self) -> None:
-		for entity in self._entities.values():
-			entity.refresh_state()
+	def _update_all_hass_entities(self) -> None:
+		for hass_entity in self.hass_entities.values():
+			hass_entity.refresh_state()
 
 	async def _load_stored_data(self) -> None:
 		self._stored_data = await self._store.async_load()
@@ -518,7 +479,7 @@ class Jablotron:
 			return
 
 		if STORAGE_STATES_KEY in self._stored_data[serial_port]:
-			self.states = copy.deepcopy(self._stored_data[serial_port][STORAGE_STATES_KEY])
+			self.entities_states = copy.deepcopy(self._stored_data[serial_port][STORAGE_STATES_KEY])
 
 		if STORAGE_DEVICES_KEY in self._stored_data[serial_port]:
 			self._devices_data = copy.deepcopy(self._stored_data[serial_port][STORAGE_DEVICES_KEY])
@@ -666,36 +627,37 @@ class Jablotron:
 			section_has_smoke_detector = self._is_smoke_detector_in_section(section)
 
 			if (
-				section_alarm_id in self._alarm_control_panels
-				and section_problem_sensor_id in self._section_problem_sensors
-				and (not section_has_smoke_detector or section_fire_sensor_id in self._section_fire_sensors)
+				section_alarm_id in self.entities[EntityType.ALARM_CONTROL_PANEL]
+				and section_problem_sensor_id in self.entities[EntityType.PROBLEM]
+				and (not section_has_smoke_detector or section_fire_sensor_id in self.entities[EntityType.FIRE])
 			):
 				continue
 
 			section_hass_device = self._create_section_hass_device(section)
 			section_state = self._parse_jablotron_section_state(section_binary)
 
-			if section_alarm_id not in self._alarm_control_panels:
-				self._alarm_control_panels[section_alarm_id] = JablotronAlarmControlPanel(
+			if section_alarm_id not in self.entities[EntityType.ALARM_CONTROL_PANEL]:
+				self.entities[EntityType.ALARM_CONTROL_PANEL][section_alarm_id] = JablotronAlarmControlPanel(
 					self._central_unit,
 					section_hass_device,
 					section_alarm_id,
 					self._get_section_alarm_name(section),
 					section,
 				)
-				self._set_initial_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state))
+				self._set_entity_initial_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state))
 
-			if section_problem_sensor_id not in self._section_problem_sensors:
-				self._section_problem_sensors[section_problem_sensor_id] = self._create_device_sensor(
-					section_hass_device,
-					section_problem_sensor_id,
-					self._get_section_problem_sensor_name(section),
-					self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
-				)
+			self._add_entity(
+				section_hass_device,
+				EntityType.PROBLEM,
+				section_problem_sensor_id,
+				self._get_section_problem_sensor_name(section),
+				self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
+			)
 
-			if section_has_smoke_detector and section_fire_sensor_id not in self._section_fire_sensors:
-				self._section_fire_sensors[section_fire_sensor_id] = self._create_device_sensor(
+			if section_has_smoke_detector:
+				self._add_entity(
 					section_hass_device,
+					EntityType.FIRE,
 					section_fire_sensor_id,
 					self._get_section_fire_sensor_name(section),
 					self._convert_jablotron_section_state_to_fire_sensor_state(section_state),
@@ -708,17 +670,17 @@ class Jablotron:
 		for pg_output_number in range(1, self._config[CONF_NUMBER_OF_PG_OUTPUTS] + 1):
 			pg_output_id = self._get_pg_output_id(pg_output_number)
 
-			if pg_output_id in self._pg_outputs:
+			if pg_output_id in self.entities[EntityType.PROGRAMMABLE_OUTPUT]:
 				continue
 
-			self._pg_outputs[pg_output_id] = JablotronProgrammableOutput(
+			self.entities[EntityType.PROGRAMMABLE_OUTPUT][pg_output_id] = JablotronProgrammableOutput(
 				self._central_unit,
 				pg_output_id,
 				self._get_pg_output_name(pg_output_number),
 				pg_output_number,
 			)
 
-			self._set_initial_state(pg_output_id, STATE_OFF)
+			self._set_entity_initial_state(pg_output_id, STATE_OFF)
 
 	def _detect_devices(self) -> None:
 		not_ignored_devices = self._get_not_ignored_devices()
@@ -839,153 +801,151 @@ class Jablotron:
 
 		self._store_devices_data()
 
-	def _create_devices(self) -> None:
-		numbers_of_not_ignored_devices = self._get_not_ignored_devices()
+	async def _create_devices(self) -> None:
+		for device_number in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
+			device_problem_sensor_id = self._get_device_problem_sensor_id(device_number)
 
-		if len(numbers_of_not_ignored_devices) == 0:
-			return
+			if self._is_device_ignored(device_number):
+				# Remove problem sensor if device is ignored now
+				await self._remove_entity(EntityType.PROBLEM, device_problem_sensor_id)
+				continue
 
-		for device_number in numbers_of_not_ignored_devices:
 			device_id = self._get_device_id(device_number)
+			device_type = self._get_device_type(device_number)
 
 			if device_id not in self._device_hass_devices:
 				self._device_hass_devices[device_id] = self._create_device_hass_device(device_number)
 
 			hass_device = self._device_hass_devices[device_id]
 
-			device_type = self._get_device_type(device_number)
+			# Problem sensor
+			self._add_entity(
+				hass_device,
+				EntityType.PROBLEM,
+				device_problem_sensor_id,
+				self._get_device_problem_sensor_name(device_number),
+				STATE_OFF,
+			)
 
 			# State sensor
 			device_state_sensor_id = self._get_device_state_sensor_id(device_number)
 			if self._is_device_with_state(device_number):
-				if device_state_sensor_id not in self._device_state_sensors:
-					self._device_state_sensors[device_state_sensor_id] = JablotronDevice(
+				if device_state_sensor_id not in self.entities[EntityType.DEVICE_STATE]:
+					self.entities[EntityType.DEVICE_STATE][device_state_sensor_id] = JablotronDevice(
 						self._central_unit,
 						hass_device,
 						device_state_sensor_id,
 						self._get_device_sensor_name(device_number),
 						device_type,
 					)
-					self._set_initial_state(device_state_sensor_id, STATE_OFF)
-			elif device_state_sensor_id in self._device_state_sensors:
-				del self._device_state_sensors[device_state_sensor_id]
-
-			# Problem sensor
-			device_problem_sensor_id = self._get_device_problem_sensor_id(device_number)
-			if device_problem_sensor_id not in self._device_problem_sensors:
-				self._device_problem_sensors[device_problem_sensor_id] = self._create_device_sensor(
-					hass_device,
-					device_problem_sensor_id,
-					self._get_device_problem_sensor_name(device_number),
-					STATE_OFF,
-				)
+					self._set_entity_initial_state(device_state_sensor_id, STATE_OFF)
+			else:
+				await self._remove_entity(EntityType.DEVICE_STATE, device_state_sensor_id)
 
 			# Signal strength sensor
 			device_signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
 			if self.is_wireless_device(device_number):
-				if device_signal_strength_sensor_id not in self._device_signal_strength_sensors:
-					self._device_signal_strength_sensors[device_signal_strength_sensor_id] = self._create_device_sensor(
-						hass_device,
-						device_signal_strength_sensor_id,
-						self._get_device_signal_strength_sensor_name(device_number),
-						self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH],
-					)
-			elif device_signal_strength_sensor_id in self._device_signal_strength_sensors:
-				del self._device_signal_strength_sensors[device_signal_strength_sensor_id]
+				self._add_entity(
+					hass_device,
+					EntityType.SIGNAL_STRENGTH,
+					device_signal_strength_sensor_id,
+					self._get_device_signal_strength_sensor_name(device_number),
+					self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH],
+				)
+			else:
+				await self._remove_entity(EntityType.SIGNAL_STRENGTH, device_signal_strength_sensor_id)
 
 			# Battery level sensor
 			device_battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
 			if self.is_device_with_battery(device_number):
-				if device_battery_level_sensor_id not in self._device_battery_level_sensors:
-					self._device_battery_level_sensors[device_battery_level_sensor_id] = self._create_device_sensor(
-						hass_device,
-						device_battery_level_sensor_id,
-						self._get_device_battery_level_sensor_name(device_number),
-						self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL],
-					)
-			elif device_battery_level_sensor_id in self._device_battery_level_sensors:
-				del self._device_battery_level_sensors[device_battery_level_sensor_id]
+				self._add_entity(
+					hass_device,
+					EntityType.BATTERY_LEVEL,
+					device_battery_level_sensor_id,
+					self._get_device_battery_level_sensor_name(device_number),
+					self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL],
+				)
+			else:
+				await self._remove_entity(EntityType.BATTERY_LEVEL, device_battery_level_sensor_id)
 
 			# Temperature sensor
 			device_temperature_sensor_id = self._get_device_temperature_sensor_id(device_number)
 			if device_type in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR):
-				if device_temperature_sensor_id not in self._device_temperature_sensors:
-					self._device_temperature_sensors[device_temperature_sensor_id] = self._create_device_sensor(
-						hass_device,
-						device_temperature_sensor_id,
-						self._get_device_temperature_sensor_name(device_number),
-					)
-			elif device_temperature_sensor_id in self._device_temperature_sensors:
-				del self._device_temperature_sensors[device_temperature_sensor_id]
+				self._add_entity(
+					hass_device,
+					EntityType.TEMPERATURE,
+					device_temperature_sensor_id,
+					self._get_device_temperature_sensor_name(device_number),
+				)
+			else:
+				await self._remove_entity(EntityType.TEMPERATURE, device_temperature_sensor_id)
 
 			# Battery voltage sensors
 			device_battery_standby_voltage_sensor_id = self._get_device_battery_standby_voltage_sensor_id(device_number)
 			device_battery_load_voltage_sensor_id = self._get_device_battery_load_voltage_sensor_id(device_number)
 			if device_type == DEVICE_SIREN_OUTDOOR:
-				if device_battery_standby_voltage_sensor_id not in self._device_battery_level_sensors:
-					self._device_voltage_sensors[device_battery_standby_voltage_sensor_id] = self._create_device_sensor(
-						hass_device,
-						device_battery_standby_voltage_sensor_id,
-						self._get_device_battery_standby_voltage_sensor_name(device_number),
-					)
+				self._add_entity(
+					hass_device,
+					EntityType.VOLTAGE,
+					device_battery_standby_voltage_sensor_id,
+					self._get_device_battery_standby_voltage_sensor_name(device_number),
+				)
 
-				if device_battery_load_voltage_sensor_id not in self._device_battery_level_sensors:
-					self._device_voltage_sensors[device_battery_load_voltage_sensor_id] = self._create_device_sensor(
-						hass_device,
-						device_battery_load_voltage_sensor_id,
-						self._get_device_battery_load_voltage_sensor_name(device_number),
-					)
+				self._add_entity(
+					hass_device,
+					EntityType.VOLTAGE,
+					device_battery_load_voltage_sensor_id,
+					self._get_device_battery_load_voltage_sensor_name(device_number),
+				)
 			else:
-				if device_battery_standby_voltage_sensor_id in self._device_voltage_sensors:
-					del self._device_voltage_sensors[device_battery_standby_voltage_sensor_id]
-				if device_battery_load_voltage_sensor_id in self._device_voltage_sensors:
-					del self._device_voltage_sensors[device_battery_load_voltage_sensor_id]
+				await self._remove_entity(EntityType.VOLTAGE, device_battery_standby_voltage_sensor_id)
+				await self._remove_entity(EntityType.VOLTAGE, device_battery_load_voltage_sensor_id)
 
 			# Pulses sensor
 			device_pulse_sensor_id = self._get_device_pulse_sensor_id(device_number)
 			if device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
-				if device_pulse_sensor_id not in self._device_pulse_sensors:
-					self._device_pulse_sensors[device_pulse_sensor_id] = self._create_device_sensor(
-						hass_device,
-						device_pulse_sensor_id,
-						self._get_device_pulse_sensor_name(device_number),
-					)
-			elif device_pulse_sensor_id in self._device_pulse_sensors:
-				del self._device_pulse_sensors[device_pulse_sensor_id]
+				self._add_entity(
+					hass_device,
+					EntityType.PULSE,
+					device_pulse_sensor_id,
+					self._get_device_pulse_sensor_name(device_number),
+				)
+			else:
+				await self._remove_entity(EntityType.PULSE, device_pulse_sensor_id)
 
 	def _create_central_unit_sensors(self) -> None:
-		battery_level_sensor_id = self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_battery_level_sensors[battery_level_sensor_id] = self._create_device_sensor(
+		self._add_entity(
 			None,
-			battery_level_sensor_id,
+			EntityType.BATTERY_LEVEL,
+			self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_battery_level_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		)
 
-		battery_standby_voltage_sensor_id = self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_voltage_sensors[battery_standby_voltage_sensor_id] = self._create_device_sensor(
+		self._add_entity(
 			None,
-			battery_standby_voltage_sensor_id,
+			EntityType.VOLTAGE,
+			self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_battery_standby_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		)
 
-		battery_load_voltage_sensor_id = self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_voltage_sensors[battery_load_voltage_sensor_id] = self._create_device_sensor(
+		self._add_entity(
 			None,
-			battery_load_voltage_sensor_id,
+			EntityType.VOLTAGE,
+			self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_battery_load_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		)
 
-		bus_voltage_sensor_id = self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_voltage_sensors[bus_voltage_sensor_id] = self._create_device_sensor(
+		self._add_entity(
 			None,
-			bus_voltage_sensor_id,
+			EntityType.VOLTAGE,
+			self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_bus_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		)
 
-		bus_devices_loss_sensor_id = self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER)
-		self._device_current_sensors[bus_devices_loss_sensor_id] = self._create_device_sensor(
+		self._add_entity(
 			None,
-			bus_devices_loss_sensor_id,
+			EntityType.CURRENT,
+			self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 			self._get_device_bus_devices_loss_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
 		)
 
@@ -993,15 +953,17 @@ class Jablotron:
 		if self._get_lan_connection_device_number() is None:
 			return None
 
-		self._lan_connection = self._create_device_sensor(
+		self._add_entity(
 			None,
+			EntityType.LAN_CONNECTION,
 			self._get_lan_connection_id(),
 			self._get_lan_connection_name(),
 			STATE_ON,
 		)
 
-		self._lan_connection_ip = self._create_device_sensor(
+		self._add_entity(
 			None,
+			EntityType.IP,
 			self._get_lan_connection_ip_id(),
 			self._get_lan_connection_ip_name(),
 		)
@@ -1010,14 +972,17 @@ class Jablotron:
 		if self._get_gsm_device_number() is None:
 			return None
 
-		self._gsm_signal_sensor = self._create_device_sensor(
+		self._add_entity(
 			None,
+			EntityType.GSM_SIGNAL,
 			self._get_gsm_signal_sensor_id(),
 			self._get_gsm_signal_sensor_name(),
 			STATE_ON,
 		)
-		self._gsm_signal_strength_sensor = self._create_device_sensor(
+
+		self._add_entity(
 			None,
+			EntityType.SIGNAL_STRENGTH,
 			self._get_gsm_signal_strength_sensor_id(),
 			self._get_gsm_signal_strength_sensor_name(),
 			100,
@@ -1093,12 +1058,12 @@ class Jablotron:
 
 					if not raw_packet:
 						self.last_update_success = False
-						self._update_all_entities()
+						self._update_all_hass_entities()
 						break
 
 					if self.last_update_success is False:
 						self.last_update_success = True
-						self._update_all_entities()
+						self._update_all_hass_entities()
 
 					packets = self.get_packets_from_packet(raw_packet)
 
@@ -1111,7 +1076,7 @@ class Jablotron:
 							self._parse_sections_states_packet(packet)
 
 							if in_service_mode != self.in_service_mode:
-								self._update_all_entities()
+								self._update_all_hass_entities()
 
 						elif self._is_pg_outputs_states_packet(packet):
 							self._parse_pg_outputs_states_packet(packet)
@@ -1141,7 +1106,7 @@ class Jablotron:
 			except Exception as ex:
 				LOGGER.error("Read error: {}".format(format(ex)))
 				self.last_update_success = False
-				self._update_all_entities()
+				self._update_all_hass_entities()
 
 			time.sleep(0.5)
 
@@ -1212,12 +1177,10 @@ class Jablotron:
 		return open(self._config[CONF_SERIAL_PORT], "rb", buffering=0)
 
 	def _is_alarm_active(self) -> bool:
-		for alarm_control_panel in self._alarm_control_panels.values():
-			section_alarm_id = self._get_section_alarm_id(alarm_control_panel.section)
-
+		for section_alarm_id in self.entities[EntityType.ALARM_CONTROL_PANEL]:
 			if (
-				self.states[section_alarm_id] == STATE_ALARM_TRIGGERED
-				or self.states[section_alarm_id] == STATE_ALARM_PENDING
+				self.entities_states[section_alarm_id] == STATE_ALARM_TRIGGERED
+				or self.entities_states[section_alarm_id] == STATE_ALARM_PENDING
 			):
 				return True
 
@@ -1290,20 +1253,20 @@ class Jablotron:
 				self.in_service_mode = True
 				return
 
-			self._update_state(
+			self._update_entity_state(
 				self._get_section_alarm_id(section),
 				self._convert_jablotron_section_state_to_alarm_state(section_state),
 				store_state=False,
 			)
-			self._update_state(
+			self._update_entity_state(
 				self._get_section_problem_sensor_id(section),
 				self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
 				store_state=False,
 			)
 
 			section_fire_sensor_id = self._get_section_fire_sensor_id(section)
-			if section_fire_sensor_id in self._section_fire_sensors:
-				self._update_state(
+			if section_fire_sensor_id in self.entities[EntityType.FIRE]:
+				self._update_entity_state(
 					section_fire_sensor_id,
 					self._convert_jablotron_section_state_to_fire_sensor_state(section_state),
 					store_state=False,
@@ -1336,7 +1299,7 @@ class Jablotron:
 		signal_strength_sensor_id = self._get_gsm_signal_strength_sensor_id()
 		signal_strength = self.bytes_to_int(packet[5:6])
 
-		self._update_state(signal_strength_sensor_id, signal_strength)
+		self._update_entity_state(signal_strength_sensor_id, signal_strength)
 
 		self._store_devices_data()
 
@@ -1349,7 +1312,7 @@ class Jablotron:
 
 		lan_ip = ".".join(ip_parts)
 
-		self._update_state(lan_connection_ip_id, lan_ip)
+		self._update_entity_state(lan_connection_ip_id, lan_ip)
 
 		self._store_devices_data()
 
@@ -1360,7 +1323,7 @@ class Jablotron:
 		signal_strength = self._parse_device_signal_strength_from_device_status_packet(packet)
 		signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
 
-		self._update_state(signal_strength_sensor_id, signal_strength)
+		self._update_entity_state(signal_strength_sensor_id, signal_strength)
 		self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH] = signal_strength
 
 		battery_level = self._parse_device_battery_level_from_device_status_packet(packet)
@@ -1368,7 +1331,7 @@ class Jablotron:
 		if battery_level is not None:
 			battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
 
-			self._update_state(battery_level_sensor_id, battery_level)
+			self._update_entity_state(battery_level_sensor_id, battery_level)
 			self._device_hass_devices[device_id].battery_level = battery_level
 			self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] = battery_level
 
@@ -1423,13 +1386,13 @@ class Jablotron:
 			self._is_device_with_state(device_number)
 			and self._is_device_state_packet_for_state(packet_type)
 		):
-			self._update_state(
+			self._update_entity_state(
 				self._get_device_state_sensor_id(device_number),
 				device_state,
 				store_state=False,
 			)
 		elif self._is_device_state_packet_for_fault(packet_type):
-			self._update_state(
+			self._update_entity_state(
 				self._get_device_problem_sensor_id(device_number),
 				device_state,
 			)
@@ -1438,7 +1401,7 @@ class Jablotron:
 
 		if self.is_wireless_device(device_number):
 			device_signal_strength = self.bytes_to_int(packet[10:11]) * JABLOTRON_SIGNAL_STRENGTH_STEP
-			self._update_state(
+			self._update_entity_state(
 				self._get_device_signal_strength_sensor_id(device_number),
 				device_signal_strength,
 			)
@@ -1460,7 +1423,7 @@ class Jablotron:
 			return
 
 		if self.is_device_with_battery(device_number):
-			self._update_state(
+			self._update_entity_state(
 				self._get_device_battery_level_sensor_id(device_number),
 				self._parse_device_battery_level_from_device_info_packet(packet),
 			)
@@ -1499,7 +1462,7 @@ class Jablotron:
 
 					temperature = round((Jablotron.bytes_to_int(info_packet[3:4]) + (255 * modifier)) / 10, 1)
 
-					self._update_state(
+					self._update_entity_state(
 						self._get_device_temperature_sensor_id(device_number),
 						temperature,
 					)
@@ -1530,7 +1493,7 @@ class Jablotron:
 				)
 				continue
 
-			self._update_state(
+			self._update_entity_state(
 				self._get_device_temperature_sensor_id(device_number),
 				float(Jablotron.bytes_to_int(info_packet[1:2])),
 			)
@@ -1551,12 +1514,12 @@ class Jablotron:
 			channel = info_packet[1:2]
 
 			if channel == b"\x00":
-				self._update_state(
+				self._update_entity_state(
 					self._get_device_battery_standby_voltage_sensor_id(device_number),
 					self.bytes_to_float(info_packet[2:3]),
 				)
 			elif channel == b"\x01":
-				self._update_state(
+				self._update_entity_state(
 					self._get_device_battery_load_voltage_sensor_id(device_number),
 					self.bytes_to_float(info_packet[2:3]),
 				)
@@ -1585,7 +1548,7 @@ class Jablotron:
 			if info_packet_number == 1:
 				pulses = self.bytes_to_int(info_packet[11:12]) + 255 * self.bytes_to_int(info_packet[12:13])
 
-				self._update_state(
+				self._update_entity_state(
 					self._get_device_pulse_sensor_id(device_number),
 					pulses,
 				)
@@ -1603,12 +1566,12 @@ class Jablotron:
 			channel = info_packet[1:2]
 
 			if channel == b"\x00":
-				self._update_state(
+				self._update_entity_state(
 					self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 					self.bytes_to_float(info_packet[2:3]),
 				)
 			elif channel == b"\x10":
-				self._update_state(
+				self._update_entity_state(
 					self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 					self.bytes_to_float(info_packet[2:3]),
 				)
@@ -1616,11 +1579,11 @@ class Jablotron:
 				# Battery in test
 				pass
 			elif channel == b"\x01":
-				self._update_state(
+				self._update_entity_state(
 					self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 					self.bytes_to_float(info_packet[2:3]),
 				)
-				self._update_state(
+				self._update_entity_state(
 					self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
 					self.bytes_to_int(info_packet[3:4]),
 				)
@@ -1639,7 +1602,7 @@ class Jablotron:
 			self._log_error_with_packet("Unknown state packet of LAN connection", packet)
 			return
 
-		self._update_state(
+		self._update_entity_state(
 			self._get_lan_connection_id(),
 			STATE_ON if device_state == STATE_OFF else STATE_OFF,
 		)
@@ -1653,7 +1616,7 @@ class Jablotron:
 			self._log_error_with_packet("Unknown state packet of GSM", packet)
 			return
 
-		self._update_state(
+		self._update_entity_state(
 			self._get_gsm_signal_sensor_id(),
 			STATE_ON if device_state == STATE_OFF else STATE_OFF,
 		)
@@ -1667,7 +1630,7 @@ class Jablotron:
 
 		for device_number in self._get_not_ignored_devices():
 			device_state = STATE_ON if states[device_number:(device_number + 1)] == "1" else STATE_OFF
-			self._update_state(
+			self._update_entity_state(
 				self._get_device_state_sensor_id(device_number),
 				device_state,
 				store_state=False,
@@ -1686,7 +1649,7 @@ class Jablotron:
 			pg_output_number = index + 1
 			pg_output_state = STATE_ON if states[index:(index + 1)] == "1" else STATE_OFF
 
-			self._update_state(
+			self._update_entity_state(
 				self._get_pg_output_id(pg_output_number),
 				pg_output_state,
 			)
@@ -1715,24 +1678,24 @@ class Jablotron:
 
 		return not_ignored_devices
 
-	def _set_initial_state(self, entity_id: str, initial_state: StateType):
-		if entity_id in self.states:
+	def _set_entity_initial_state(self, entity_id: str, initial_state: StateType):
+		if entity_id in self.entities_states:
 			# Loaded from stored data
 			return
 
-		self._update_state(entity_id, initial_state, store_state=False)
+		self._update_entity_state(entity_id, initial_state, store_state=False)
 
-	def _update_state(self, entity_id: str, state: StateType, store_state: bool = True) -> None:
+	def _update_entity_state(self, entity_id: str, state: StateType, store_state: bool = True) -> None:
 		if store_state is True:
 			self._store_state(entity_id, state)
 
-		if entity_id in self.states and state == self.states[entity_id]:
+		if entity_id in self.entities_states and state == self.entities_states[entity_id]:
 			return
 
-		if entity_id in self._entities:
-			self._entities[entity_id].update_state(state)
+		if entity_id in self.hass_entities:
+			self.hass_entities[entity_id].update_state(state)
 		else:
-			self.states[entity_id] = state
+			self.entities_states[entity_id] = state
 
 	def _log_incoming_packet(self, packet: bytes) -> None:
 		if self._should_be_incoming_packet_logged(packet):
@@ -1800,7 +1763,7 @@ class Jablotron:
 
 		return False
 
-	def _store_state(self, entity_id: str, state: StateType):
+	def _store_state(self, entity_id: str, state: StateType) -> None:
 		serial_port = self._config[CONF_SERIAL_PORT]
 
 		if serial_port not in self._stored_data:
@@ -1818,7 +1781,22 @@ class Jablotron:
 		self._stored_data[serial_port][STORAGE_STATES_KEY][entity_id] = state
 		self._store.async_delay_save(self._data_to_store)
 
-	def _store_devices_data(self):
+	def _remove_stored_entity_state(self, entity_id: str) -> None:
+		serial_port = self._config[CONF_SERIAL_PORT]
+
+		if serial_port not in self._stored_data:
+			return
+
+		if STORAGE_STATES_KEY not in self._stored_data[serial_port]:
+			return
+
+		if entity_id not in self._stored_data[serial_port][STORAGE_STATES_KEY]:
+			return
+
+		del self._stored_data[serial_port][STORAGE_STATES_KEY][entity_id]
+		self._store.async_delay_save(self._data_to_store)
+
+	def _store_devices_data(self) -> None:
 		serial_port = self._config[CONF_SERIAL_PORT]
 
 		if serial_port not in self._stored_data:
@@ -1841,16 +1819,35 @@ class Jablotron:
 			battery_level,
 		)
 
-	def _create_device_sensor(self, hass_device: JablotronHassDevice | None, sensor_id: str, sensor_name: str, initial_state: StateType = None) -> JablotronControl:
-		sensor = JablotronControl(
+	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, entity_name: str, initial_state: StateType = None) -> None:
+		if entity_id in self.entities[entity_type]:
+			return
+
+		control = JablotronControl(
 			self._central_unit,
 			hass_device,
-			sensor_id,
-			sensor_name,
+			entity_id,
+			entity_name,
 		)
-		self._set_initial_state(sensor_id, initial_state)
 
-		return sensor
+		self.entities[entity_type][entity_id] = control
+
+		self._set_entity_initial_state(entity_id, initial_state)
+
+	async def _remove_entity(self, entity_type: EntityType, entity_id: str) -> None:
+		if entity_id not in self.entities[entity_type]:
+			return
+
+		del self.entities[entity_type][entity_id]
+
+		if entity_id in self.hass_entities:
+			await self.hass_entities[entity_id].remove_from_hass()
+			del self.hass_entities[entity_id]
+
+		if entity_id in self.entities_states:
+			del self.entities_states[entity_id]
+
+		self._remove_stored_entity_state(entity_id)
 
 	def _is_smoke_detector_in_section(self, section: int) -> bool:
 		for device_id in self._devices_data:
@@ -2513,15 +2510,21 @@ class JablotronEntity(Entity):
 		return self._jablotron.last_update_success
 
 	async def async_added_to_hass(self) -> None:
-		self._jablotron.substribe_entity_for_updates(self._control.id, self)
+		self._jablotron.substribe_hass_entity_for_updates(self._control.id, self)
+
+	async def remove_from_hass(self) -> None:
+		if self.registry_entry:
+			er.async_get(self.hass).async_remove(self.entity_id)
+		else:
+			await self.async_remove(force_remove=True)
 
 	def refresh_state(self) -> None:
 		self._update_attributes()
 		self.async_write_ha_state()
 
 	def update_state(self, state: StateType) -> None:
-		self._jablotron.states[self._control.id] = state
+		self._jablotron.entities_states[self._control.id] = state
 		self.refresh_state()
 
 	def _get_state(self) -> StateType:
-		return self._jablotron.states[self._control.id]
+		return self._jablotron.entities_states[self._control.id]

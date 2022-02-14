@@ -1,8 +1,10 @@
 """The Jablotron integration."""
 
-from homeassistant import config_entries, core
 from homeassistant.const import Platform
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
 	DATA_JABLOTRON,
@@ -13,10 +15,10 @@ from .const import (
 from .jablotron import Jablotron
 
 
-async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
 	hass.data.setdefault(DOMAIN, {})
 
-	jablotron_instance: Jablotron = Jablotron(hass, config_entry.data, config_entry.options)
+	jablotron_instance: Jablotron = Jablotron(hass, config_entry.entry_id, config_entry.data, config_entry.options)
 	await jablotron_instance.initialize()
 
 	hass.data[DOMAIN][config_entry.entry_id] = {
@@ -44,7 +46,7 @@ async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entri
 	return True
 
 
-async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
 	options_update_unsubscriber = hass.data[DOMAIN][config_entry.entry_id][DATA_OPTIONS_UPDATE_UNSUBSCRIBER]
 	options_update_unsubscriber()
 
@@ -54,7 +56,9 @@ async def async_unload_entry(hass: core.HomeAssistant, config_entry: config_entr
 	return True
 
 
-async def options_update_listener(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry) -> None:
+async def options_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
-	jablotron_instance.detect_and_create_devices_and_sections_and_pg_outputs()
-	jablotron_instance.update_options(config_entry.options)
+
+	await jablotron_instance.update_config_and_options(config_entry.data, config_entry.options)
+
+	async_dispatcher_send(hass, jablotron_instance.signal_entities_added())

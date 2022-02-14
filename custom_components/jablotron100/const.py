@@ -1,5 +1,6 @@
 """Jablotron specific constants."""
 import logging
+from homeassistant.backports.enum import StrEnum
 from typing import Final
 
 LOGGER: Final = logging.getLogger(__package__)
@@ -93,6 +94,22 @@ DEVICES: Final = {
 	DEVICE_OTHER: "Other",
 	DEVICE_EMPTY: "Empty",
 }
+
+class EntityType(StrEnum):
+	ALARM_CONTROL_PANEL = "alarm_control_panel"
+	BATTERY_LEVEL = "battery_level"
+	CURRENT = "current"
+	DEVICE_STATE = "device_state"
+	FIRE = "fire"
+	GSM_SIGNAL = "gsm_signal"
+	IP = "ip"
+	LAN_CONNECTION = "lan_connection"
+	PULSE = "pulse"
+	PROBLEM = "problem"
+	PROGRAMMABLE_OUTPUT = "programmable_output"
+	SIGNAL_STRENGTH = "signal_strength"
+	TEMPERATURE = "temperature"
+	VOLTAGE = "voltage"
 
 MAX_SECTIONS: Final = 15
 MAX_DEVICES: Final = 120

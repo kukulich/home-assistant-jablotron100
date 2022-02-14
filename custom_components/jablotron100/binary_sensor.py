@@ -1,9 +1,11 @@
 from __future__ import annotations
-from homeassistant import config_entries, core
 from homeassistant.components.binary_sensor import (
 	BinarySensorDeviceClass,
 	BinarySensorEntity,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import (
@@ -28,6 +30,7 @@ from .const import (
 	DEVICE_LOCK,
 	DEVICE_TAMPER,
 	DOMAIN,
+	EntityType,
 )
 from .jablotron import Jablotron, JablotronDevice, JablotronEntity
 
@@ -44,22 +47,33 @@ DEVICE_CLASSES: Final = {
 }
 
 
-async def async_setup_entry(hass: core.HomeAssistant, config_entry: config_entries.ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	async_add_entities((JablotronDeviceSensorEntity(jablotron_instance, control) for control in jablotron_instance.device_state_sensors()))
+	@callback
+	def add_entities() -> None:
+		entities = []
 
-	async_add_entities((JablotronProblemSensorEntity(jablotron_instance, control) for control in jablotron_instance.section_problem_sensors()))
-	async_add_entities((JablotronFireSensorEntity(jablotron_instance, control) for control in jablotron_instance.section_fire_sensors()))
-	async_add_entities((JablotronProblemSensorEntity(jablotron_instance, control) for control in jablotron_instance.device_problem_sensors()))
+		mapping = {
+			EntityType.DEVICE_STATE: JablotronDeviceStateSensorEntity,
+			EntityType.PROBLEM: JablotronProblemSensorEntity,
+			EntityType.FIRE: JablotronFireSensorEntity,
+			EntityType.LAN_CONNECTION: JablotronLanConnectionEntity,
+			EntityType.GSM_SIGNAL: JablotronGsmSignalEntity,
+		}
 
-	lan_connection = jablotron_instance.lan_connection()
-	if lan_connection is not None:
-		async_add_entities([JablotronLanConnectionEntity(jablotron_instance, lan_connection)])
+		for entity_type, entity_class in mapping.items():
+			for entity in jablotron_instance.entities[entity_type].values():
+				if entity.id not in jablotron_instance.hass_entities:
+					entities.append(entity_class(jablotron_instance, entity))
 
-	gsm_signal_sensor = jablotron_instance.gsm_signal_sensor()
-	if gsm_signal_sensor is not None:
-		async_add_entities([JablotronGsmSignalEntity(jablotron_instance, gsm_signal_sensor)])
+		async_add_entities(entities)
+
+	config_entry.async_on_unload(
+		async_dispatcher_connect(hass, jablotron_instance.signal_entities_added(), add_entities)
+	)
+
+	add_entities()
 
 
 class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
@@ -83,7 +97,7 @@ class JablotronFireSensorEntity(JablotronBinarySensor):
 		self._attr_icon = "mdi:fire" if self._attr_is_on else "mdi:fire-off"
 
 
-class JablotronDeviceSensorEntity(JablotronBinarySensor):
+class JablotronDeviceStateSensorEntity(JablotronBinarySensor):
 
 	_control: JablotronDevice
 

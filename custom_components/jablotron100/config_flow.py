@@ -20,7 +20,6 @@ from .const import (
 	CONF_LOG_SECTIONS_PACKETS,
 	CONF_LOG_PG_OUTPUTS_PACKETS,
 	CONF_LOG_DEVICES_PACKETS,
-	DATA_JABLOTRON,
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEFAULT_CONF_ENABLE_DEBUGGING,
@@ -39,7 +38,7 @@ from .errors import (
 	ModelNotSupported,
 	ServiceUnavailable,
 )
-from .jablotron import check_serial_port, Jablotron
+from .jablotron import check_serial_port
 
 devices_by_names = {value:key for key, value in DEVICES.items()}
 
