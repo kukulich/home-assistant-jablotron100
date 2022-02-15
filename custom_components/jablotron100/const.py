@@ -33,10 +33,11 @@ DEFAULT_CONF_REQUIRE_CODE_TO_ARM: Final = False
 DEFAULT_CONF_REQUIRE_CODE_TO_DISARM: Final = True
 DEFAULT_CONF_ENABLE_DEBUGGING: Final = False
 
-DEVICE_DATA_CONNECTION: Final = "connection"
-DEVICE_DATA_BATTERY_LEVEL: Final = "battery_level"
-DEVICE_DATA_SIGNAL_STRENGTH: Final = "signal_strength"
-DEVICE_DATA_SECTION: Final = "section"
+class DeviceData(StrEnum):
+	BATTERY_LEVEL = "battery_level"
+	CONNECTION = "connection"
+	SECTION = "section"
+	SIGNAL_STRENGTH = "signal_strength"
 
 class DeviceConnection(StrEnum):
 	WIRED = "wired"

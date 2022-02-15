@@ -47,10 +47,7 @@ from .const import (
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEFAULT_CONF_ENABLE_DEBUGGING,
 	DeviceConnection,
-	DEVICE_DATA_CONNECTION,
-	DEVICE_DATA_BATTERY_LEVEL,
-	DEVICE_DATA_SECTION,
-	DEVICE_DATA_SIGNAL_STRENGTH,
+	DeviceData,
 	DEVICES,
 	DEVICE_CENTRAL_UNIT,
 	DEVICE_CENTRAL_UNIT_NUMBER,
@@ -335,7 +332,7 @@ class Jablotron:
 		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
 		self._stored_data: dict | None = None
 
-		self._devices_data: Dict[str, Dict[str, str | int | None]] = {}
+		self._devices_data: Dict[str, Dict[DeviceData, str | int | None]] = {}
 
 		self.last_update_success: bool = False
 		self.in_service_mode = False
@@ -696,7 +693,7 @@ class Jablotron:
 		if len(self._devices_data.items()) == not_ignored_devices_count:
 			items = list(self._devices_data.values())
 
-			if DEVICE_DATA_SECTION in items[0]:
+			if DeviceData.SECTION in items[0]:
 				# Latest version with section
 				return
 
@@ -775,20 +772,20 @@ class Jablotron:
 				device_connection = self._parse_device_connection_type_from_device_status_packet(packet)
 
 				self._devices_data[device_id] = {
-					DEVICE_DATA_CONNECTION: device_connection,
-					DEVICE_DATA_SIGNAL_STRENGTH: None,
-					DEVICE_DATA_BATTERY_LEVEL: None,
-					DEVICE_DATA_SECTION: None,
+					DeviceData.CONNECTION: device_connection,
+					DeviceData.SIGNAL_STRENGTH: None,
+					DeviceData.BATTERY_LEVEL: None,
+					DeviceData.SECTION: None,
 				}
 
 				if device_connection == DeviceConnection.WIRELESS:
 					battery_level = self._parse_device_battery_level_from_device_status_packet(packet)
 
 					signal_strength = self._parse_device_signal_strength_from_device_status_packet(packet)
-					self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH] = signal_strength
+					self._devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
 
 					if battery_level is not None:
-						self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] = battery_level
+						self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_level
 			else:
 				devices_sections_packet = packet
 
@@ -801,7 +798,7 @@ class Jablotron:
 				device_id = self._get_device_id(device_number)
 
 				if device_id in self._devices_data:
-					self._devices_data[device_id][DEVICE_DATA_SECTION] = self.binary_to_int(sections_packet_binary[device_offset:(device_offset + 4)]) + 1
+					self._devices_data[device_id][DeviceData.SECTION] = self.binary_to_int(sections_packet_binary[device_offset:(device_offset + 4)]) + 1
 
 		self._store_devices_data()
 
@@ -854,7 +851,7 @@ class Jablotron:
 					EntityType.SIGNAL_STRENGTH,
 					device_signal_strength_sensor_id,
 					self._get_device_signal_strength_sensor_name(device_number),
-					self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH],
+					self._devices_data[device_id][DeviceData.SIGNAL_STRENGTH],
 				)
 			else:
 				await self._remove_entity(EntityType.SIGNAL_STRENGTH, device_signal_strength_sensor_id)
@@ -867,7 +864,7 @@ class Jablotron:
 					EntityType.BATTERY_LEVEL,
 					device_battery_level_sensor_id,
 					self._get_device_battery_level_sensor_name(device_number),
-					self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL],
+					self._devices_data[device_id][DeviceData.BATTERY_LEVEL],
 				)
 			else:
 				await self._remove_entity(EntityType.BATTERY_LEVEL, device_battery_level_sensor_id)
@@ -1213,7 +1210,7 @@ class Jablotron:
 		if device_id not in self._devices_data:
 			return False
 
-		return self._devices_data[device_id][DEVICE_DATA_CONNECTION] == DeviceConnection.WIRELESS
+		return self._devices_data[device_id][DeviceData.CONNECTION] == DeviceConnection.WIRELESS
 
 	def is_device_with_battery(self, number: int) -> bool:
 		if number == DEVICE_CENTRAL_UNIT_NUMBER:
@@ -1224,12 +1221,12 @@ class Jablotron:
 		if device_id not in self._devices_data:
 			return False
 
-		return self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] is not None
+		return self._devices_data[device_id][DeviceData.BATTERY_LEVEL] is not None
 
 	def get_device_section(self, number: int) -> int:
 		device_id = self._get_device_id(number)
 
-		return self._devices_data[device_id][DEVICE_DATA_SECTION]
+		return self._devices_data[device_id][DeviceData.SECTION]
 
 	def _is_device_with_state(self, number: int) -> bool:
 		device_type = self._get_device_type(number)
@@ -1324,7 +1321,7 @@ class Jablotron:
 		signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
 
 		self._update_entity_state(signal_strength_sensor_id, signal_strength)
-		self._devices_data[device_id][DEVICE_DATA_SIGNAL_STRENGTH] = signal_strength
+		self._devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
 
 		battery_level = self._parse_device_battery_level_from_device_status_packet(packet)
 
@@ -1333,7 +1330,7 @@ class Jablotron:
 
 			self._update_entity_state(battery_level_sensor_id, battery_level)
 			self._device_hass_devices[device_id].battery_level = battery_level
-			self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] = battery_level
+			self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_level
 
 		self._store_devices_data()
 
@@ -1815,7 +1812,7 @@ class Jablotron:
 
 		battery_level: int | None = None
 		if self.is_device_with_battery(device_number):
-			battery_level = self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL]
+			battery_level = self._devices_data[device_id][DeviceData.BATTERY_LEVEL]
 
 		return JablotronHassDevice(
 			"device_{}".format(device_number),
@@ -1826,7 +1823,7 @@ class Jablotron:
 	def _add_battery_to_device(self, device_number: int, battery_level: int) -> None:
 		device_id = self._get_device_id(device_number)
 
-		self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] = battery_level
+		self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_level
 
 		self._store_devices_data()
 
@@ -1872,7 +1869,7 @@ class Jablotron:
 
 	def _is_smoke_detector_in_section(self, section: int) -> bool:
 		for device_id in self._devices_data:
-			if self._devices_data[device_id][DEVICE_DATA_SECTION] == section:
+			if self._devices_data[device_id][DeviceData.SECTION] == section:
 				return True
 
 		return False
