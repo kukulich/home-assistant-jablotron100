@@ -618,10 +618,10 @@ class Jablotron:
 		self._create_pg_outputs()
 
 	def _create_sections(self, packet: bytes) -> None:
-		sections_states = self._convert_sections_states_packet_to_binary(packet)
+		sections_states = self._convert_sections_states_packet_to_sections_states(packet)
 
-		for section, section_binary in sections_states.items():
-			self._create_section(section, self._parse_jablotron_section_state(section_binary))
+		for section, section_state in sections_states.items():
+			self._create_section(section, section_state)
 
 	def _create_section(self, section: int, section_state: Dict[str, int | bool]) -> bool:
 		section_alarm_id = self._get_section_alarm_id(section)
@@ -1248,11 +1248,9 @@ class Jablotron:
 		)
 
 	def _parse_sections_states_packet(self, packet: bytes) -> None:
-		sections_states = self._convert_sections_states_packet_to_binary(packet)
+		sections_states = self._convert_sections_states_packet_to_sections_states(packet)
 
-		for section, section_binary in sections_states.items():
-			section_state = self._parse_jablotron_section_state(section_binary)
-
+		for section, section_state in sections_states.items():
 			if section_state["state"] == JABLOTRON_SECTION_PRIMARY_STATE_SERVICE:
 				# Service is for all sections - we can check only the first
 				self.in_service_mode = True
@@ -1978,7 +1976,7 @@ class Jablotron:
 		)
 
 	@staticmethod
-	def _convert_sections_states_packet_to_binary(packet: bytes) -> Dict[int, str]:
+	def _convert_sections_states_packet_to_sections_states(packet: bytes) -> Dict[int, Dict[str, int | bool]]:
 		section_states = {}
 
 		for section in range(1, MAX_SECTIONS + 1):
@@ -1989,7 +1987,7 @@ class Jablotron:
 			if state_packet == b"\x07\x00":
 				break
 
-			section_states[section] = Jablotron._bytes_to_binary(state_packet[:1]) + Jablotron._bytes_to_binary(state_packet[1:])
+			section_states[section] = Jablotron._parse_jablotron_section_state(Jablotron._bytes_to_binary(state_packet[:1]) + Jablotron._bytes_to_binary(state_packet[1:]))
 
 		return section_states
 
