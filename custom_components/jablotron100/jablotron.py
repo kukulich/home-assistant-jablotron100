@@ -1220,11 +1220,6 @@ class Jablotron:
 		if number == DEVICE_CENTRAL_UNIT_NUMBER:
 			return True
 
-		device_type = self._get_device_type(number)
-
-		if device_type == DEVICE_SIREN_OUTDOOR:
-			return True
-
 		device_id = self._get_device_id(number)
 
 		if device_id not in self._devices_data:
@@ -1428,10 +1423,14 @@ class Jablotron:
 			)
 			return
 
-		if self.is_device_with_battery(device_number):
+		device_battery_level = self._parse_device_battery_level_from_device_info_packet(packet)
+		if device_battery_level is not None:
+			if not self.is_device_with_battery(device_number):
+				self._add_battery_to_device(device_number, device_battery_level)
+
 			self._update_entity_state(
 				self._get_device_battery_level_sensor_id(device_number),
-				self._parse_device_battery_level_from_device_info_packet(packet),
+				device_battery_level,
 			)
 
 		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
@@ -1824,6 +1823,23 @@ class Jablotron:
 			"{} (device {})".format(DEVICES[device_type], device_number),
 			battery_level,
 		)
+
+	def _add_battery_to_device(self, device_number: int, battery_level: int) -> None:
+		device_id = self._get_device_id(device_number)
+
+		self._devices_data[device_id][DEVICE_DATA_BATTERY_LEVEL] = battery_level
+
+		self._store_devices_data()
+
+		self._add_entity(
+			self._device_hass_devices[device_id],
+			EntityType.BATTERY_LEVEL,
+			self._get_device_battery_level_sensor_id(device_number),
+			self._get_device_battery_level_sensor_name(device_number),
+			battery_level,
+		)
+
+		async_dispatcher_send(self._hass, self.signal_entities_added())
 
 	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, entity_name: str, initial_state: StateType = None) -> None:
 		if entity_id in self.entities[entity_type]:
