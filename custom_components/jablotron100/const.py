@@ -1,5 +1,6 @@
 """Jablotron specific constants."""
 import logging
+from enum import Enum
 from homeassistant.backports.enum import StrEnum
 from typing import Final
 
@@ -43,9 +44,10 @@ class DeviceConnection(StrEnum):
 	WIRED = "wired"
 	WIRELESS = "wireless"
 
-DEVICE_CENTRAL_UNIT_NUMBER: Final = 0
-DEVICE_MOBILE_APPLICATION_NUMBER: Final = 250
-DEVICE_USB_NUMBER: Final = 254
+class DeviceNumber(Enum):
+	CENTRAL_UNIT = 0
+	MOBILE_APPLICATION = 250
+	USB = 254
 
 DEVICE_CENTRAL_UNIT: Final = "central_unit"
 DEVICE_EMPTY: Final = "empty"

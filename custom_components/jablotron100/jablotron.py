@@ -48,12 +48,11 @@ from .const import (
 	DEFAULT_CONF_ENABLE_DEBUGGING,
 	DeviceConnection,
 	DeviceData,
+	DeviceNumber,
 	DEVICES,
 	DEVICE_CENTRAL_UNIT,
-	DEVICE_CENTRAL_UNIT_NUMBER,
 	DEVICE_EMPTY,
 	DEVICE_KEYPAD,
-	DEVICE_MOBILE_APPLICATION_NUMBER,
 	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
 	DEVICE_RADIO_MODULE,
 	DEVICE_SIREN_OUTDOOR,
@@ -61,7 +60,6 @@ from .const import (
 	DEVICE_THERMOMETER,
 	DEVICE_THERMOSTAT,
 	DEVICE_OTHER,
-	DEVICE_USB_NUMBER,
 	DOMAIN,
 	EVENT_WRONG_CODE,
 	LOGGER,
@@ -918,36 +916,36 @@ class Jablotron:
 		self._add_entity(
 			None,
 			EntityType.BATTERY_LEVEL,
-			self._get_device_battery_level_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self._get_device_battery_level_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
+			self._get_device_battery_level_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+			self._get_device_battery_level_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
 		)
 
 		self._add_entity(
 			None,
 			EntityType.VOLTAGE,
-			self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self._get_device_battery_standby_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
+			self._get_device_battery_standby_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+			self._get_device_battery_standby_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
 		)
 
 		self._add_entity(
 			None,
 			EntityType.VOLTAGE,
-			self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self._get_device_battery_load_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
+			self._get_device_battery_load_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+			self._get_device_battery_load_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
 		)
 
 		self._add_entity(
 			None,
 			EntityType.VOLTAGE,
-			self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self._get_device_bus_voltage_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
+			self._get_device_bus_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+			self._get_device_bus_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
 		)
 
 		self._add_entity(
 			None,
 			EntityType.CURRENT,
-			self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
-			self._get_device_bus_devices_loss_sensor_name(DEVICE_CENTRAL_UNIT_NUMBER),
+			self._get_device_bus_devices_loss_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+			self._get_device_bus_devices_loss_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
 		)
 
 	def _create_lan_connection(self) -> None:
@@ -1188,7 +1186,7 @@ class Jablotron:
 		return False
 
 	def _get_device_type(self, number: int) -> str:
-		if number == DEVICE_CENTRAL_UNIT_NUMBER:
+		if number == DeviceNumber.CENTRAL_UNIT.value:
 			return DEVICE_CENTRAL_UNIT
 
 		return self._config[CONF_DEVICES][number - 1]
@@ -1213,7 +1211,7 @@ class Jablotron:
 		return self._devices_data[device_id][DeviceData.CONNECTION] == DeviceConnection.WIRELESS
 
 	def is_device_with_battery(self, number: int) -> bool:
-		if number == DEVICE_CENTRAL_UNIT_NUMBER:
+		if number == DeviceNumber.CENTRAL_UNIT.value:
 			return True
 
 		device_id = self._get_device_id(number)
@@ -1337,11 +1335,11 @@ class Jablotron:
 	def _parse_device_state_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_device_state_packet(packet)
 
-		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
+		if device_number == DeviceNumber.CENTRAL_UNIT.value:
 			self._log_debug_with_packet("State packet of central unit", packet)
 			return
 
-		if device_number in (DEVICE_MOBILE_APPLICATION_NUMBER, DEVICE_USB_NUMBER):
+		if device_number in (DeviceNumber.MOBILE_APPLICATION.value, DeviceNumber.USB.value):
 			self._set_last_active_user_from_device_state_packet(packet, device_number)
 			return
 
@@ -1429,7 +1427,7 @@ class Jablotron:
 				device_battery_level,
 			)
 
-		if device_number == DEVICE_CENTRAL_UNIT_NUMBER:
+		if device_number == DeviceNumber.CENTRAL_UNIT.value:
 			self._parse_central_unit_info_packet(packet)
 		else:
 			device_type = self._get_device_type(device_number)
@@ -1568,12 +1566,12 @@ class Jablotron:
 
 			if channel == b"\x00":
 				self._update_entity_state(
-					self._get_device_battery_load_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+					self._get_device_battery_load_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
 					self.bytes_to_float(info_packet[2:3]),
 				)
 			elif channel == b"\x10":
 				self._update_entity_state(
-					self._get_device_battery_standby_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+					self._get_device_battery_standby_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
 					self.bytes_to_float(info_packet[2:3]),
 				)
 			elif channel == b"\x11":
@@ -1581,11 +1579,11 @@ class Jablotron:
 				pass
 			elif channel == b"\x01":
 				self._update_entity_state(
-					self._get_device_bus_voltage_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+					self._get_device_bus_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
 					self.bytes_to_float(info_packet[2:3]),
 				)
 				self._update_entity_state(
-					self._get_device_bus_devices_loss_sensor_id(DEVICE_CENTRAL_UNIT_NUMBER),
+					self._get_device_bus_devices_loss_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
 					self.bytes_to_int(info_packet[3:4]),
 				)
 			else:
@@ -1876,7 +1874,7 @@ class Jablotron:
 
 	def _set_last_active_user_from_device_state_packet(self, packet: bytes, device_number: int) -> None:
 		offset = 0
-		if device_number not in (DEVICE_MOBILE_APPLICATION_NUMBER, DEVICE_USB_NUMBER):
+		if device_number not in (DeviceNumber.MOBILE_APPLICATION.value, DeviceNumber.USB.value):
 			offset = 1
 
 		self._last_active_user = int((self.bytes_to_int(packet[3:4]) - 104 - offset) / 4)
