@@ -49,17 +49,7 @@ from .const import (
 	DeviceConnection,
 	DeviceData,
 	DeviceNumber,
-	DEVICES,
-	DEVICE_CENTRAL_UNIT,
-	DEVICE_EMPTY,
-	DEVICE_KEYPAD,
-	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
-	DEVICE_RADIO_MODULE,
-	DEVICE_SIREN_OUTDOOR,
-	DEVICE_SMOKE_DETECTOR,
-	DEVICE_THERMOMETER,
-	DEVICE_THERMOSTAT,
-	DEVICE_OTHER,
+	DeviceType,
 	DOMAIN,
 	EVENT_WRONG_CODE,
 	LOGGER,
@@ -869,7 +859,7 @@ class Jablotron:
 
 			# Temperature sensor
 			device_temperature_sensor_id = self._get_device_temperature_sensor_id(device_number)
-			if device_type in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR):
+			if device_type in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT, DeviceType.SMOKE_DETECTOR):
 				self._add_entity(
 					hass_device,
 					EntityType.TEMPERATURE,
@@ -882,7 +872,7 @@ class Jablotron:
 			# Battery voltage sensors
 			device_battery_standby_voltage_sensor_id = self._get_device_battery_standby_voltage_sensor_id(device_number)
 			device_battery_load_voltage_sensor_id = self._get_device_battery_load_voltage_sensor_id(device_number)
-			if device_type == DEVICE_SIREN_OUTDOOR:
+			if device_type == DeviceType.SIREN_OUTDOOR:
 				self._add_entity(
 					hass_device,
 					EntityType.VOLTAGE,
@@ -902,7 +892,7 @@ class Jablotron:
 
 			# Pulses sensor
 			device_pulse_sensor_id = self._get_device_pulse_sensor_id(device_number)
-			if device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
+			if device_type == DeviceType.ELECTRICITY_METER_WITH_PULSE_OUTPUT:
 				self._add_entity(
 					hass_device,
 					EntityType.PULSE,
@@ -1009,7 +999,7 @@ class Jablotron:
 		for device_number in self._get_not_ignored_devices():
 			device_type = self._get_device_type(device_number)
 
-			if device_type not in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT, DEVICE_SMOKE_DETECTOR, DEVICE_SIREN_OUTDOOR):
+			if device_type not in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT, DeviceType.SMOKE_DETECTOR, DeviceType.SIREN_OUTDOOR):
 				continue
 
 			self._stream_diagnostics_event.clear()
@@ -1185,21 +1175,21 @@ class Jablotron:
 
 		return False
 
-	def _get_device_type(self, number: int) -> str:
+	def _get_device_type(self, number: int) -> DeviceType:
 		if number == DeviceNumber.CENTRAL_UNIT.value:
-			return DEVICE_CENTRAL_UNIT
+			return DeviceType.CENTRAL_UNIT
 
-		return self._config[CONF_DEVICES][number - 1]
+		return DeviceType(self._config[CONF_DEVICES][number - 1])
 
 	def _get_device_name(self, number: int) -> str:
-		return DEVICES[self._get_device_type(number)]
+		return self._get_device_type(number).get_name()
 
 	def _is_device_ignored(self, number: int) -> bool:
 		device_type = self._get_device_type(number)
 
 		return device_type in (
-			DEVICE_OTHER,
-			DEVICE_EMPTY,
+			DeviceType.OTHER,
+			DeviceType.EMPTY,
 		)
 
 	def is_wireless_device(self, number: int) -> bool:
@@ -1230,10 +1220,10 @@ class Jablotron:
 		device_type = self._get_device_type(number)
 
 		return device_type not in (
-			DEVICE_KEYPAD,
-			DEVICE_SIREN_OUTDOOR,
-			DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT,
-			DEVICE_RADIO_MODULE,
+			DeviceType.KEYPAD,
+			DeviceType.SIREN_OUTDOOR,
+			DeviceType.ELECTRICITY_METER_WITH_PULSE_OUTPUT,
+			DeviceType.RADIO_MODULE,
 		)
 
 	def _parse_sections_states_packet(self, packet: bytes) -> None:
@@ -1357,12 +1347,12 @@ class Jablotron:
 
 		device_type = self._get_device_type(device_number)
 
-		if device_type == DEVICE_KEYPAD:
+		if device_type == DeviceType.KEYPAD:
 			self._set_last_active_user_from_device_state_packet(packet, device_number)
 			return
 
 		if self._is_device_ignored(device_number):
-			self._log_debug_with_packet("State packet of {}".format(DEVICES[device_type].lower()), packet)
+			self._log_debug_with_packet("State packet of {}".format(device_type.get_name().lower()), packet)
 			return
 
 		device_state = self._convert_jablotron_device_state_to_state(packet, device_number)
@@ -1432,15 +1422,15 @@ class Jablotron:
 		else:
 			device_type = self._get_device_type(device_number)
 
-			if device_type in (DEVICE_THERMOMETER, DEVICE_THERMOSTAT):
+			if device_type in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT):
 				self._parse_device_input_value_info_packet(packet, device_number)
-			elif device_type == DEVICE_SMOKE_DETECTOR:
+			elif device_type == DeviceType.SMOKE_DETECTOR:
 				self._parse_device_smoke_detector_info_packet(packet, device_number)
-			elif device_type == DEVICE_SIREN_OUTDOOR:
+			elif device_type == DeviceType.SIREN_OUTDOOR:
 				self._parse_device_siren_outdoor_info_packet(packet, device_number)
-			elif device_type == DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT:
+			elif device_type == DeviceType.ELECTRICITY_METER_WITH_PULSE_OUTPUT:
 				self._parse_device_electricity_meter_with_pulse_info_packet(packet, device_number)
-			elif device_type == DEVICE_RADIO_MODULE:
+			elif device_type == DeviceType.RADIO_MODULE:
 				self._log_debug_with_packet("Info packet of radio module", packet)
 
 	def _parse_device_input_value_info_packet(self, packet: bytes, device_number: int) -> None:
@@ -1814,7 +1804,7 @@ class Jablotron:
 
 		return JablotronHassDevice(
 			"device_{}".format(device_number),
-			"{} (device {})".format(DEVICES[device_type], device_number),
+			"{} (device {})".format(device_type.get_name(), device_number),
 			battery_level,
 		)
 

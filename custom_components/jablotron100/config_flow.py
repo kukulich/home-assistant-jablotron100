@@ -23,8 +23,7 @@ from .const import (
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEFAULT_CONF_ENABLE_DEBUGGING,
-	DEVICES,
-	DEVICE_CENTRAL_UNIT,
+	DeviceType,
 	DOMAIN,
 	DEFAULT_SERIAL_PORT,
 	MAX_DEVICES,
@@ -40,16 +39,16 @@ from .errors import (
 )
 from .jablotron import check_serial_port
 
-devices_by_names = {value:key for key, value in DEVICES.items()}
+devices_by_names = {device_type.get_name():device_type.value for device_type in DeviceType}
 
 def get_devices_fields(number_of_devices: int, default_values: List | None = None) -> OrderedDict:
 	if default_values is None:
 		default_values = []
 
 	devices_values = []
-	for device_type, device_name in DEVICES.items():
-		if device_type != DEVICE_CENTRAL_UNIT:
-			devices_values.append(device_name)
+	for device_type in DeviceType:
+		if device_type != DeviceType.CENTRAL_UNIT:
+			devices_values.append(device_type.get_name())
 
 	fields = OrderedDict()
 
@@ -57,11 +56,8 @@ def get_devices_fields(number_of_devices: int, default_values: List | None = Non
 		default_value = None
 
 		default_value_index = i - 1
-		if (
-			default_value_index < len(default_values)
-			and default_values[default_value_index] in DEVICES
-		):
-			default_value = DEVICES[default_values[default_value_index]]
+		if default_value_index < len(default_values):
+			default_value = DeviceType(default_values[default_value_index]).get_name()
 
 		fields[vol.Required("device_{:03}".format(i), default=default_value)] = vol.In(devices_values)
 

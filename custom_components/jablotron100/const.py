@@ -49,55 +49,34 @@ class DeviceNumber(Enum):
 	MOBILE_APPLICATION = 250
 	USB = 254
 
-DEVICE_CENTRAL_UNIT: Final = "central_unit"
-DEVICE_EMPTY: Final = "empty"
-DEVICE_BUTTON: Final = "button"
-DEVICE_KEY_FOB: Final = "key_fob"
-DEVICE_KEYPAD: Final = "keypad"
-DEVICE_SIREN_OUTDOOR: Final = "outdoor_siren"
-DEVICE_SIREN_INDOOR: Final = "indoor_siren"
-DEVICE_MOTION_DETECTOR: Final = "motion_detector"
-DEVICE_WINDOW_OPENING_DETECTOR: Final = "window_opening_detector"
-DEVICE_DOOR_OPENING_DETECTOR: Final = "door_opening_detector"
-DEVICE_GARAGE_DOOR_OPENING_DETECTOR: Final = "garage_door_opening_detector"
-DEVICE_GLASS_BREAK_DETECTOR: Final = "glass_break_detector"
-DEVICE_SMOKE_DETECTOR: Final = "smoke_detector"
-DEVICE_FLOOD_DETECTOR: Final = "flood_detector"
-DEVICE_GAS_DETECTOR: Final = "gas_detector"
-DEVICE_THERMOSTAT: Final = "thermostat"
-DEVICE_THERMOMETER: Final = "thermometer"
-DEVICE_LOCK: Final = "lock"
-DEVICE_TAMPER: Final = "tamper"
-DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT: Final = "electricity_meter_with_pulse_output"
-DEVICE_RADIO_MODULE: Final = "radio_module"
-DEVICE_CUSTOM: Final = "custom"
-DEVICE_OTHER: Final = "other"
+class DeviceType(StrEnum):
+	CENTRAL_UNIT = "central_unit"
+	KEYPAD = "keypad"
+	SIREN_OUTDOOR = "outdoor_siren"
+	SIREN_INDOOR = "indoor_siren"
+	MOTION_DETECTOR = "motion_detector"
+	WINDOW_OPENING_DETECTOR = "window_opening_detector"
+	DOOR_OPENING_DETECTOR = "door_opening_detector"
+	GARAGE_DOOR_OPENING_DETECTOR = "garage_door_opening_detector"
+	GLASS_BREAK_DETECTOR = "glass_break_detector"
+	SMOKE_DETECTOR = "smoke_detector"
+	FLOOD_DETECTOR = "flood_detector"
+	GAS_DETECTOR = "gas_detector"
+	THERMOSTAT = "thermostat"
+	THERMOMETER = "thermometer"
+	LOCK = "lock"
+	TAMPER = "tamper"
+	BUTTON = "button"
+	KEY_FOB = "key_fob"
+	ELECTRICITY_METER_WITH_PULSE_OUTPUT = "electricity_meter_with_pulse_output"
+	RADIO_MODULE = "radio_module"
+	CUSTOM = "custom"
+	OTHER = "other"
+	EMPTY = "empty"
 
-DEVICES: Final = {
-	DEVICE_CENTRAL_UNIT: "Central unit",
-	DEVICE_KEYPAD: "Keypad",
-	DEVICE_SIREN_OUTDOOR: "Outdoor siren",
-	DEVICE_SIREN_INDOOR: "Indoor siren",
-	DEVICE_MOTION_DETECTOR: "Motion detector",
-	DEVICE_WINDOW_OPENING_DETECTOR: "Window opening detector",
-	DEVICE_DOOR_OPENING_DETECTOR: "Door opening detector",
-	DEVICE_GARAGE_DOOR_OPENING_DETECTOR: "Garage door opening detector",
-	DEVICE_GLASS_BREAK_DETECTOR: "Glass break detector",
-	DEVICE_SMOKE_DETECTOR: "Smoke detector",
-	DEVICE_FLOOD_DETECTOR: "Flood detector",
-	DEVICE_GAS_DETECTOR: "Gas detector",
-	DEVICE_KEY_FOB: "Key fob",
-	DEVICE_BUTTON: "Button",
-	DEVICE_THERMOSTAT: "Thermostat",
-	DEVICE_THERMOMETER: "Thermometer",
-	DEVICE_LOCK: "Lock",
-	DEVICE_TAMPER: "Tamper",
-	DEVICE_ELECTRICITY_METER_WITH_PULSE_OUTPUT: "Electricity meter with pulse output",
-	DEVICE_RADIO_MODULE: "Radio module",
-	DEVICE_CUSTOM: "Custom binary sensor",
-	DEVICE_OTHER: "Other",
-	DEVICE_EMPTY: "Empty",
-}
+	def get_name(self) -> str:
+		name = self._value_.replace("_", " ")
+		return name[0:1].upper() + name[1:]
 
 class EntityType(StrEnum):
 	ALARM_CONTROL_PANEL = "alarm_control_panel"

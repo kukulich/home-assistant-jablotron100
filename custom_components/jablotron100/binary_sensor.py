@@ -15,35 +15,22 @@ from homeassistant.const import (
 from typing import Final
 from .const import (
 	DATA_JABLOTRON,
-	DEVICE_MOTION_DETECTOR,
-	DEVICE_WINDOW_OPENING_DETECTOR,
-	DEVICE_DOOR_OPENING_DETECTOR,
-	DEVICE_GARAGE_DOOR_OPENING_DETECTOR,
-	DEVICE_GLASS_BREAK_DETECTOR,
-	DEVICE_SMOKE_DETECTOR,
-	DEVICE_FLOOD_DETECTOR,
-	DEVICE_GAS_DETECTOR,
-	DEVICE_KEY_FOB,
-	DEVICE_SIREN_INDOOR,
-	DEVICE_BUTTON,
-	DEVICE_THERMOSTAT,
-	DEVICE_LOCK,
-	DEVICE_TAMPER,
+	DeviceType,
 	DOMAIN,
 	EntityType,
 )
 from .jablotron import Jablotron, JablotronDevice, JablotronEntity
 
 DEVICE_CLASSES: Final = {
-	DEVICE_MOTION_DETECTOR: BinarySensorDeviceClass.MOTION,
-	DEVICE_WINDOW_OPENING_DETECTOR: BinarySensorDeviceClass.WINDOW,
-	DEVICE_DOOR_OPENING_DETECTOR: BinarySensorDeviceClass.DOOR,
-	DEVICE_GARAGE_DOOR_OPENING_DETECTOR: BinarySensorDeviceClass.GARAGE_DOOR,
-	DEVICE_FLOOD_DETECTOR: BinarySensorDeviceClass.MOISTURE,
-	DEVICE_GAS_DETECTOR: BinarySensorDeviceClass.GAS,
-	DEVICE_SMOKE_DETECTOR: BinarySensorDeviceClass.SMOKE,
-	DEVICE_LOCK: BinarySensorDeviceClass.LOCK,
-	DEVICE_TAMPER: BinarySensorDeviceClass.TAMPER,
+	DeviceType.MOTION_DETECTOR: BinarySensorDeviceClass.MOTION,
+	DeviceType.WINDOW_OPENING_DETECTOR: BinarySensorDeviceClass.WINDOW,
+	DeviceType.DOOR_OPENING_DETECTOR: BinarySensorDeviceClass.DOOR,
+	DeviceType.GARAGE_DOOR_OPENING_DETECTOR: BinarySensorDeviceClass.GARAGE_DOOR,
+	DeviceType.FLOOD_DETECTOR: BinarySensorDeviceClass.MOISTURE,
+	DeviceType.GAS_DETECTOR: BinarySensorDeviceClass.GAS,
+	DeviceType.SMOKE_DETECTOR: BinarySensorDeviceClass.SMOKE,
+	DeviceType.LOCK: BinarySensorDeviceClass.LOCK,
+	DeviceType.TAMPER: BinarySensorDeviceClass.TAMPER,
 }
 
 
@@ -114,13 +101,13 @@ class JablotronDeviceStateSensorEntity(JablotronBinarySensor):
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
-		if self._control.type == DEVICE_GLASS_BREAK_DETECTOR:
+		if self._control.type == DeviceType.GLASS_BREAK_DETECTOR:
 			self._attr_icon = "mdi:image-broken-variant" if self._attr_is_on else "mdi:square-outline"
-		elif self._control.type in (DEVICE_KEY_FOB, DEVICE_BUTTON):
+		elif self._control.type in (DeviceType.KEY_FOB, DeviceType.BUTTON):
 			self._attr_icon = "mdi:gesture-double-tap" if self._attr_is_on else "mdi:circle-double"
-		elif self._control.type == DEVICE_SIREN_INDOOR:
+		elif self._control.type == DeviceType.SIREN_INDOOR:
 			self._attr_icon = "mdi:gesture-tap-box" if self._attr_is_on else "mdi:circle-box-outline"
-		elif self._control.type == DEVICE_THERMOSTAT:
+		elif self._control.type == DeviceType.THERMOSTAT:
 			self._attr_icon = "mdi:thermometer" if self._attr_is_on else "mdi:thermometer-off"
 
 
