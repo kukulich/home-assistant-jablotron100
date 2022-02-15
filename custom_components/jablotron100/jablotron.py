@@ -19,6 +19,7 @@ from homeassistant.const import (
 	STATE_ON,
 )
 from homeassistant.helpers import storage
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers import entity_registry as er
@@ -620,48 +621,52 @@ class Jablotron:
 		sections_states = self._convert_sections_states_packet_to_binary(packet)
 
 		for section, section_binary in sections_states.items():
-			section_alarm_id = self._get_section_alarm_id(section)
-			section_problem_sensor_id = self._get_section_problem_sensor_id(section)
-			section_fire_sensor_id = self._get_section_fire_sensor_id(section)
+			self._create_section(section, self._parse_jablotron_section_state(section_binary))
 
-			section_has_smoke_detector = self._is_smoke_detector_in_section(section)
+	def _create_section(self, section: int, section_state: Dict[str, int | bool]) -> bool:
+		section_alarm_id = self._get_section_alarm_id(section)
+		section_problem_sensor_id = self._get_section_problem_sensor_id(section)
+		section_fire_sensor_id = self._get_section_fire_sensor_id(section)
 
-			if (
-				section_alarm_id in self.entities[EntityType.ALARM_CONTROL_PANEL]
-				and section_problem_sensor_id in self.entities[EntityType.PROBLEM]
-				and (not section_has_smoke_detector or section_fire_sensor_id in self.entities[EntityType.FIRE])
-			):
-				continue
+		section_has_smoke_detector = self._is_smoke_detector_in_section(section)
 
-			section_hass_device = self._create_section_hass_device(section)
-			section_state = self._parse_jablotron_section_state(section_binary)
+		if (
+			section_alarm_id in self.entities[EntityType.ALARM_CONTROL_PANEL]
+			and section_problem_sensor_id in self.entities[EntityType.PROBLEM]
+			and (not section_has_smoke_detector or section_fire_sensor_id in self.entities[EntityType.FIRE])
+		):
+			return False
 
-			if section_alarm_id not in self.entities[EntityType.ALARM_CONTROL_PANEL]:
-				self.entities[EntityType.ALARM_CONTROL_PANEL][section_alarm_id] = JablotronAlarmControlPanel(
-					self._central_unit,
-					section_hass_device,
-					section_alarm_id,
-					self._get_section_alarm_name(section),
-					section,
-				)
-				self._set_entity_initial_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state))
+		section_hass_device = self._create_section_hass_device(section)
 
+		if section_alarm_id not in self.entities[EntityType.ALARM_CONTROL_PANEL]:
+			self.entities[EntityType.ALARM_CONTROL_PANEL][section_alarm_id] = JablotronAlarmControlPanel(
+				self._central_unit,
+				section_hass_device,
+				section_alarm_id,
+				self._get_section_alarm_name(section),
+				section,
+			)
+			self._set_entity_initial_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state))
+
+		self._add_entity(
+			section_hass_device,
+			EntityType.PROBLEM,
+			section_problem_sensor_id,
+			self._get_section_problem_sensor_name(section),
+			self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
+		)
+
+		if section_has_smoke_detector:
 			self._add_entity(
 				section_hass_device,
-				EntityType.PROBLEM,
-				section_problem_sensor_id,
-				self._get_section_problem_sensor_name(section),
-				self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
+				EntityType.FIRE,
+				section_fire_sensor_id,
+				self._get_section_fire_sensor_name(section),
+				self._convert_jablotron_section_state_to_fire_sensor_state(section_state),
 			)
 
-			if section_has_smoke_detector:
-				self._add_entity(
-					section_hass_device,
-					EntityType.FIRE,
-					section_fire_sensor_id,
-					self._get_section_fire_sensor_name(section),
-					self._convert_jablotron_section_state_to_fire_sensor_state(section_state),
-				)
+		return True
 
 	def _create_pg_outputs(self) -> None:
 		if not self._has_pg_outputs():
@@ -1252,6 +1257,9 @@ class Jablotron:
 				# Service is for all sections - we can check only the first
 				self.in_service_mode = True
 				return
+
+			if self._create_section(section, section_state):
+				async_dispatcher_send(self._hass, self.signal_entities_added())
 
 			self._update_entity_state(
 				self._get_section_alarm_id(section),
