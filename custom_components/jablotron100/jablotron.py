@@ -91,17 +91,12 @@ from .const import (
 	PACKET_UI_CONTROL,
 	PG_OUTPUT_TURN_OFF,
 	PG_OUTPUT_TURN_ON,
-	SECTION_PRIMARY_STATE_ARMED_FULL,
-	SECTION_PRIMARY_STATE_ARMED_PARTIALLY,
-	SECTION_PRIMARY_STATE_BLOCKED,
-	SECTION_PRIMARY_STATE_SERVICE,
 	SIGNAL_STRENGTH_STEP,
 	STREAM_MAX_WORKERS,
 	STREAM_PACKET_SIZE,
 	STREAM_TIMEOUT,
-	SYSTEM_INFO_FIRMWARE_VERSION,
-	SYSTEM_INFO_HARDWARE_VERSION,
-	SYSTEM_INFO_MODEL,
+	SectionPrimaryState,
+	SystemInfo,
 	TIMEOUT_FOR_DEVICE_STATE_PACKETS,
 	UI_CONTROL_AUTHORISATION_CODE,
 	UI_CONTROL_AUTHORISATION_END,
@@ -119,9 +114,22 @@ STORAGE_STATES_KEY: Final = "states"
 STORAGE_DEVICES_KEY: Final = "devices"
 
 
+class JablotronSectionState:
+
+	def __init__(self, state: SectionPrimaryState, pending: bool, arming: bool, triggered: bool, problem: bool, sabotage: bool, fire: bool, alert: bool) -> None:
+		self.state: SectionPrimaryState = state
+		self.arming: bool = arming
+		self.pending: bool = pending
+		self.triggered: bool = triggered
+		self.problem: bool = problem
+		self.sabotage: bool = sabotage
+		self.fire: bool = fire
+		self.alert: bool = alert
+
+
 class JablotronCentralUnit:
 
-	def __init__(self, serial_port: str, model: str, hardware_version: str, firmware_version: str):
+	def __init__(self, serial_port: str, model: str, hardware_version: str, firmware_version: str) -> None:
 		self.serial_port: str = serial_port
 		self.model: str = model
 		self.hardware_version: str = hardware_version
@@ -130,7 +138,7 @@ class JablotronCentralUnit:
 
 class JablotronHassDevice:
 
-	def __init__(self, id: str, name: str, battery_level: int | None = None):
+	def __init__(self, id: str, name: str, battery_level: int | None = None) -> None:
 		self.id: str = id
 		self.name: str = name
 		self.battery_level: int | None = battery_level
@@ -138,7 +146,7 @@ class JablotronHassDevice:
 
 class JablotronControl:
 
-	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice | None, id: str, name: str):
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice | None, id: str, name: str) -> None:
 		self.central_unit: JablotronCentralUnit = central_unit
 		self.hass_device: JablotronHassDevice | None = hass_device
 		self.id: str = id
@@ -147,7 +155,7 @@ class JablotronControl:
 
 class JablotronDevice(JablotronControl):
 
-	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, id: str, name: str, type: str):
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, id: str, name: str, type: str) -> None:
 		self.type: str = type
 
 		super().__init__(central_unit, hass_device, id, name)
@@ -155,7 +163,7 @@ class JablotronDevice(JablotronControl):
 
 class JablotronAlarmControlPanel(JablotronControl):
 
-	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, id: str, name: str, section: int):
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, id: str, name: str, section: int) -> None:
 		self.section: int = section
 
 		super().__init__(central_unit, hass_device, id, name)
@@ -163,7 +171,7 @@ class JablotronAlarmControlPanel(JablotronControl):
 
 class JablotronProgrammableOutput(JablotronControl):
 
-	def __init__(self, central_unit: JablotronCentralUnit, id: str, name: str, pg_output_number: int):
+	def __init__(self, central_unit: JablotronCentralUnit, id: str, name: str, pg_output_number: int) -> None:
 		self.pg_output_number: int = pg_output_number
 
 		super().__init__(central_unit, None, id, name)
@@ -329,7 +337,7 @@ class Jablotron:
 
 	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
 		pg_output_number_packet = self.int_to_bytes(pg_output_number - 1)
-		state_packet = self.int_to_bytes(PG_OUTPUT_TURN_ON if state == STATE_ON else PG_OUTPUT_TURN_OFF)
+		state_packet = PG_OUTPUT_TURN_ON if state == STATE_ON else PG_OUTPUT_TURN_OFF
 
 		packet = self.create_packet_ui_control(UI_CONTROL_TOGGLE_PG_OUTPUT, pg_output_number_packet + state_packet)
 
@@ -379,13 +387,16 @@ class Jablotron:
 							continue
 
 						try:
-							info_type = self.bytes_to_int(packet[2:3])
-							if info_type == SYSTEM_INFO_MODEL:
+							info_type = SystemInfo(self.bytes_to_int(packet[2:3]))
+							if info_type == SystemInfo.MODEL:
 								model = self.decode_system_info_packet(packet)
-							elif info_type == SYSTEM_INFO_HARDWARE_VERSION:
+							elif info_type == SystemInfo.HARDWARE_VERSION:
 								hardware_version = self.decode_system_info_packet(packet)
-							elif info_type == SYSTEM_INFO_FIRMWARE_VERSION:
+							elif info_type == SystemInfo.FIRMWARE_VERSION:
 								firmware_version = self.decode_system_info_packet(packet)
+						except (KeyError, TypeError):
+							# Unknown/Ignored info type packet
+							pass
 						except UnicodeDecodeError:
 							# Try again
 							pass
@@ -403,9 +414,9 @@ class Jablotron:
 		def writer_thread() -> None:
 			while not stop_event.is_set():
 				self._send_packets([
-					self.create_packet_get_system_info(SYSTEM_INFO_MODEL),
-					self.create_packet_get_system_info(SYSTEM_INFO_HARDWARE_VERSION),
-					self.create_packet_get_system_info(SYSTEM_INFO_FIRMWARE_VERSION),
+					self.create_packet_get_system_info(SystemInfo.MODEL),
+					self.create_packet_get_system_info(SystemInfo.HARDWARE_VERSION),
+					self.create_packet_get_system_info(SystemInfo.FIRMWARE_VERSION),
 				])
 				time.sleep(1)
 
@@ -494,7 +505,7 @@ class Jablotron:
 		for section, section_state in sections_states.items():
 			self._create_section(section, section_state)
 
-	def _create_section(self, section: int, section_state: Dict[str, int | bool]) -> bool:
+	def _create_section(self, section: int, section_state: JablotronSectionState) -> bool:
 		section_alarm_id = self._get_section_alarm_id(section)
 		section_problem_sensor_id = self._get_section_problem_sensor_id(section)
 		section_fire_sensor_id = self._get_section_fire_sensor_id(section)
@@ -1117,7 +1128,7 @@ class Jablotron:
 		sections_states = self._convert_sections_states_packet_to_sections_states(packet)
 
 		for section, section_state in sections_states.items():
-			if section_state["state"] == SECTION_PRIMARY_STATE_SERVICE:
+			if section_state.state == SectionPrimaryState.SERVICE:
 				# Service is for all sections - we can check only the first
 				self.in_service_mode = True
 				return
@@ -1863,7 +1874,7 @@ class Jablotron:
 		)
 
 	@staticmethod
-	def _convert_sections_states_packet_to_sections_states(packet: bytes) -> Dict[int, Dict[str, int | bool]]:
+	def _convert_sections_states_packet_to_sections_states(packet: bytes) -> Dict[int, JablotronSectionState]:
 		section_states = {}
 
 		for section in range(1, MAX_SECTIONS + 1):
@@ -2179,49 +2190,47 @@ class Jablotron:
 		return "PG output {}".format(pg_output_number)
 
 	@staticmethod
-	def _convert_jablotron_section_state_to_alarm_state(state: Dict[str, int | bool]) -> StateType:
-		if state["state"] in (SECTION_PRIMARY_STATE_SERVICE, SECTION_PRIMARY_STATE_BLOCKED):
+	def _convert_jablotron_section_state_to_alarm_state(state: JablotronSectionState) -> StateType:
+		if state.state in (SectionPrimaryState.SERVICE, SectionPrimaryState.BLOCKED):
 			return None
 
-		if state["triggered"] is True:
+		if state.triggered:
 			return STATE_ALARM_TRIGGERED
 
-		if state["pending"] is True:
+		if state.pending:
 			return STATE_ALARM_PENDING
 
-		if state["arming"] is True:
+		if state.arming:
 			return STATE_ALARM_ARMING
 
-		if state["state"] == SECTION_PRIMARY_STATE_ARMED_FULL:
+		if state.state == SectionPrimaryState.ARMED_FULL:
 			return STATE_ALARM_ARMED_AWAY
 
-		if state["state"] == SECTION_PRIMARY_STATE_ARMED_PARTIALLY:
+		if state.state == SectionPrimaryState.ARMED_PARTIALLY:
 			return STATE_ALARM_ARMED_NIGHT
 
 		return STATE_ALARM_DISARMED
 
 	@staticmethod
-	def _convert_jablotron_section_state_to_problem_sensor_state(state: Dict[str, int | bool]) -> StateType:
-		return STATE_ON if state["problem"] or state["sabotage"] else STATE_OFF
+	def _convert_jablotron_section_state_to_problem_sensor_state(state: JablotronSectionState) -> StateType:
+		return STATE_ON if state.problem or state.sabotage else STATE_OFF
 
 	@staticmethod
-	def _convert_jablotron_section_state_to_fire_sensor_state(state: Dict[str, int | bool]) -> StateType:
-		return STATE_ON if state["fire"] else STATE_OFF
+	def _convert_jablotron_section_state_to_fire_sensor_state(state: JablotronSectionState) -> StateType:
+		return STATE_ON if state.fire else STATE_OFF
 
 	@staticmethod
-	def _parse_jablotron_section_state(section_binary: str) -> Dict[str, int | bool]:
-		state = Jablotron.binary_to_int(section_binary[5:8])
-
-		return {
-			"state": state,
-			"pending": section_binary[1:2] == "1",
-			"arming": section_binary[0:1] == "1",
-			"triggered": section_binary[3:4] == "1" or section_binary[4:5] == "1",
-			"problem": section_binary[2:3] == "1",
-			"sabotage": section_binary[11:12] == "1",
-			"fire": section_binary[14:15] == "1",
-			"alert": section_binary[13:14] == "1",
-		}
+	def _parse_jablotron_section_state(section_binary: str) -> JablotronSectionState:
+		return JablotronSectionState(
+			SectionPrimaryState(Jablotron.binary_to_int(section_binary[5:8])),
+			arming=section_binary[0:1] == "1",
+			pending=section_binary[1:2] == "1",
+			triggered=section_binary[3:4] == "1" or section_binary[4:5] == "1",
+			problem=section_binary[2:3] == "1",
+			sabotage=section_binary[11:12] == "1",
+			fire=section_binary[14:15] == "1",
+			alert=section_binary[13:14] == "1",
+		)
 
 	@staticmethod
 	def get_packets_from_packet(packet: bytes) -> List[bytes]:
@@ -2280,8 +2289,8 @@ class Jablotron:
 		return packet_type + Jablotron.int_to_bytes(len(data)) + data
 
 	@staticmethod
-	def create_packet_get_system_info(info_type: int) -> bytes:
-		return Jablotron.create_packet(PACKET_GET_SYSTEM_INFO, Jablotron.int_to_bytes(info_type))
+	def create_packet_get_system_info(info_type: SystemInfo) -> bytes:
+		return Jablotron.create_packet(PACKET_GET_SYSTEM_INFO, Jablotron.int_to_bytes(info_type.value))
 
 	@staticmethod
 	def create_packet_command(command_type: bytes, data: bytes | None = b"") -> bytes:

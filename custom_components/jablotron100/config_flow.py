@@ -39,7 +39,7 @@ from .const import (
 	STREAM_MAX_WORKERS,
 	STREAM_PACKET_SIZE,
 	STREAM_TIMEOUT,
-	SYSTEM_INFO_MODEL,
+	SystemInfo,
 )
 from .errors import (
 	ModelNotDetected,
@@ -68,7 +68,7 @@ def check_serial_port(serial_port: str) -> None:
 				for packet in packets:
 					if (
 						packet[:1] == PACKET_SYSTEM_INFO
-						and Jablotron.bytes_to_int(packet[2:3]) == SYSTEM_INFO_MODEL
+						and Jablotron.bytes_to_int(packet[2:3]) == SystemInfo.MODEL.value
 					):
 						try:
 							detected_model = Jablotron.decode_system_info_packet(packet)
@@ -92,7 +92,7 @@ def check_serial_port(serial_port: str) -> None:
 		while not stop_event.is_set():
 			stream = open(serial_port, "wb", buffering=0)
 
-			stream.write(Jablotron.create_packet_get_system_info(SYSTEM_INFO_MODEL))
+			stream.write(Jablotron.create_packet_get_system_info(SystemInfo.MODEL))
 
 			stream.close()
 
