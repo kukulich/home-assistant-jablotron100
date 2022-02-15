@@ -1,45 +1,123 @@
 from __future__ import annotations
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow, FlowResult
+import re
+import time
+import threading
+from typing import Any, Dict, List
 import voluptuous as vol
 from .const import (
-	CODE_MIN_LENGTH,
 	CODE_MAX_LENGTH,
-	CONF_SERIAL_PORT,
-	CONF_NUMBER_OF_DEVICES,
-	CONF_NUMBER_OF_PG_OUTPUTS,
+	CODE_MIN_LENGTH,
 	CONF_DEVICES,
-	CONF_REQUIRE_CODE_TO_ARM,
-	CONF_REQUIRE_CODE_TO_DISARM,
 	CONF_ENABLE_DEBUGGING,
 	CONF_LOG_ALL_INCOMING_PACKETS,
 	CONF_LOG_ALL_OUTCOMING_PACKETS,
-	CONF_LOG_SECTIONS_PACKETS,
-	CONF_LOG_PG_OUTPUTS_PACKETS,
 	CONF_LOG_DEVICES_PACKETS,
+	CONF_LOG_PG_OUTPUTS_PACKETS,
+	CONF_LOG_SECTIONS_PACKETS,
+	CONF_NUMBER_OF_DEVICES,
+	CONF_NUMBER_OF_PG_OUTPUTS,
+	CONF_REQUIRE_CODE_TO_ARM,
+	CONF_REQUIRE_CODE_TO_DISARM,
+	CONF_SERIAL_PORT,
+	DEFAULT_CONF_ENABLE_DEBUGGING,
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
-	DEFAULT_CONF_ENABLE_DEBUGGING,
-	DeviceType,
-	DOMAIN,
 	DEFAULT_SERIAL_PORT,
+	DOMAIN,
+	DeviceType,
+	LOGGER,
 	MAX_DEVICES,
 	MAX_PG_OUTPUTS,
 	NAME,
-	LOGGER,
+	PACKET_SYSTEM_INFO,
+	STREAM_MAX_WORKERS,
+	STREAM_PACKET_SIZE,
+	STREAM_TIMEOUT,
+	SYSTEM_INFO_MODEL,
 )
-from typing import Any, Dict, List
 from .errors import (
 	ModelNotDetected,
 	ModelNotSupported,
 	ServiceUnavailable,
 )
-from .jablotron import check_serial_port
+from .jablotron import Jablotron
 
 devices_by_names = {device_type.get_name():device_type.value for device_type in DeviceType}
+
+def check_serial_port(serial_port: str) -> None:
+	stop_event = threading.Event()
+	thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
+
+	def reader_thread() -> str | None:
+		detected_model = None
+
+		stream = open(serial_port, "rb", buffering=0)
+
+		try:
+			while not stop_event.is_set():
+				raw_packet = stream.read(STREAM_PACKET_SIZE)
+				LOGGER.debug("Check serial port: {}".format(Jablotron.format_packet_to_string(raw_packet)))
+
+				packets = Jablotron.get_packets_from_packet(raw_packet)
+				for packet in packets:
+					if (
+						packet[:1] == PACKET_SYSTEM_INFO
+						and Jablotron.bytes_to_int(packet[2:3]) == SYSTEM_INFO_MODEL
+					):
+						try:
+							detected_model = Jablotron.decode_system_info_packet(packet)
+							break
+						except UnicodeDecodeError:
+							# Will try again
+							pass
+
+				if detected_model is not None:
+					break
+
+				# Because of USB/IP
+				time.sleep(1)
+
+		finally:
+			stream.close()
+
+		return detected_model
+
+	def writer_thread() -> None:
+		while not stop_event.is_set():
+			stream = open(serial_port, "wb", buffering=0)
+
+			stream.write(Jablotron.create_packet_get_system_info(SYSTEM_INFO_MODEL))
+
+			stream.close()
+
+			time.sleep(1)
+
+	try:
+		reader = thread_pool_executor.submit(reader_thread)
+		thread_pool_executor.submit(writer_thread)
+
+		model = reader.result(STREAM_TIMEOUT)
+
+		if model is None:
+			raise ModelNotDetected
+
+		if not re.match(r"^JA-10[01367]", model):
+			LOGGER.debug("Unsupported model: {}", model)
+			raise ModelNotSupported("Model {} not supported".format(model))
+
+	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
+		LOGGER.error(format(ex))
+		raise ServiceUnavailable
+
+	finally:
+		stop_event.set()
+		thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
 def get_devices_fields(number_of_devices: int, default_values: List | None = None) -> OrderedDict:
 	if default_values is None:
