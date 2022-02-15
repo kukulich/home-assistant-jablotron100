@@ -46,8 +46,7 @@ from .const import (
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEFAULT_CONF_ENABLE_DEBUGGING,
-	DEVICE_CONNECTION_WIRED,
-	DEVICE_CONNECTION_WIRELESS,
+	DeviceConnection,
 	DEVICE_DATA_CONNECTION,
 	DEVICE_DATA_BATTERY_LEVEL,
 	DEVICE_DATA_SECTION,
@@ -782,7 +781,7 @@ class Jablotron:
 					DEVICE_DATA_SECTION: None,
 				}
 
-				if device_connection == DEVICE_CONNECTION_WIRELESS:
+				if device_connection == DeviceConnection.WIRELESS:
 					battery_level = self._parse_device_battery_level_from_device_status_packet(packet)
 
 					signal_strength = self._parse_device_signal_strength_from_device_status_packet(packet)
@@ -1214,7 +1213,7 @@ class Jablotron:
 		if device_id not in self._devices_data:
 			return False
 
-		return self._devices_data[device_id][DEVICE_DATA_CONNECTION] == DEVICE_CONNECTION_WIRELESS
+		return self._devices_data[device_id][DEVICE_DATA_CONNECTION] == DeviceConnection.WIRELESS
 
 	def is_device_with_battery(self, number: int) -> bool:
 		if number == DEVICE_CENTRAL_UNIT_NUMBER:
@@ -1289,7 +1288,7 @@ class Jablotron:
 
 		device_connection = self._parse_device_connection_type_from_device_status_packet(packet)
 
-		if device_connection == DEVICE_CONNECTION_WIRELESS:
+		if device_connection == DeviceConnection.WIRELESS:
 			self._parse_wireless_device_status_packet(packet)
 
 	def _parse_gsm_status_packet(self, packet: bytes) -> None:
@@ -2012,9 +2011,9 @@ class Jablotron:
 		return Jablotron.bytes_to_int(packet[3:4])
 
 	@staticmethod
-	def _parse_device_connection_type_from_device_status_packet(packet: bytes) -> str:
+	def _parse_device_connection_type_from_device_status_packet(packet: bytes) -> DeviceConnection:
 		packet_length = Jablotron.bytes_to_int(packet[1:2])
-		return DEVICE_CONNECTION_WIRELESS if packet_length == 9 else DEVICE_CONNECTION_WIRED
+		return DeviceConnection.WIRELESS if packet_length == 9 else DeviceConnection.WIRED
 
 	@staticmethod
 	def _parse_device_signal_strength_from_device_status_packet(packet: bytes) -> int | None:

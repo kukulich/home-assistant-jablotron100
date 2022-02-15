@@ -38,8 +38,9 @@ DEVICE_DATA_BATTERY_LEVEL: Final = "battery_level"
 DEVICE_DATA_SIGNAL_STRENGTH: Final = "signal_strength"
 DEVICE_DATA_SECTION: Final = "section"
 
-DEVICE_CONNECTION_WIRED: Final = "wired"
-DEVICE_CONNECTION_WIRELESS: Final = "wireless"
+class DeviceConnection(StrEnum):
+	WIRED = "wired"
+	WIRELESS = "wireless"
 
 DEVICE_CENTRAL_UNIT_NUMBER: Final = 0
 DEVICE_MOBILE_APPLICATION_NUMBER: Final = 250
