@@ -848,13 +848,6 @@ class Jablotron:
 			STATE_ON,
 		)
 
-		self._add_entity(
-			None,
-			EntityType.IP,
-			self._get_lan_connection_ip_id(),
-			self._get_lan_connection_ip_name(),
-		)
-
 	def _create_gsm_sensor(self) -> None:
 		if self._get_gsm_device_number() is None:
 			return None
@@ -1187,6 +1180,9 @@ class Jablotron:
 		self._store_devices_data()
 
 	def _parse_lan_connection_status_packet(self, packet: bytes) -> None:
+		if len(packet) < 10:
+			return
+
 		lan_connection_ip_id = self._get_lan_connection_ip_id()
 
 		ip_parts = []
@@ -1195,9 +1191,18 @@ class Jablotron:
 
 		lan_ip = ".".join(ip_parts)
 
-		self._update_entity_state(lan_connection_ip_id, lan_ip)
-
-		self._store_devices_data()
+		if lan_connection_ip_id not in self.entities[EntityType.IP]:
+			self._add_entity(
+				None,
+				EntityType.IP,
+				lan_connection_ip_id,
+				self._get_lan_connection_ip_name(),
+				lan_ip,
+			)
+			async_dispatcher_send(self._hass, self.signal_entities_added())
+		else:
+			self._update_entity_state(lan_connection_ip_id, lan_ip)
+			self._store_devices_data()
 
 	def _parse_wireless_device_status_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_device_status_packet(packet)
