@@ -58,6 +58,7 @@ from .const import (
 	DEVICE_INFO_TYPE_INPUT_EXTENDED,
 	DEVICE_INFO_TYPE_INPUT_VALUE,
 	DEVICE_INFO_TYPE_POWER,
+	DEVICE_INFO_TYPE_POWER_PRECISE,
 	DEVICE_INFO_TYPE_PULSE,
 	DEVICE_INFO_TYPE_SMOKE,
 	DEVICE_PACKET_TYPE_FAULT,
@@ -745,15 +746,21 @@ class Jablotron:
 			# Battery level sensor
 			device_battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
 			if self.is_device_with_battery(device_number):
-				self._add_entity(
-					hass_device,
-					EntityType.BATTERY_LEVEL,
-					device_battery_level_sensor_id,
-					self._get_device_battery_level_sensor_name(device_number),
-					self._devices_data[device_id][DeviceData.BATTERY_LEVEL],
-				)
+				self._add_battery_level_entity(device_number, self._devices_data[device_id][DeviceData.BATTERY_LEVEL])
 			else:
 				await self._remove_entity(EntityType.BATTERY_LEVEL, device_battery_level_sensor_id)
+
+			# Battery voltage sensors
+			device_battery_standby_voltage_sensor_id = self._get_device_battery_standby_voltage_sensor_id(device_number)
+			device_battery_load_voltage_sensor_id = self._get_device_battery_load_voltage_sensor_id(device_number)
+			if (
+				self.is_device_with_battery(device_number)
+				and device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR)
+			):
+				self._add_battery_voltage_entities(device_number)
+			else:
+				await self._remove_entity(EntityType.VOLTAGE, device_battery_standby_voltage_sensor_id)
+				await self._remove_entity(EntityType.VOLTAGE, device_battery_load_voltage_sensor_id)
 
 			# Temperature sensor
 			device_temperature_sensor_id = self._get_device_temperature_sensor_id(device_number)
@@ -766,27 +773,6 @@ class Jablotron:
 				)
 			else:
 				await self._remove_entity(EntityType.TEMPERATURE, device_temperature_sensor_id)
-
-			# Battery voltage sensors
-			device_battery_standby_voltage_sensor_id = self._get_device_battery_standby_voltage_sensor_id(device_number)
-			device_battery_load_voltage_sensor_id = self._get_device_battery_load_voltage_sensor_id(device_number)
-			if device_type == DeviceType.SIREN_OUTDOOR:
-				self._add_entity(
-					hass_device,
-					EntityType.VOLTAGE,
-					device_battery_standby_voltage_sensor_id,
-					self._get_device_battery_standby_voltage_sensor_name(device_number),
-				)
-
-				self._add_entity(
-					hass_device,
-					EntityType.VOLTAGE,
-					device_battery_load_voltage_sensor_id,
-					self._get_device_battery_load_voltage_sensor_name(device_number),
-				)
-			else:
-				await self._remove_entity(EntityType.VOLTAGE, device_battery_standby_voltage_sensor_id)
-				await self._remove_entity(EntityType.VOLTAGE, device_battery_load_voltage_sensor_id)
 
 			# Pulses sensor
 			device_pulse_sensor_id = self._get_device_pulse_sensor_id(device_number)
@@ -890,7 +876,7 @@ class Jablotron:
 		for device_number in self._get_not_ignored_devices():
 			device_type = self._get_device_type(device_number)
 
-			if device_type not in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT, DeviceType.SMOKE_DETECTOR, DeviceType.SIREN_OUTDOOR):
+			if device_type not in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT, DeviceType.SMOKE_DETECTOR, DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
 				continue
 
 			self._stream_diagnostics_event.clear()
@@ -1310,6 +1296,8 @@ class Jablotron:
 			)
 			return
 
+		device_type = self._get_device_type(device_number)
+
 		device_battery_level = self._parse_device_battery_level_from_device_info_packet(packet)
 		if device_battery_level is not None:
 			if not self.is_device_with_battery(device_number):
@@ -1320,17 +1308,16 @@ class Jablotron:
 				device_battery_level,
 			)
 
+			if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
+				self._parse_device_siren_info_packet(packet, device_number)
+
 		if device_number == DeviceNumber.CENTRAL_UNIT.value:
 			self._parse_central_unit_info_packet(packet)
 		else:
-			device_type = self._get_device_type(device_number)
-
 			if device_type in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT):
 				self._parse_device_input_value_info_packet(packet, device_number)
 			elif device_type == DeviceType.SMOKE_DETECTOR:
 				self._parse_device_smoke_detector_info_packet(packet, device_number)
-			elif device_type == DeviceType.SIREN_OUTDOOR:
-				self._parse_device_siren_outdoor_info_packet(packet, device_number)
 			elif device_type == DeviceType.ELECTRICITY_METER_WITH_PULSE_OUTPUT:
 				self._parse_device_electricity_meter_with_pulse_info_packet(packet, device_number)
 			elif device_type == DeviceType.RADIO_MODULE:
@@ -1390,15 +1377,15 @@ class Jablotron:
 				float(Jablotron.bytes_to_int(info_packet[1:2])),
 			)
 
-	def _parse_device_siren_outdoor_info_packet(self, packet: bytes, device_number: int) -> None:
+	def _parse_device_siren_info_packet(self, packet: bytes, device_number: int) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
 			info_packet_type = info_packet[0:1]
 
-			if info_packet_type != DEVICE_INFO_TYPE_POWER:
+			if info_packet_type not in (DEVICE_INFO_TYPE_POWER, DEVICE_INFO_TYPE_POWER_PRECISE):
 				self._log_error_with_packet(
-					"Unexpected info packet {} of outdoor siren (device {})".format(Jablotron.format_packet_to_string(info_packet), device_number),
+					"Unexpected info packet {} of siren (device {})".format(Jablotron.format_packet_to_string(info_packet), device_number),
 					packet,
 				)
 				continue
@@ -1417,7 +1404,7 @@ class Jablotron:
 				)
 			else:
 				self._log_error_with_packet(
-					"Unknown channel {} of power info packet {} of outdoor siren (device {})".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet), device_number),
+					"Unknown channel {} of power info packet {} of siren (device {})".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet), device_number),
 					packet,
 				)
 
@@ -1713,10 +1700,21 @@ class Jablotron:
 
 	def _add_battery_to_device(self, device_number: int, battery_level: int) -> None:
 		device_id = self._get_device_id(device_number)
+		device_type = self._get_device_type(device_number)
 
 		self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_level
 
 		self._store_devices_data()
+
+		self._add_battery_level_entity(device_number, battery_level)
+
+		if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
+			self._add_battery_voltage_entities(device_number)
+
+		async_dispatcher_send(self._hass, self.signal_entities_added())
+
+	def _add_battery_level_entity(self, device_number: int, battery_level: int) -> None:
+		device_id = self._get_device_id(device_number)
 
 		self._add_entity(
 			self._device_hass_devices[device_id],
@@ -1726,7 +1724,22 @@ class Jablotron:
 			battery_level,
 		)
 
-		async_dispatcher_send(self._hass, self.signal_entities_added())
+	def _add_battery_voltage_entities(self, device_number: int) -> None:
+		device_id = self._get_device_id(device_number)
+
+		self._add_entity(
+			self._device_hass_devices[device_id],
+			EntityType.VOLTAGE,
+			self._get_device_battery_standby_voltage_sensor_id(device_number),
+			self._get_device_battery_standby_voltage_sensor_name(device_number),
+		)
+
+		self._add_entity(
+			self._device_hass_devices[device_id],
+			EntityType.VOLTAGE,
+			self._get_device_battery_load_voltage_sensor_id(device_number),
+			self._get_device_battery_load_voltage_sensor_name(device_number),
+		)
 
 	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, entity_name: str, initial_state: StateType = None) -> None:
 		if entity_id in self.entities[entity_type]:
@@ -1955,6 +1968,7 @@ class Jablotron:
 
 		info_type_length = {
 			DEVICE_INFO_TYPE_POWER: 4,
+			DEVICE_INFO_TYPE_POWER_PRECISE: 3,
 			DEVICE_INFO_TYPE_SMOKE: 4,
 			DEVICE_INFO_TYPE_PULSE: 14,
 			DEVICE_INFO_TYPE_INPUT_VALUE: 5,
