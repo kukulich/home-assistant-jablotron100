@@ -789,6 +789,14 @@ class Jablotron:
 	def _create_central_unit_sensors(self) -> None:
 		self._add_entity(
 			None,
+			EntityType.PROBLEM,
+			self._get_device_power_supply_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+			self._get_device_power_supply_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
+			STATE_OFF,
+		)
+
+		self._add_entity(
+			None,
 			EntityType.BATTERY_LEVEL,
 			self._get_device_battery_level_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
 			self._get_device_battery_level_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
@@ -1421,6 +1429,13 @@ class Jablotron:
 				)
 
 	def _parse_central_unit_info_packet(self, packet: bytes) -> None:
+		power_supply_and_battery_binary = Jablotron._bytes_to_binary(packet[5:6])
+
+		self._update_entity_state(
+			self._get_device_power_supply_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+			STATE_ON if power_supply_and_battery_binary[1:2] == "1" else STATE_OFF,
+		)
+
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
@@ -2134,6 +2149,13 @@ class Jablotron:
 
 	def _get_device_signal_strength_sensor_name(self, device_number: int) -> str:
 		return "Signal strength of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
+
+	@staticmethod
+	def _get_device_power_supply_sensor_id(device_number: int) -> str:
+		return "device_power_supply_sensor_{}".format(device_number)
+
+	def _get_device_power_supply_sensor_name(self, device_number: int) -> str:
+		return "Power supply of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
 	def _get_device_battery_level_sensor_id(device_number: int) -> str:
