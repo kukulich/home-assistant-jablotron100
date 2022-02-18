@@ -808,19 +808,7 @@ class Jablotron:
 			self._get_device_battery_load_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
 		)
 
-		self._add_entity(
-			None,
-			EntityType.VOLTAGE,
-			self._get_device_bus_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-			self._get_device_bus_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
-		)
-
-		self._add_entity(
-			None,
-			EntityType.CURRENT,
-			self._get_device_bus_devices_loss_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-			self._get_device_bus_devices_loss_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
-		)
+		self._add_central_unit_bus_entities(1)
 
 	def _create_lan_connection(self) -> None:
 		if self._get_lan_connection_device_number() is None:
@@ -1457,13 +1445,17 @@ class Jablotron:
 			elif channel == b"\x11":
 				# Battery in test
 				pass
-			elif channel == b"\x01":
+			elif channel in (b"\x01", b"\x02", b"\x03"):
+				bus_number = self.bytes_to_int(channel)
+
+				self._add_bus_to_central_unit(bus_number)
+
 				self._update_entity_state(
-					self._get_device_bus_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+					self._get_central_unit_bus_voltage_sensor_id(bus_number),
 					self.bytes_to_float(info_packet[2:3]),
 				)
 				self._update_entity_state(
-					self._get_device_bus_devices_loss_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+					self._get_central_unit_bus_devices_loss_sensor_id(bus_number),
 					self.bytes_to_int(info_packet[3:4]),
 				)
 			else:
@@ -1698,6 +1690,15 @@ class Jablotron:
 			battery_level,
 		)
 
+	def _add_bus_to_central_unit(self, bus_number: int) -> None:
+		if self._get_central_unit_bus_voltage_sensor_id(bus_number) in self.entities[EntityType.VOLTAGE]:
+			# Already exist
+			return
+
+		self._add_central_unit_bus_entities(bus_number)
+
+		async_dispatcher_send(self._hass, self.signal_entities_added())
+
 	def _add_battery_to_device(self, device_number: int, battery_level: int) -> None:
 		device_id = self._get_device_id(device_number)
 		device_type = self._get_device_type(device_number)
@@ -1739,6 +1740,21 @@ class Jablotron:
 			EntityType.VOLTAGE,
 			self._get_device_battery_load_voltage_sensor_id(device_number),
 			self._get_device_battery_load_voltage_sensor_name(device_number),
+		)
+
+	def _add_central_unit_bus_entities(self, bus_number: int) -> None:
+		self._add_entity(
+			None,
+			EntityType.VOLTAGE,
+			self._get_central_unit_bus_voltage_sensor_id(bus_number),
+			self._get_central_unit_bus_voltage_sensor_name(bus_number),
+		)
+
+		self._add_entity(
+			None,
+			EntityType.CURRENT,
+			self._get_central_unit_bus_devices_loss_sensor_id(bus_number),
+			self._get_central_unit_bus_devices_loss_sensor_name(bus_number),
 		)
 
 	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, entity_name: str, initial_state: StateType = None) -> None:
@@ -2148,18 +2164,42 @@ class Jablotron:
 		return "Battery load voltage of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
-	def _get_device_bus_voltage_sensor_id(device_number: int) -> str:
-		return "bus_voltage_{}".format(device_number)
+	def _get_central_unit_bus_voltage_sensor_id(bus_number: int) -> str:
+		sensor_id = "bus_voltage_{}".format(DeviceNumber.CENTRAL_UNIT.value)
 
-	def _get_device_bus_voltage_sensor_name(self, device_number: int) -> str:
-		return "BUS voltage of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
+		if bus_number != 1:
+			sensor_id += "_bus_{}".format(bus_number)
+
+		return sensor_id
+
+	def _get_central_unit_bus_voltage_sensor_name(self, bus_number: int) -> str:
+		sensor_name = "BUS"
+
+		if bus_number != 1:
+			sensor_name += " {}".format(bus_number)
+
+		sensor_name += " voltage of {} (device {})".format(self._get_device_name(DeviceNumber.CENTRAL_UNIT.value).lower(), DeviceNumber.CENTRAL_UNIT.value)
+
+		return sensor_name
 
 	@staticmethod
-	def _get_device_bus_devices_loss_sensor_id(device_number: int) -> str:
-		return "bus_devices_loss_{}".format(device_number)
+	def _get_central_unit_bus_devices_loss_sensor_id(bus_number: int) -> str:
+		sensor_id = "bus_devices_loss_{}".format(DeviceNumber.CENTRAL_UNIT.value)
 
-	def _get_device_bus_devices_loss_sensor_name(self, device_number: int) -> str:
-		return "BUS devices loss of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
+		if bus_number != 1:
+			sensor_id += "_bus_{}".format(bus_number)
+
+		return sensor_id
+
+	def _get_central_unit_bus_devices_loss_sensor_name(self, bus_number: int) -> str:
+		sensor_name = "BUS"
+
+		if bus_number != 1:
+			sensor_name += " {}".format(bus_number)
+
+		sensor_name += " devices loss of {} (device {})".format(self._get_device_name(DeviceNumber.CENTRAL_UNIT.value).lower(), DeviceNumber.CENTRAL_UNIT.value)
+
+		return sensor_name
 
 	@staticmethod
 	def _get_device_pulse_sensor_id(device_number: int) -> str:
