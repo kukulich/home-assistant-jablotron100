@@ -74,6 +74,7 @@ class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 class JablotronProblemSensorEntity(JablotronBinarySensor):
 
 	_attr_device_class = BinarySensorDeviceClass.PROBLEM
+	_attr_entity_category = EntityCategory.DIAGNOSTIC
 
 
 class JablotronFireSensorEntity(JablotronBinarySensor):
