@@ -35,6 +35,8 @@ async def async_get_config_entry_diagnostics(
 			"model": central_unit.model,
 			"firmware_version": central_unit.firmware_version,
 			"hardware_version": central_unit.hardware_version,
+			"battery": jablotron_instance.is_central_unit_with_battery(),
+			"buses": jablotron_instance.get_central_unit_buses(),
 		},
 		"configuration": configuration,
 		"options": dict(config_entry.options),

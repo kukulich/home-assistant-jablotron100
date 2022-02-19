@@ -34,6 +34,12 @@ DEFAULT_CONF_REQUIRE_CODE_TO_ARM: Final = False
 DEFAULT_CONF_REQUIRE_CODE_TO_DISARM: Final = True
 DEFAULT_CONF_ENABLE_DEBUGGING: Final = False
 
+class CentralUnitData(StrEnum):
+	BATTERY = "battery"
+	BUSES = "buses"
+	BATTERY_LEVEL = "battery_level"
+	LAN_IP = "lan_ip"
+
 class DeviceData(StrEnum):
 	BATTERY = "battery"
 	BATTERY_LEVEL = "battery_level"

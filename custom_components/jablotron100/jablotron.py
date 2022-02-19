@@ -32,6 +32,7 @@ from .const import (
 	BATTERY_LEVEL_NO_BATTERY,
 	BATTERY_LEVELS_TO_IGNORE,
 	BATTERY_LEVEL_STEP,
+	CentralUnitData,
 	CODE_MIN_LENGTH,
 	COMMAND_ENABLE_DEVICE_STATE_PACKETS,
 	COMMAND_GET_DEVICE_STATUS,
@@ -112,8 +113,9 @@ from .errors import (
 )
 
 STORAGE_VERSION: Final = 1
-STORAGE_STATES_KEY: Final = "states"
+STORAGE_CENTRAL_UNIT_KEY: Final = "central_unit"
 STORAGE_DEVICES_KEY: Final = "devices"
+STORAGE_STATES_KEY: Final = "states"
 
 
 class JablotronSectionState:
@@ -224,6 +226,7 @@ class Jablotron:
 		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
 		self._stored_data: dict | None = None
 
+		self._central_unit_data: Dict[CentralUnitData, Any] = {}
 		self._devices_data: Dict[str, Dict[DeviceData, Any]] = {}
 
 		self.last_update_success: bool = False
@@ -266,8 +269,6 @@ class Jablotron:
 		self._detect_central_unit()
 		await self._detect_and_create_devices_and_sections_and_pg_outputs()
 		self._create_central_unit_sensors()
-		self._create_lan_connection()
-		self._create_gsm_sensor()
 
 		# Initialize stream threads
 		self._stream_thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
@@ -367,11 +368,14 @@ class Jablotron:
 		if serial_port not in self._stored_data:
 			return
 
-		if STORAGE_STATES_KEY in self._stored_data[serial_port]:
-			self.entities_states = copy.deepcopy(self._stored_data[serial_port][STORAGE_STATES_KEY])
+		if STORAGE_CENTRAL_UNIT_KEY in self._stored_data[serial_port]:
+			self._central_unit_data = copy.deepcopy(self._stored_data[serial_port][STORAGE_CENTRAL_UNIT_KEY])
 
 		if STORAGE_DEVICES_KEY in self._stored_data[serial_port]:
 			self._devices_data = copy.deepcopy(self._stored_data[serial_port][STORAGE_DEVICES_KEY])
+
+		if STORAGE_STATES_KEY in self._stored_data[serial_port]:
+			self.entities_states = copy.deepcopy(self._stored_data[serial_port][STORAGE_STATES_KEY])
 
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
@@ -801,6 +805,12 @@ class Jablotron:
 				await self._remove_entity(EntityType.PULSE, device_pulse_sensor_id)
 
 	def _create_central_unit_sensors(self) -> None:
+		if CentralUnitData.BATTERY not in self._central_unit_data:
+			self._central_unit_data[CentralUnitData.BATTERY] = False
+			self._central_unit_data[CentralUnitData.BATTERY_LEVEL] = None
+		if CentralUnitData.BUSES not in self._central_unit_data:
+			self._central_unit_data[CentralUnitData.BUSES] = [1]
+
 		self._add_entity(
 			None,
 			EntityType.PROBLEM,
@@ -809,67 +819,74 @@ class Jablotron:
 			STATE_OFF,
 		)
 
-		self._add_entity(
-			None,
-			EntityType.BATTERY_LEVEL,
-			self._get_device_battery_level_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-			self._get_device_battery_level_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
-		)
+		if self._central_unit_data[CentralUnitData.BATTERY]:
+			self._add_entity(
+				None,
+				EntityType.PROBLEM,
+				self._get_device_battery_problem_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+				self._get_device_battery_problem_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
+			)
 
-		self._add_entity(
-			None,
-			EntityType.PROBLEM,
-			self._get_device_battery_problem_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-			self._get_device_battery_problem_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
-		)
+			self._add_entity(
+				None,
+				EntityType.BATTERY_LEVEL,
+				self._get_device_battery_level_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+				self._get_device_battery_level_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
+			)
 
-		self._add_entity(
-			None,
-			EntityType.VOLTAGE,
-			self._get_device_battery_standby_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-			self._get_device_battery_standby_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
-		)
+			self._add_entity(
+				None,
+				EntityType.VOLTAGE,
+				self._get_device_battery_standby_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+				self._get_device_battery_standby_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
+			)
 
-		self._add_entity(
-			None,
-			EntityType.VOLTAGE,
-			self._get_device_battery_load_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-			self._get_device_battery_load_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
-		)
+			self._add_entity(
+				None,
+				EntityType.VOLTAGE,
+				self._get_device_battery_load_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+				self._get_device_battery_load_voltage_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
+			)
 
-		self._add_central_unit_bus_entities(1)
+		for bus_number in self._central_unit_data[CentralUnitData.BUSES]:
+			self._add_central_unit_bus_entities(bus_number)
 
-	def _create_lan_connection(self) -> None:
-		if self._get_lan_connection_device_number() is None:
-			return None
+		if self._get_lan_connection_device_number() is not None:
+			if CentralUnitData.LAN_IP not in self._central_unit_data:
+				self._central_unit_data[CentralUnitData.LAN_IP] = False
 
-		self._add_entity(
-			None,
-			EntityType.LAN_CONNECTION,
-			self._get_lan_connection_id(),
-			self._get_lan_connection_name(),
-			STATE_ON,
-		)
+			self._add_entity(
+				None,
+				EntityType.LAN_CONNECTION,
+				self._get_lan_connection_id(),
+				self._get_lan_connection_name(),
+				STATE_ON,
+			)
 
-	def _create_gsm_sensor(self) -> None:
-		if self._get_gsm_device_number() is None:
-			return None
+			if self._central_unit_data[CentralUnitData.LAN_IP]:
+				self._add_entity(
+					None,
+					EntityType.IP,
+					self._get_lan_connection_id(),
+					self._get_lan_connection_ip_name(),
+				)
 
-		self._add_entity(
-			None,
-			EntityType.GSM_SIGNAL,
-			self._get_gsm_signal_sensor_id(),
-			self._get_gsm_signal_sensor_name(),
-			STATE_ON,
-		)
+		if self._get_gsm_device_number() is not None:
+			self._add_entity(
+				None,
+				EntityType.GSM_SIGNAL,
+				self._get_gsm_signal_sensor_id(),
+				self._get_gsm_signal_sensor_name(),
+				STATE_ON,
+			)
 
-		self._add_entity(
-			None,
-			EntityType.SIGNAL_STRENGTH,
-			self._get_gsm_signal_strength_sensor_id(),
-			self._get_gsm_signal_strength_sensor_name(),
-			100,
-		)
+			self._add_entity(
+				None,
+				EntityType.SIGNAL_STRENGTH,
+				self._get_gsm_signal_strength_sensor_id(),
+				self._get_gsm_signal_strength_sensor_name(),
+				100,
+			)
 
 	def _force_devices_status_update(self) -> None:
 		packets = []
@@ -1095,9 +1112,6 @@ class Jablotron:
 		return self._devices_data[device_id][DeviceData.CONNECTION] == DeviceConnection.WIRELESS
 
 	def is_device_with_battery(self, number: int) -> bool:
-		if number == DeviceNumber.CENTRAL_UNIT.value:
-			return True
-
 		device_id = self._get_device_id(number)
 
 		if device_id not in self._devices_data:
@@ -1109,6 +1123,12 @@ class Jablotron:
 		device_id = self._get_device_id(number)
 
 		return self._devices_data[device_id][DeviceData.SECTION]
+
+	def is_central_unit_with_battery(self) -> bool:
+		return self._central_unit_data[CentralUnitData.BATTERY]
+
+	def get_central_unit_buses(self) -> List[int]:
+		return self._central_unit_data[CentralUnitData.BUSES]
 
 	def _is_device_with_state(self, number: int) -> bool:
 		device_type = self._get_device_type(number)
@@ -1202,6 +1222,10 @@ class Jablotron:
 				self._get_lan_connection_ip_name(),
 				lan_ip,
 			)
+
+			self._central_unit_data[CentralUnitData.LAN_IP] = True
+			self._store_central_unit_data()
+
 			async_dispatcher_send(self._hass, self.signal_entities_added())
 		else:
 			self._update_entity_state(lan_connection_ip_id, lan_ip)
@@ -1318,29 +1342,29 @@ class Jablotron:
 			)
 			return
 
-		device_type = self._get_device_type(device_number)
-
-		device_battery_state = self._parse_device_battery_level_from_device_info_packet(packet)
-		if device_battery_state is not None:
-			if not self.is_device_with_battery(device_number):
-				self._add_battery_to_device(device_number, device_battery_state)
-
-			self._update_entity_state(
-				self._get_device_battery_problem_sensor_id(device_number),
-				STATE_OFF if device_battery_state.ok else STATE_ON,
-			)
-
-			self._update_entity_state(
-				self._get_device_battery_level_sensor_id(device_number),
-				device_battery_state.level,
-			)
-
-			if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
-				self._parse_device_siren_info_packet(packet, device_number)
-
 		if device_number == DeviceNumber.CENTRAL_UNIT.value:
 			self._parse_central_unit_info_packet(packet)
 		else:
+			device_type = self._get_device_type(device_number)
+
+			device_battery_state = self._parse_device_battery_level_from_device_info_packet(packet)
+			if device_battery_state is not None:
+				if not self.is_device_with_battery(device_number):
+					self._add_battery_to_device(device_number, device_battery_state)
+
+				self._update_entity_state(
+					self._get_device_battery_problem_sensor_id(device_number),
+					STATE_OFF if device_battery_state.ok else STATE_ON,
+				)
+
+				self._update_entity_state(
+					self._get_device_battery_level_sensor_id(device_number),
+					device_battery_state.level,
+				)
+
+				if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
+					self._parse_device_siren_info_packet(packet, device_number)
+
 			if device_type in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT):
 				self._parse_device_input_value_info_packet(packet, device_number)
 			elif device_type == DeviceType.SMOKE_DETECTOR:
@@ -1466,6 +1490,20 @@ class Jablotron:
 			self._get_device_power_supply_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
 			STATE_ON if power_supply_and_battery_binary[1:2] == "1" else STATE_OFF,
 		)
+
+		battery_state = self._parse_device_battery_level_from_device_info_packet(packet)
+		if battery_state is not None:
+			if not self._central_unit_data[CentralUnitData.BATTERY]:
+				self._add_battery_to_central_unit(battery_state)
+
+			self._update_entity_state(
+				self._get_device_battery_problem_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+				STATE_OFF if battery_state.ok else STATE_ON,
+			)
+			self._update_entity_state(
+				self._get_device_battery_level_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+				battery_state.level,
+			)
 
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
@@ -1713,6 +1751,15 @@ class Jablotron:
 		del self._stored_data[serial_port][STORAGE_STATES_KEY][entity_id]
 		self._store.async_delay_save(self._data_to_store)
 
+	def _store_central_unit_data(self) -> None:
+		serial_port = self._config[CONF_SERIAL_PORT]
+
+		if serial_port not in self._stored_data:
+			self._stored_data[serial_port] = {}
+
+		self._stored_data[serial_port][STORAGE_CENTRAL_UNIT_KEY] = self._central_unit_data
+		self._store.async_delay_save(self._data_to_store)
+
 	def _store_devices_data(self) -> None:
 		serial_port = self._config[CONF_SERIAL_PORT]
 
@@ -1737,11 +1784,24 @@ class Jablotron:
 		)
 
 	def _add_bus_to_central_unit(self, bus_number: int) -> None:
-		if self._get_central_unit_bus_voltage_sensor_id(bus_number) in self.entities[EntityType.VOLTAGE]:
-			# Already exist
+		if bus_number in self._central_unit_data[CentralUnitData.BUSES]:
 			return
 
+		self._central_unit_data[CentralUnitData.BUSES].append(bus_number)
+		self._store_central_unit_data()
+
 		self._add_central_unit_bus_entities(bus_number)
+
+		async_dispatcher_send(self._hass, self.signal_entities_added())
+
+	def _add_battery_to_central_unit(self, battery_state: JablotronBatteryState) -> None:
+		self._central_unit_data[CentralUnitData.BATTERY] = True
+		self._central_unit_data[CentralUnitData.BATTERY_LEVEL] = battery_state.level
+
+		self._store_central_unit_data()
+
+		self._add_battery_entities(DeviceNumber.CENTRAL_UNIT.value, battery_state)
+		self._add_battery_voltage_entities(DeviceNumber.CENTRAL_UNIT.value)
 
 		async_dispatcher_send(self._hass, self.signal_entities_added())
 
@@ -1751,7 +1811,6 @@ class Jablotron:
 
 		self._devices_data[device_id][DeviceData.BATTERY] = True
 		self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
-
 		self._store_devices_data()
 
 		self._add_battery_entities(device_number, battery_state)
@@ -1763,9 +1822,10 @@ class Jablotron:
 
 	def _add_battery_entities(self, device_number: int, battery_state: JablotronBatteryState) -> None:
 		device_id = self._get_device_id(device_number)
+		hass_device = None if device_number == DeviceNumber.CENTRAL_UNIT.value else self._device_hass_devices[device_id]
 
 		self._add_entity(
-			self._device_hass_devices[device_id],
+			hass_device,
 			EntityType.BATTERY_LEVEL,
 			self._get_device_battery_level_sensor_id(device_number),
 			self._get_device_battery_level_sensor_name(device_number),
@@ -1773,7 +1833,7 @@ class Jablotron:
 		)
 
 		self._add_entity(
-			self._device_hass_devices[device_id],
+			hass_device,
 			EntityType.PROBLEM,
 			self._get_device_battery_problem_sensor_id(device_number),
 			self._get_device_battery_problem_sensor_name(device_number),
@@ -1782,16 +1842,17 @@ class Jablotron:
 
 	def _add_battery_voltage_entities(self, device_number: int) -> None:
 		device_id = self._get_device_id(device_number)
+		hass_device = None if device_number == DeviceNumber.CENTRAL_UNIT.value else self._device_hass_devices[device_id]
 
 		self._add_entity(
-			self._device_hass_devices[device_id],
+			hass_device,
 			EntityType.VOLTAGE,
 			self._get_device_battery_standby_voltage_sensor_id(device_number),
 			self._get_device_battery_standby_voltage_sensor_name(device_number),
 		)
 
 		self._add_entity(
-			self._device_hass_devices[device_id],
+			hass_device,
 			EntityType.VOLTAGE,
 			self._get_device_battery_load_voltage_sensor_id(device_number),
 			self._get_device_battery_load_voltage_sensor_name(device_number),
