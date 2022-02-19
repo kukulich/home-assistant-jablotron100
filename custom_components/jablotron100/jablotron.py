@@ -140,43 +140,43 @@ class JablotronCentralUnit:
 
 class JablotronHassDevice:
 
-	def __init__(self, id: str, name: str, battery_level: int | None = None) -> None:
-		self.id: str = id
-		self.name: str = name
+	def __init__(self, device_id: str, device_name: str, battery_level: int | None = None) -> None:
+		self.id: str = device_id
+		self.name: str = device_name
 		self.battery_level: int | None = battery_level
 
 
 class JablotronControl:
 
-	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice | None, id: str, name: str) -> None:
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice | None, control_id: str, control_name: str) -> None:
 		self.central_unit: JablotronCentralUnit = central_unit
 		self.hass_device: JablotronHassDevice | None = hass_device
-		self.id: str = id
-		self.name: str = name
+		self.id: str = control_id
+		self.name: str = control_name
 
 
 class JablotronDevice(JablotronControl):
 
-	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, id: str, name: str, type: str) -> None:
-		self.type: str = type
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, device_id: str, device_name: str, device_type: str) -> None:
+		self.type: str = device_type
 
-		super().__init__(central_unit, hass_device, id, name)
+		super().__init__(central_unit, hass_device, device_id, device_name)
 
 
 class JablotronAlarmControlPanel(JablotronControl):
 
-	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, id: str, name: str, section: int) -> None:
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, panel_id: str, panel_name: str, section: int) -> None:
 		self.section: int = section
 
-		super().__init__(central_unit, hass_device, id, name)
+		super().__init__(central_unit, hass_device, panel_id, panel_name)
 
 
 class JablotronProgrammableOutput(JablotronControl):
 
-	def __init__(self, central_unit: JablotronCentralUnit, id: str, name: str, pg_output_number: int) -> None:
+	def __init__(self, central_unit: JablotronCentralUnit, pg_output_id: str, pg_output_name: str, pg_output_number: int) -> None:
 		self.pg_output_number: int = pg_output_number
 
-		super().__init__(central_unit, None, id, name)
+		super().__init__(central_unit, None, pg_output_id, pg_output_name)
 
 
 class JablotronBatteryState:
