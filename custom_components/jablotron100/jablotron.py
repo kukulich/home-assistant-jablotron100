@@ -29,6 +29,7 @@ import threading
 import time
 from typing import Any, Dict, Final, List
 from .const import (
+	BATTERY_LEVEL_NO_BATTERY,
 	BATTERY_LEVELS_TO_IGNORE,
 	BATTERY_LEVEL_STEP,
 	CODE_MIN_LENGTH,
@@ -178,6 +179,13 @@ class JablotronProgrammableOutput(JablotronControl):
 		super().__init__(central_unit, None, id, name)
 
 
+class JablotronBatteryState:
+
+	def __init__(self, ok: bool, level: int) -> None:
+		self.ok: bool = ok
+		self.level: int = level
+
+
 class Jablotron:
 
 	def __init__(self, hass: core.HomeAssistant, config_entry_id: str, config: Dict[str, Any], options: Dict[str, Any]) -> None:
@@ -216,7 +224,7 @@ class Jablotron:
 		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
 		self._stored_data: dict | None = None
 
-		self._devices_data: Dict[str, Dict[DeviceData, str | int | None]] = {}
+		self._devices_data: Dict[str, Dict[DeviceData, Any]] = {}
 
 		self.last_update_success: bool = False
 		self.in_service_mode = False
@@ -580,8 +588,11 @@ class Jablotron:
 		if len(self._devices_data.items()) == not_ignored_devices_count:
 			items = list(self._devices_data.values())
 
-			if DeviceData.SECTION in items[0]:
-				# Latest version with section
+			if (
+				DeviceData.BATTERY in items[0]
+				and DeviceData.SECTION in items[0]
+			):
+				# Latest version with all data
 				return
 
 		stop_event = threading.Event()
@@ -661,18 +672,19 @@ class Jablotron:
 				self._devices_data[device_id] = {
 					DeviceData.CONNECTION: device_connection,
 					DeviceData.SIGNAL_STRENGTH: None,
+					DeviceData.BATTERY: False,
 					DeviceData.BATTERY_LEVEL: None,
 					DeviceData.SECTION: None,
 				}
 
 				if device_connection == DeviceConnection.WIRELESS:
-					battery_level = self._parse_device_battery_level_from_device_status_packet(packet)
-
 					signal_strength = self._parse_device_signal_strength_from_device_status_packet(packet)
 					self._devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
 
-					if battery_level is not None:
-						self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_level
+					battery_state = self._parse_device_battery_level_from_device_status_packet(packet)
+					if battery_state is not None:
+						self._devices_data[device_id][DeviceData.BATTERY] = True
+						self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
 			else:
 				devices_sections_packet = packet
 
@@ -743,11 +755,13 @@ class Jablotron:
 			else:
 				await self._remove_entity(EntityType.SIGNAL_STRENGTH, device_signal_strength_sensor_id)
 
-			# Battery level sensor
+			# Battery sensors
+			device_battery_problem_sensor_id = self._get_device_battery_problem_sensor_id(device_number)
 			device_battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
 			if self.is_device_with_battery(device_number):
-				self._add_battery_level_entity(device_number, self._devices_data[device_id][DeviceData.BATTERY_LEVEL])
+				self._add_battery_entities(device_number, JablotronBatteryState(True, self._devices_data[device_id][DeviceData.BATTERY_LEVEL]))
 			else:
+				await self._remove_entity(EntityType.PROBLEM, device_battery_problem_sensor_id)
 				await self._remove_entity(EntityType.BATTERY_LEVEL, device_battery_level_sensor_id)
 
 			# Battery voltage sensors
@@ -800,6 +814,13 @@ class Jablotron:
 			EntityType.BATTERY_LEVEL,
 			self._get_device_battery_level_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
 			self._get_device_battery_level_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
+		)
+
+		self._add_entity(
+			None,
+			EntityType.PROBLEM,
+			self._get_device_battery_problem_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
+			self._get_device_battery_problem_sensor_name(DeviceNumber.CENTRAL_UNIT.value),
 		)
 
 		self._add_entity(
@@ -1082,7 +1103,7 @@ class Jablotron:
 		if device_id not in self._devices_data:
 			return False
 
-		return self._devices_data[device_id][DeviceData.BATTERY_LEVEL] is not None
+		return self._devices_data[device_id][DeviceData.BATTERY] is True
 
 	def get_device_section(self, number: int) -> int:
 		device_id = self._get_device_id(number)
@@ -1196,14 +1217,19 @@ class Jablotron:
 		self._update_entity_state(signal_strength_sensor_id, signal_strength)
 		self._devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
 
-		battery_level = self._parse_device_battery_level_from_device_status_packet(packet)
+		battery_state = self._parse_device_battery_level_from_device_status_packet(packet)
 
-		if battery_level is not None:
+		if battery_state is not None:
+			self._devices_data[device_id][DeviceData.BATTERY] = True
+			self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
+
+			battery_problem_sensor_id = self._get_device_battery_problem_sensor_id(device_number)
 			battery_level_sensor_id = self._get_device_battery_level_sensor_id(device_number)
 
-			self._update_entity_state(battery_level_sensor_id, battery_level)
-			self._device_hass_devices[device_id].battery_level = battery_level
-			self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_level
+			self._update_entity_state(battery_problem_sensor_id, STATE_OFF if battery_state.ok else STATE_ON)
+
+			self._update_entity_state(battery_level_sensor_id, battery_state.level)
+			self._device_hass_devices[device_id].battery_level = battery_state.level
 
 		self._store_devices_data()
 
@@ -1294,14 +1320,19 @@ class Jablotron:
 
 		device_type = self._get_device_type(device_number)
 
-		device_battery_level = self._parse_device_battery_level_from_device_info_packet(packet)
-		if device_battery_level is not None:
+		device_battery_state = self._parse_device_battery_level_from_device_info_packet(packet)
+		if device_battery_state is not None:
 			if not self.is_device_with_battery(device_number):
-				self._add_battery_to_device(device_number, device_battery_level)
+				self._add_battery_to_device(device_number, device_battery_state)
+
+			self._update_entity_state(
+				self._get_device_battery_problem_sensor_id(device_number),
+				STATE_OFF if device_battery_state.ok else STATE_ON,
+			)
 
 			self._update_entity_state(
 				self._get_device_battery_level_sensor_id(device_number),
-				device_battery_level,
+				device_battery_state.level,
 			)
 
 			if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
@@ -1714,22 +1745,23 @@ class Jablotron:
 
 		async_dispatcher_send(self._hass, self.signal_entities_added())
 
-	def _add_battery_to_device(self, device_number: int, battery_level: int) -> None:
+	def _add_battery_to_device(self, device_number: int, battery_state: JablotronBatteryState) -> None:
 		device_id = self._get_device_id(device_number)
 		device_type = self._get_device_type(device_number)
 
-		self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_level
+		self._devices_data[device_id][DeviceData.BATTERY] = True
+		self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
 
 		self._store_devices_data()
 
-		self._add_battery_level_entity(device_number, battery_level)
+		self._add_battery_entities(device_number, battery_state)
 
 		if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
 			self._add_battery_voltage_entities(device_number)
 
 		async_dispatcher_send(self._hass, self.signal_entities_added())
 
-	def _add_battery_level_entity(self, device_number: int, battery_level: int) -> None:
+	def _add_battery_entities(self, device_number: int, battery_state: JablotronBatteryState) -> None:
 		device_id = self._get_device_id(device_number)
 
 		self._add_entity(
@@ -1737,7 +1769,15 @@ class Jablotron:
 			EntityType.BATTERY_LEVEL,
 			self._get_device_battery_level_sensor_id(device_number),
 			self._get_device_battery_level_sensor_name(device_number),
-			battery_level,
+			battery_state.level,
+		)
+
+		self._add_entity(
+			self._device_hass_devices[device_id],
+			EntityType.PROBLEM,
+			self._get_device_battery_problem_sensor_id(device_number),
+			self._get_device_battery_problem_sensor_name(device_number),
+			STATE_OFF if battery_state.ok else STATE_ON,
 		)
 
 	def _add_battery_voltage_entities(self, device_number: int) -> None:
@@ -1953,7 +1993,7 @@ class Jablotron:
 		return (number & 0x1f) * SIGNAL_STRENGTH_STEP
 
 	@staticmethod
-	def _parse_device_battery_level_from_device_status_packet(packet: bytes) -> int | None:
+	def _parse_device_battery_level_from_device_status_packet(packet: bytes) -> JablotronBatteryState | None:
 		try:
 			return Jablotron._parse_device_battery_level_packet(packet[10:11])
 		except InvalidBatteryLevel:
@@ -2029,11 +2069,9 @@ class Jablotron:
 		return info_packets
 
 	@staticmethod
-	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> int | None:
-		packet_binary = Jablotron._bytes_to_binary(packet[5:6])
-
+	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> JablotronBatteryState | None:
 		try:
-			return Jablotron._parse_device_battery_level_packet(Jablotron.int_to_bytes(Jablotron.binary_to_int(packet_binary[4:])))
+			return Jablotron._parse_device_battery_level_packet(packet[5:6])
 		except InvalidBatteryLevel:
 			Jablotron._log_debug_with_packet(
 				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_device_info_packet(packet)),
@@ -2043,16 +2081,23 @@ class Jablotron:
 			return None
 
 	@staticmethod
-	def _parse_device_battery_level_packet(battery_level_packet: bytes) -> int | None:
-		if battery_level_packet in BATTERY_LEVELS_TO_IGNORE:
+	def _parse_device_battery_level_packet(packet: bytes) -> JablotronBatteryState | None:
+		packet_binary = Jablotron._bytes_to_binary(packet)
+		battery_level_packet = Jablotron.int_to_bytes(Jablotron.binary_to_int(packet_binary[4:]))
+
+		if battery_level_packet == BATTERY_LEVEL_NO_BATTERY:
 			return None
 
-		battery_level = Jablotron.bytes_to_int(battery_level_packet)
+		if battery_level_packet not in BATTERY_LEVELS_TO_IGNORE:
+			battery_level = Jablotron.bytes_to_int(battery_level_packet) * BATTERY_LEVEL_STEP
+			if battery_level > 100:
+				raise InvalidBatteryLevel
+		else:
+			battery_level = None
 
-		if battery_level > 10:
-			raise InvalidBatteryLevel
+		battery_ok = True if packet_binary[3:4] == "0" else False
 
-		return battery_level * BATTERY_LEVEL_STEP
+		return JablotronBatteryState(battery_ok, battery_level)
 
 	@staticmethod
 	def _convert_jablotron_device_state_to_state(packet: bytes, device_number: int) -> str | None:
@@ -2156,6 +2201,13 @@ class Jablotron:
 
 	def _get_device_power_supply_sensor_name(self, device_number: int) -> str:
 		return "Power supply of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
+
+	@staticmethod
+	def _get_device_battery_problem_sensor_id(device_number: int) -> str:
+		return "device_battery_problem_sensor_{}".format(device_number)
+
+	def _get_device_battery_problem_sensor_name(self, device_number: int) -> str:
+		return "Battery problem of {} (device {})".format(self._get_device_name(device_number).lower(), device_number)
 
 	@staticmethod
 	def _get_device_battery_level_sensor_id(device_number: int) -> str:
