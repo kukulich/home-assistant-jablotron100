@@ -888,6 +888,10 @@ class Jablotron:
 	def _force_devices_status_update(self) -> None:
 		packets = []
 
+		power_supply_device_number = self._get_central_unit_power_supply_device_number()
+		if power_supply_device_number is not None:
+			packets.append(self.create_packet_device_info(power_supply_device_number))
+
 		gsm_device_number = self._get_central_unit_gsm_device_number()
 		if gsm_device_number is not None:
 			packets.append(self.create_packet_device_info(gsm_device_number))
@@ -1174,6 +1178,10 @@ class Jablotron:
 	def _parse_device_status_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_device_status_packet(packet)
 
+		if device_number == self._get_central_unit_power_supply_device_number():
+			self._parse_central_unit_power_supply_status_packet(packet)
+			return
+
 		if device_number == self._get_central_unit_gsm_device_number():
 			self._parse_central_unit_gsm_status_packet(packet)
 			return
@@ -1186,6 +1194,9 @@ class Jablotron:
 
 		if device_connection == DeviceConnection.WIRELESS:
 			self._parse_wireless_device_status_packet(packet)
+
+	def _parse_central_unit_power_supply_status_packet(self, packet: bytes) -> None:
+		self._parse_central_unit_info_packet(packet[4:])
 
 	def _parse_central_unit_gsm_status_packet(self, packet: bytes) -> None:
 		if packet[4:5] not in (b"\xa4", b"\xd5"):
@@ -1607,6 +1618,12 @@ class Jablotron:
 				self._get_pg_output_id(pg_output_number),
 				pg_output_state,
 			)
+
+	def _get_central_unit_power_supply_device_number(self) -> int | None:
+		if self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G"):
+			return 124
+
+		return None
 
 	def _get_central_unit_lan_connection_device_number(self) -> int | None:
 		if self._central_unit.model in ("JA-101K-LAN", "JA-106K-3G"):
