@@ -848,7 +848,7 @@ class Jablotron:
 		for bus_number in self._central_unit_data[CentralUnitData.BUSES]:
 			self._add_central_unit_bus_entities(bus_number)
 
-		if self._get_lan_connection_device_number() is not None:
+		if self._get_central_unit_lan_connection_device_number() is not None:
 			if CentralUnitData.LAN_IP not in self._central_unit_data:
 				self._central_unit_data[CentralUnitData.LAN_IP] = False
 
@@ -868,7 +868,7 @@ class Jablotron:
 					self._get_lan_connection_ip_name(),
 				)
 
-		if self._get_gsm_device_number() is not None:
+		if self._get_central_unit_gsm_device_number() is not None:
 			self._add_entity(
 				None,
 				EntityType.GSM_SIGNAL,
@@ -888,11 +888,11 @@ class Jablotron:
 	def _force_devices_status_update(self) -> None:
 		packets = []
 
-		gsm_device_number = self._get_gsm_device_number()
+		gsm_device_number = self._get_central_unit_gsm_device_number()
 		if gsm_device_number is not None:
 			packets.append(self.create_packet_device_info(gsm_device_number))
 
-		lan_connection_device_number = self._get_lan_connection_device_number()
+		lan_connection_device_number = self._get_central_unit_lan_connection_device_number()
 		if lan_connection_device_number is not None:
 			packets.append(self.create_packet_device_info(lan_connection_device_number))
 
@@ -1174,12 +1174,12 @@ class Jablotron:
 	def _parse_device_status_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_device_status_packet(packet)
 
-		if device_number == self._get_gsm_device_number():
-			self._parse_gsm_status_packet(packet)
+		if device_number == self._get_central_unit_gsm_device_number():
+			self._parse_central_unit_gsm_status_packet(packet)
 			return
 
-		if device_number == self._get_lan_connection_device_number():
-			self._parse_lan_connection_status_packet(packet)
+		if device_number == self._get_central_unit_lan_connection_device_number():
+			self._parse_central_unit_lan_connection_status_packet(packet)
 			return
 
 		device_connection = self._parse_device_connection_type_from_device_status_packet(packet)
@@ -1187,7 +1187,7 @@ class Jablotron:
 		if device_connection == DeviceConnection.WIRELESS:
 			self._parse_wireless_device_status_packet(packet)
 
-	def _parse_gsm_status_packet(self, packet: bytes) -> None:
+	def _parse_central_unit_gsm_status_packet(self, packet: bytes) -> None:
 		if packet[4:5] not in (b"\xa4", b"\xd5"):
 			self._log_error_with_packet("Unknown status packet of GSM", packet)
 			return
@@ -1199,7 +1199,7 @@ class Jablotron:
 
 		self._store_devices_data()
 
-	def _parse_lan_connection_status_packet(self, packet: bytes) -> None:
+	def _parse_central_unit_lan_connection_status_packet(self, packet: bytes) -> None:
 		if len(packet) < 10:
 			return
 
@@ -1265,11 +1265,11 @@ class Jablotron:
 			self._set_last_active_user_from_device_state_packet(packet, device_number)
 			return
 
-		if device_number == self._get_lan_connection_device_number():
+		if device_number == self._get_central_unit_lan_connection_device_number():
 			self._parse_lan_connection_device_state_packet(packet)
 			return
 
-		if device_number == self._get_gsm_device_number():
+		if device_number == self._get_central_unit_gsm_device_number():
 			self._parse_gsm_device_state_packet(packet)
 			return
 
@@ -1546,7 +1546,7 @@ class Jablotron:
 				)
 
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
-		lan_connection_device_number = self._get_lan_connection_device_number()
+		lan_connection_device_number = self._get_central_unit_lan_connection_device_number()
 
 		device_state = self._convert_jablotron_device_state_to_state(packet, lan_connection_device_number)
 
@@ -1560,7 +1560,7 @@ class Jablotron:
 		)
 
 	def _parse_gsm_device_state_packet(self, packet: bytes) -> None:
-		gsm_device_number = self._get_gsm_device_number()
+		gsm_device_number = self._get_central_unit_gsm_device_number()
 
 		device_state = self._convert_jablotron_device_state_to_state(packet, gsm_device_number)
 
@@ -1606,7 +1606,7 @@ class Jablotron:
 				pg_output_state,
 			)
 
-	def _get_lan_connection_device_number(self) -> int | None:
+	def _get_central_unit_lan_connection_device_number(self) -> int | None:
 		if self._central_unit.model in ("JA-101K-LAN", "JA-106K-3G"):
 			return 125
 
@@ -1615,7 +1615,7 @@ class Jablotron:
 
 		return None
 
-	def _get_gsm_device_number(self) -> int | None:
+	def _get_central_unit_gsm_device_number(self) -> int | None:
 		if self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G"):
 			return 127
 
