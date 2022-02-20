@@ -112,7 +112,7 @@ from .errors import (
 	InvalidBatteryLevel,
 )
 
-STORAGE_VERSION: Final = 1
+STORAGE_VERSION: Final = 2
 STORAGE_CENTRAL_UNIT_KEY: Final = "central_unit"
 STORAGE_DEVICES_KEY: Final = "devices"
 STORAGE_STATES_KEY: Final = "states"
@@ -358,7 +358,11 @@ class Jablotron:
 			hass_entity.refresh_state()
 
 	async def _load_stored_data(self) -> None:
-		self._stored_data = await self._store.async_load()
+		try:
+			self._stored_data = await self._store.async_load()
+		except NotImplementedError:
+			# Version upgrade - no migration implemented
+			pass
 
 		if self._stored_data is None:
 			self._stored_data = {}
@@ -590,14 +594,7 @@ class Jablotron:
 			return
 
 		if len(self._devices_data.items()) == not_ignored_devices_count:
-			items = list(self._devices_data.values())
-
-			if (
-				DeviceData.BATTERY in items[0]
-				and DeviceData.SECTION in items[0]
-			):
-				# Latest version with all data
-				return
+			return
 
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
