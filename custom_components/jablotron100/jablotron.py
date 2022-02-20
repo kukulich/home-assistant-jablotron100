@@ -1339,12 +1339,14 @@ class Jablotron:
 			)
 			return
 
+		info_packet = packet[5:]
+
 		if device_number == DeviceNumber.CENTRAL_UNIT.value:
-			self._parse_central_unit_info_packet(packet)
+			self._parse_central_unit_info_packet(info_packet)
 		else:
 			device_type = self._get_device_type(device_number)
 
-			device_battery_state = self._parse_device_battery_level_from_device_info_packet(packet)
+			device_battery_state = self._parse_device_battery_level_from_device_info_packet(info_packet)
 			if device_battery_state is not None:
 				if not self.is_device_with_battery(device_number):
 					self._add_battery_to_device(device_number, device_battery_state)
@@ -1360,14 +1362,14 @@ class Jablotron:
 				)
 
 				if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
-					self._parse_device_siren_info_packet(packet, device_number)
+					self._parse_device_siren_info_packet(info_packet, device_number)
 
 			if device_type in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT):
-				self._parse_device_input_value_info_packet(packet, device_number)
+				self._parse_device_input_value_info_packet(info_packet, device_number)
 			elif device_type == DeviceType.SMOKE_DETECTOR:
-				self._parse_device_smoke_detector_info_packet(packet, device_number)
+				self._parse_device_smoke_detector_info_packet(info_packet, device_number)
 			elif device_type == DeviceType.ELECTRICITY_METER_WITH_PULSE_OUTPUT:
-				self._parse_device_electricity_meter_with_pulse_info_packet(packet, device_number)
+				self._parse_device_electricity_meter_with_pulse_info_packet(info_packet, device_number)
 			elif device_type == DeviceType.RADIO_MODULE:
 				self._log_debug_with_packet("Info packet of radio module", packet)
 
@@ -1481,7 +1483,7 @@ class Jablotron:
 				)
 
 	def _parse_central_unit_info_packet(self, packet: bytes) -> None:
-		power_supply_and_battery_binary = Jablotron._bytes_to_binary(packet[5:6])
+		power_supply_and_battery_binary = Jablotron._bytes_to_binary(packet[0:1])
 
 		self._update_entity_state(
 			self._get_device_power_supply_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
@@ -2091,7 +2093,7 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_info_packets_from_device_info_packet(packet: bytes) -> List[bytes]:
-		raw_info_packet = packet[7:]
+		raw_info_packet = packet[2:]
 
 		info_packets = []
 
@@ -2129,7 +2131,7 @@ class Jablotron:
 	@staticmethod
 	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> JablotronBatteryState | None:
 		try:
-			return Jablotron._parse_device_battery_level_packet(packet[5:6])
+			return Jablotron._parse_device_battery_level_packet(packet[0:1])
 		except InvalidBatteryLevel:
 			Jablotron._log_debug_with_packet(
 				"Unknown battery level packet of device {}".format(Jablotron._parse_device_number_from_device_info_packet(packet)),
