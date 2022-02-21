@@ -1285,7 +1285,7 @@ class Jablotron:
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			self._log_error_with_packet("State packet of unknown device {}".format(device_number), packet)
+			self._log_error_with_packet("State packet of unknown device", packet)
 			return
 
 		device_type = self._get_device_type(device_number)
@@ -1301,7 +1301,7 @@ class Jablotron:
 		device_state = self._convert_jablotron_device_state_to_state(packet, device_number)
 
 		if device_state is None:
-			self._log_error_with_packet("Unknown state packet of device {}".format(device_number), packet)
+			self._log_error_with_packet("Unknown state packet", packet)
 			return
 
 		packet_state_binary = self._bytes_to_binary(packet[2:3])
@@ -1325,7 +1325,7 @@ class Jablotron:
 				device_state,
 			)
 		else:
-			self._log_error_with_packet("Unknown state packet of device {}".format(device_number), packet)
+			self._log_error_with_packet("Unknown state packet", packet)
 
 		if self.is_wireless_device(device_number):
 			device_signal_strength = self.bytes_to_int(packet[10:11]) * SIGNAL_STRENGTH_STEP
@@ -1338,14 +1338,14 @@ class Jablotron:
 		device_number = self._parse_device_number_from_device_info_packet(packet)
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			self._log_error_with_packet("Info packet of unknown device {}".format(device_number), packet)
+			self._log_error_with_packet("Info packet of unknown device", packet)
 			return
 
 		subpacket_type = packet[3:4]
 
 		if subpacket_type not in DEVICE_INFO_KNOWN_SUBPACKETS:
 			self._log_error_with_packet(
-				"Unknown info subpacket type {} (device {})".format(self.format_packet_to_string(subpacket_type), device_number),
+				"Unknown info subpacket type {}".format(self.format_packet_to_string(subpacket_type)),
 				packet,
 			)
 			return
@@ -1408,7 +1408,7 @@ class Jablotron:
 					)
 				else:
 					self._log_error_with_packet(
-						"Unknown input type {} of value info packet {} (device {})".format(Jablotron.format_packet_to_string(input_type), Jablotron.format_packet_to_string(info_packet), device_number),
+						"Unknown input type {} of value info packet {}".format(Jablotron.format_packet_to_string(input_type), Jablotron.format_packet_to_string(info_packet)),
 						packet,
 					)
 			elif info_packet == DEVICE_INFO_TYPE_INPUT_EXTENDED:
@@ -1416,7 +1416,7 @@ class Jablotron:
 				pass
 			else:
 				self._log_error_with_packet(
-					"Unexpected info packet {} (device {})".format(Jablotron.format_packet_to_string(info_packet), device_number),
+					"Unexpected info packet {}".format(Jablotron.format_packet_to_string(info_packet)),
 					packet,
 				)
 
@@ -1428,7 +1428,7 @@ class Jablotron:
 
 			if info_packet_type != DEVICE_INFO_TYPE_SMOKE:
 				self._log_error_with_packet(
-					"Unexpected info packet {} of smoke detector (device {})".format(Jablotron.format_packet_to_string(info_packet), device_number),
+					"Unexpected info packet {} of smoke detector".format(Jablotron.format_packet_to_string(info_packet)),
 					packet,
 				)
 				continue
@@ -1446,7 +1446,7 @@ class Jablotron:
 
 			if info_packet_type not in (DEVICE_INFO_TYPE_POWER, DEVICE_INFO_TYPE_POWER_PRECISE):
 				self._log_error_with_packet(
-					"Unexpected info packet {} of siren (device {})".format(Jablotron.format_packet_to_string(info_packet), device_number),
+					"Unexpected info packet {} of siren".format(Jablotron.format_packet_to_string(info_packet)),
 					packet,
 				)
 				continue
@@ -1465,7 +1465,7 @@ class Jablotron:
 				)
 			else:
 				self._log_error_with_packet(
-					"Unknown channel {} of power info packet {} of siren (device {})".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet), device_number),
+					"Unknown channel {} of power info packet {} of siren".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet)),
 					packet,
 				)
 
@@ -1479,7 +1479,7 @@ class Jablotron:
 
 			if info_packet_type != DEVICE_INFO_TYPE_PULSE:
 				self._log_error_with_packet(
-					"Unexpected info packet {} of electricity meter with pulse (device {})".format(Jablotron.format_packet_to_string(info_packet), device_number),
+					"Unexpected info packet {} of electricity meter with pulse".format(Jablotron.format_packet_to_string(info_packet)),
 					packet,
 				)
 				continue
@@ -1940,16 +1940,20 @@ class Jablotron:
 
 	@staticmethod
 	def _log_error_with_packet(description: str, packet: bytes) -> None:
-		LOGGER.error("{}: {}".format(description, Jablotron.format_packet_to_string(packet)))
+		LOGGER.error("{}: {}".format(Jablotron._add_device_to_log_description(description, packet), Jablotron.format_packet_to_string(packet)))
 
 	@staticmethod
 	def _log_debug_with_packet(description: str, packet: bytes) -> None:
+		LOGGER.debug("{}: {}".format(Jablotron._add_device_to_log_description(description, packet), Jablotron.format_packet_to_string(packet)))
+
+	@staticmethod
+	def _add_device_to_log_description(description: str, packet: bytes) -> str:
 		device_number = Jablotron._parse_device_number_from_packet(packet)
 
-		if device_number is not None:
-			description = "{} (device {})".format(description, device_number)
+		if device_number is None:
+			return description
 
-		LOGGER.debug("{}: {}".format(description, Jablotron.format_packet_to_string(packet)))
+		return "{} (device {})".format(description, device_number)
 
 	@staticmethod
 	def _is_sections_states_packet(packet: bytes) -> bool:
