@@ -1391,7 +1391,7 @@ class Jablotron:
 			info_packet_type = info_packet[0:1]
 
 			if info_packet_type == DEVICE_INFO_TYPE_INPUT_VALUE:
-				input_type = info_packet[1:2]
+				input_type = info_packet[2:3]
 
 				# Temperature
 				if input_type == b"\x00":
