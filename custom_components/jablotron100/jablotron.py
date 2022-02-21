@@ -55,14 +55,7 @@ from .const import (
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEVICE_INFO_KNOWN_SUBPACKETS,
-	DEVICE_INFO_KNOWN_TYPES,
 	DEVICE_INFO_SUBPACKET_REQUESTED,
-	DEVICE_INFO_TYPE_INPUT_EXTENDED,
-	DEVICE_INFO_TYPE_INPUT_VALUE,
-	DEVICE_INFO_TYPE_POWER,
-	DEVICE_INFO_TYPE_POWER_PRECISE,
-	DEVICE_INFO_TYPE_PULSE,
-	DEVICE_INFO_TYPE_SMOKE,
 	DEVICE_PACKET_TYPE_FAULT,
 	DEVICE_PACKET_TYPE_HEARTBEAT,
 	DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT,
@@ -73,6 +66,7 @@ from .const import (
 	DOMAIN,
 	DeviceConnection,
 	DeviceData,
+	DeviceInfoType,
 	DeviceNumber,
 	DeviceType,
 	EVENT_WRONG_CODE,
@@ -117,6 +111,11 @@ STORAGE_CENTRAL_UNIT_KEY: Final = "central_unit"
 STORAGE_DEVICES_KEY: Final = "devices"
 STORAGE_STATES_KEY: Final = "states"
 
+class ParsedDeviceInfoPacket:
+
+	def __init__(self, packet_type: DeviceInfoType, packet: bytes) -> None:
+		self.type: DeviceInfoType = packet_type
+		self.packet: bytes = packet
 
 class JablotronSectionState:
 
@@ -1388,19 +1387,17 @@ class Jablotron:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
-			info_packet_type = info_packet[0:1]
-
-			if info_packet_type == DEVICE_INFO_TYPE_INPUT_VALUE:
-				input_type = info_packet[2:3]
+			if info_packet.type == DeviceInfoType.INPUT_VALUE:
+				input_type = info_packet.packet[2:3]
 
 				# Temperature
 				if input_type == b"\x00":
-					modifier = Jablotron.bytes_to_int(info_packet[4:5])
+					modifier = Jablotron.bytes_to_int(info_packet.packet[4:5])
 
 					if modifier >= 128:
 						modifier -= 256
 
-					temperature = round((Jablotron.bytes_to_int(info_packet[3:4]) + (255 * modifier)) / 10, 1)
+					temperature = round((Jablotron.bytes_to_int(info_packet.packet[3:4]) + (255 * modifier)) / 10, 1)
 
 					self._update_entity_state(
 						self._get_device_temperature_sensor_id(device_number),
@@ -1408,15 +1405,15 @@ class Jablotron:
 					)
 				else:
 					self._log_error_with_packet(
-						"Unknown input type {} of value info packet {}".format(Jablotron.format_packet_to_string(input_type), Jablotron.format_packet_to_string(info_packet)),
+						"Unknown input type {} of value info packet {}".format(Jablotron.format_packet_to_string(input_type), Jablotron.format_packet_to_string(info_packet.packet)),
 						packet,
 					)
-			elif info_packet == DEVICE_INFO_TYPE_INPUT_EXTENDED:
+			elif info_packet.type == DeviceInfoType.INPUT_EXTENDED:
 				# Ignore
 				pass
 			else:
 				self._log_error_with_packet(
-					"Unexpected info packet {}".format(Jablotron.format_packet_to_string(info_packet)),
+					"Unexpected info packet {}".format(Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
 
@@ -1424,74 +1421,70 @@ class Jablotron:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
-			info_packet_type = info_packet[0:1]
-
-			if info_packet_type != DEVICE_INFO_TYPE_SMOKE:
+			if info_packet.type != DeviceInfoType.SMOKE:
 				self._log_error_with_packet(
-					"Unexpected info packet {} of smoke detector".format(Jablotron.format_packet_to_string(info_packet)),
+					"Unexpected info packet {} of smoke detector".format(Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
 				continue
 
 			self._update_entity_state(
 				self._get_device_temperature_sensor_id(device_number),
-				float(Jablotron.bytes_to_int(info_packet[1:2])),
+				float(Jablotron.bytes_to_int(info_packet.packet[1:2])),
 			)
 
 	def _parse_device_siren_info_packet(self, packet: bytes, device_number: int) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
-			info_packet_type = info_packet[0:1]
-
-			if info_packet_type not in (DEVICE_INFO_TYPE_POWER, DEVICE_INFO_TYPE_POWER_PRECISE):
+			if info_packet.type not in (DeviceInfoType.POWER, DeviceInfoType.POWER_PRECISE):
 				self._log_error_with_packet(
-					"Unexpected info packet {} of siren".format(Jablotron.format_packet_to_string(info_packet)),
+					"Unexpected info packet {} of siren".format(Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
 				continue
 
-			channel = info_packet[1:2]
+			channel = info_packet.packet[1:2]
 
 			if channel == b"\x00":
 				self._update_entity_state(
 					self._get_device_battery_standby_voltage_sensor_id(device_number),
-					self.bytes_to_float(info_packet[2:3]),
+					self.bytes_to_float(info_packet.packet[2:3]),
 				)
 			elif channel == b"\x01":
 				self._update_entity_state(
 					self._get_device_battery_load_voltage_sensor_id(device_number),
-					self.bytes_to_float(info_packet[2:3]),
+					self.bytes_to_float(info_packet.packet[2:3]),
 				)
 			else:
 				self._log_error_with_packet(
-					"Unknown channel {} of power info packet {} of siren".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet)),
+					"Unknown channel {} of power info packet {} of siren".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
 
 	def _parse_device_electricity_meter_with_pulse_info_packet(self, packet: bytes, device_number: int) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
-		info_packet_number = 0
 		for info_packet in info_packets:
-			info_packet_type = info_packet[0:1]
-			info_packet_number += 1
-
-			if info_packet_type != DEVICE_INFO_TYPE_PULSE:
+			if info_packet.type != DeviceInfoType.PULSE:
 				self._log_error_with_packet(
-					"Unexpected info packet {} of electricity meter with pulse".format(Jablotron.format_packet_to_string(info_packet)),
+					"Unexpected info packet {} of electricity meter with pulse".format(Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
 				continue
 
-			# We parse only first pulse packet
-			if info_packet_number == 1:
-				pulses = self.bytes_to_int(info_packet[11:12]) + 255 * self.bytes_to_int(info_packet[12:13])
+			if info_packet.packet[1:2] == b"\x00":
+				continue
 
-				self._update_entity_state(
-					self._get_device_pulse_sensor_id(device_number),
-					pulses,
-				)
+			pulses = self.bytes_to_int(info_packet.packet[1:2]) + 255 * self.bytes_to_int(info_packet.packet[2:3])
+
+			self._update_entity_state(
+				self._get_device_pulse_sensor_id(device_number),
+				pulses,
+			)
+
+			# We parse only first pulse packet
+			break
 
 	def _parse_central_unit_info_packet(self, packet: bytes) -> None:
 		power_supply_and_battery_binary = Jablotron._bytes_to_binary(packet[0:1])
@@ -1518,23 +1511,21 @@ class Jablotron:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
-			info_packet_type = info_packet[0:1]
-
-			if info_packet_type != DEVICE_INFO_TYPE_POWER:
-				self._log_error_with_packet("Unexpected info packet {} of central unit".format(Jablotron.format_packet_to_string(info_packet)), packet)
+			if info_packet.type != DeviceInfoType.POWER:
+				self._log_error_with_packet("Unexpected info packet {} of central unit".format(Jablotron.format_packet_to_string(info_packet.packet)), packet)
 				continue
 
-			channel = info_packet[1:2]
+			channel = info_packet.packet[1:2]
 
 			if channel == b"\x00":
 				self._update_entity_state(
 					self._get_device_battery_load_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-					self.bytes_to_float(info_packet[2:3]),
+					self.bytes_to_float(info_packet.packet[2:3]),
 				)
 			elif channel == b"\x10":
 				self._update_entity_state(
 					self._get_device_battery_standby_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-					self.bytes_to_float(info_packet[2:3]),
+					self.bytes_to_float(info_packet.packet[2:3]),
 				)
 			elif channel == b"\x11":
 				# Battery in test
@@ -1546,15 +1537,15 @@ class Jablotron:
 
 				self._update_entity_state(
 					self._get_central_unit_bus_voltage_sensor_id(bus_number),
-					self.bytes_to_float(info_packet[2:3]),
+					self.bytes_to_float(info_packet.packet[2:3]),
 				)
 				self._update_entity_state(
 					self._get_central_unit_bus_devices_loss_sensor_id(bus_number),
-					self.bytes_to_int(info_packet[3:4]),
+					self.bytes_to_int(info_packet.packet[3:4]),
 				)
 			else:
 				self._log_error_with_packet(
-					"Unknown channel {} of power info packet {} of central unit".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet)),
+					"Unknown channel {} of power info packet {} of central unit".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
 
@@ -2113,37 +2104,35 @@ class Jablotron:
 		return None
 
 	@staticmethod
-	def _parse_device_info_packets_from_device_info_packet(packet: bytes) -> List[bytes]:
+	def _parse_device_info_packets_from_device_info_packet(packet: bytes) -> List[ParsedDeviceInfoPacket]:
 		raw_info_packet = packet[2:]
 
 		info_packets = []
 
-		info_type_length = {
-			DEVICE_INFO_TYPE_POWER: 4,
-			DEVICE_INFO_TYPE_POWER_PRECISE: 3,
-			DEVICE_INFO_TYPE_SMOKE: 4,
-			DEVICE_INFO_TYPE_PULSE: 14,
-			DEVICE_INFO_TYPE_INPUT_VALUE: 5,
-			DEVICE_INFO_TYPE_INPUT_EXTENDED: 2,
-		}
-
 		start = 0
 		while start < len(raw_info_packet):
-			info_type = raw_info_packet[start:(start + 1)]
+			info_type_packet = raw_info_packet[start:(start + 1)]
 
-			if info_type == b"\x00":
+			if info_type_packet == b"\x00":
 				break
 
-			if info_type not in DEVICE_INFO_KNOWN_TYPES:
+			info_type_packet_binary = Jablotron._bytes_to_binary(info_type_packet)
+			info_type_int = Jablotron.binary_to_int(info_type_packet_binary[3:])
+
+			length = Jablotron.binary_to_int(info_type_packet_binary[0:3])
+			end = start + length + 1
+
+			try:
+				info_type = DeviceInfoType(info_type_int)
+
+				if not info_type.is_unknown():
+					info_packets.append(ParsedDeviceInfoPacket(info_type, raw_info_packet[start:end]))
+
+			except (KeyError, TypeError):
 				Jablotron._log_error_with_packet(
-					"Unknown device info type {}".format(Jablotron.format_packet_to_string(info_type)),
+					"Unknown device info type {}".format(info_type_int),
 					packet,
 				)
-				break
-
-			end = start + info_type_length[info_type] + 1
-
-			info_packets.append(raw_info_packet[start:end])
 
 			start = end
 
