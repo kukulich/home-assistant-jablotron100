@@ -70,6 +70,7 @@ from .const import (
 	DeviceNumber,
 	DeviceType,
 	EVENT_WRONG_CODE,
+	EMPTY_PACKET,
 	EntityType,
 	LOGGER,
 	MAX_SECTIONS,
@@ -1473,7 +1474,7 @@ class Jablotron:
 				)
 				continue
 
-			if info_packet.packet[1:2] == b"\x00":
+			if info_packet.packet[1:2] == EMPTY_PACKET:
 				continue
 
 			pulses = self.bytes_to_int(info_packet.packet[1:2]) + 255 * self.bytes_to_int(info_packet.packet[2:3])
@@ -2113,7 +2114,7 @@ class Jablotron:
 		while start < len(raw_info_packet):
 			info_type_packet = raw_info_packet[start:(start + 1)]
 
-			if info_type_packet == b"\x00":
+			if info_type_packet == EMPTY_PACKET:
 				break
 
 			info_type_packet_binary = Jablotron._bytes_to_binary(info_type_packet)
@@ -2441,7 +2442,7 @@ class Jablotron:
 
 		start = 0
 		while start < len(packet):
-			if packet[start:(start + 1)] == b"\x00":
+			if packet[start:(start + 1)] == EMPTY_PACKET:
 				break
 
 			length = Jablotron.bytes_to_int(packet[(start + 1):(start + 2)])
@@ -2460,7 +2461,7 @@ class Jablotron:
 		for i in range(3, len(packet)):
 			letter = packet[i:(i + 1)]
 
-			if letter == b"\x00":
+			if letter == EMPTY_PACKET:
 				break
 
 			info += letter.decode()
