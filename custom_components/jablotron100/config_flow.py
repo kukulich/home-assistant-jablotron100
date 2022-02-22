@@ -171,6 +171,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 					CONF_PASSWORD: user_input[CONF_PASSWORD],
 					CONF_NUMBER_OF_DEVICES: user_input[CONF_NUMBER_OF_DEVICES],
 					CONF_NUMBER_OF_PG_OUTPUTS: user_input[CONF_NUMBER_OF_PG_OUTPUTS],
+					CONF_DEVICES: [],
 				}
 
 				if user_input[CONF_NUMBER_OF_DEVICES] == 0:
