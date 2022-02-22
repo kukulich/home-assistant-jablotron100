@@ -1467,6 +1467,10 @@ class Jablotron:
 		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
 
 		for info_packet in info_packets:
+			if info_packet.type == DeviceInfoType.POWER_PRECISE:
+				# We know the packet but don't know its content
+				continue
+
 			if info_packet.type != DeviceInfoType.PULSE:
 				self._log_error_with_packet(
 					"Unexpected info packet {} of electricity meter with pulse".format(Jablotron.format_packet_to_string(info_packet.packet)),
