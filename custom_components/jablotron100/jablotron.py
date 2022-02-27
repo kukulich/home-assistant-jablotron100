@@ -2083,7 +2083,8 @@ class Jablotron:
 
 	@staticmethod
 	def _parse_device_number_from_device_state_packet(packet: bytes) -> int:
-		return int(Jablotron.bytes_to_int(packet[4:6]) / 64)
+		packet_binary = Jablotron._bytes_to_binary(packet[4:6])
+		return Jablotron.binary_to_int(packet_binary[2:10])
 
 	@staticmethod
 	def _parse_device_number_from_device_info_packet(packet: bytes) -> int:
