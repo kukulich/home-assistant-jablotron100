@@ -56,11 +56,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 
 		async_add_entities(entities)
 
+	add_entities()
+
 	config_entry.async_on_unload(
 		async_dispatcher_connect(hass, jablotron_instance.signal_entities_added(), add_entities)
 	)
-
-	add_entities()
 
 
 class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
