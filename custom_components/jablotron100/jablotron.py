@@ -27,7 +27,6 @@ import math
 import sys
 import threading
 import time
-from typing import Any, Dict, Final, List
 from .const import (
 	BATTERY_LEVEL_NO_BATTERY,
 	BATTERY_LEVELS_TO_IGNORE,
@@ -57,8 +56,8 @@ from .const import (
 	DEVICE_INFO_KNOWN_SUBPACKETS,
 	DEVICE_INFO_SUBPACKET_WIRELESS,
 	DEVICE_INFO_SUBPACKET_REQUESTED,
+	DEVICE_PACKET_TYPE_BATTERY,
 	DEVICE_PACKET_TYPE_FAULT,
-	DEVICE_PACKET_TYPE_HEARTBEAT,
 	DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT,
 	DEVICE_PACKET_TYPE_SABOTAGE,
 	DIAGNOSTICS_COMMAND_GET_INFO,
@@ -102,6 +101,7 @@ from .const import (
 	UI_CONTROL_MODIFY_SECTION,
 	UI_CONTROL_TOGGLE_PG_OUTPUT,
 )
+from typing import Any, Dict, Final, List
 from .errors import (
 	ServiceUnavailable,
 	ShouldNotHappen,
@@ -1306,25 +1306,28 @@ class Jablotron:
 			return
 
 		packet_state_binary = self._bytes_to_binary(packet[2:3])
-		packet_type = self.binary_to_int(packet_state_binary[4:])
+		packet_type = self.binary_to_int(packet_state_binary[5:])
 
-		if packet_type == DEVICE_PACKET_TYPE_HEARTBEAT:
-			# Ignore
-			pass
-		elif (
-			self._is_device_with_state(device_number)
-			and self._is_device_state_packet_for_state(packet_type)
-		):
+		if packet_type == DEVICE_PACKET_TYPE_BATTERY and self.is_device_with_battery(device_number):
 			self._update_entity_state(
-				self._get_device_state_sensor_id(device_number),
+				self._get_device_battery_problem_sensor_id(device_number),
 				device_state,
-				store_state=False,
 			)
 		elif self._is_device_state_packet_for_fault(packet_type):
 			self._update_entity_state(
 				self._get_device_problem_sensor_id(device_number),
 				device_state,
 			)
+		elif self._is_device_state_packet_for_state(packet_type):
+			if self._is_device_with_state(device_number):
+				self._update_entity_state(
+					self._get_device_state_sensor_id(device_number),
+					device_state,
+					store_state=False,
+				)
+			else:
+				# Ignore - probably heartbeat
+				pass
 		else:
 			self._log_error_with_packet("Unknown state packet", packet)
 
@@ -2039,7 +2042,7 @@ class Jablotron:
 	def _is_device_state_packet_for_state(packet_type: int) -> bool:
 		return (
 			not Jablotron._is_device_state_packet_for_fault(packet_type)
-			and packet_type != DEVICE_PACKET_TYPE_HEARTBEAT
+			and packet_type != DEVICE_PACKET_TYPE_BATTERY
 		)
 
 	@staticmethod
