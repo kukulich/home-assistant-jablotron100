@@ -332,7 +332,10 @@ class Jablotron:
 
 		if self._successful_login is True:
 			state_packet = self.int_to_bytes(int_packets[state] + section)
-			self._send_packet(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, state_packet))
+			self._send_packets([
+				Jablotron.create_packet_authorisation_code(code),
+				Jablotron.create_packet_ui_control(JABLOTRON_UI_CONTROL_MODIFY_SECTION, state_packet)
+			])
 
 		after_packets = []
 
