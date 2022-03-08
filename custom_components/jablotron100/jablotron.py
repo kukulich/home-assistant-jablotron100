@@ -55,6 +55,7 @@ from .const import (
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEVICE_INFO_KNOWN_SUBPACKETS,
+	DEVICE_INFO_SUBPACKET_WIRELESS,
 	DEVICE_INFO_SUBPACKET_REQUESTED,
 	DEVICE_PACKET_TYPE_FAULT,
 	DEVICE_PACKET_TYPE_HEARTBEAT,
@@ -1341,51 +1342,61 @@ class Jablotron:
 			self._log_error_with_packet("Info packet of unknown device", packet)
 			return
 
-		subpacket_type = packet[3:4]
+		subpackets = self._parse_device_info_subpackets_from_device_info_packet(packet)
 
-		if subpacket_type not in DEVICE_INFO_KNOWN_SUBPACKETS:
-			self._log_error_with_packet(
-				"Unknown info subpacket type {}".format(self.format_packet_to_string(subpacket_type)),
-				packet,
-			)
-			return
+		for subpacket in subpackets:
+			subpacket_type = subpacket[0:1]
 
-		info_packet = packet[5:]
-
-		if device_number == DeviceNumber.CENTRAL_UNIT.value:
-			self._parse_central_unit_info_packet(info_packet)
-		else:
-			device_type = self._get_device_type(device_number)
-
-			device_battery_state = self._parse_device_battery_level_from_device_info_packet(info_packet)
-			if device_battery_state is not None:
-				if not self.is_device_with_battery(device_number):
-					self._add_battery_to_device(device_number, device_battery_state)
-
-				self._update_entity_state(
-					self._get_device_battery_problem_sensor_id(device_number),
-					STATE_OFF if device_battery_state.ok else STATE_ON,
+			if subpacket_type not in DEVICE_INFO_KNOWN_SUBPACKETS:
+				self._log_error_with_packet(
+					"Unknown info subpacket type {}".format(self.format_packet_to_string(subpacket_type)),
+					packet,
 				)
+				continue
 
+			if subpacket_type == DEVICE_INFO_SUBPACKET_WIRELESS:
 				self._update_entity_state(
-					self._get_device_battery_level_sensor_id(device_number),
-					device_battery_state.level,
+					self._get_device_signal_strength_sensor_id(device_number),
+					self._parse_device_signal_strength_from_device_info_subpacket(subpacket),
 				)
+				continue
 
-				if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
-					self._parse_device_siren_info_packet(info_packet, device_number)
+			info_packet = subpacket[2:]
 
-			if device_type in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT):
-				self._parse_device_input_value_info_packet(info_packet, device_number)
-			elif device_type == DeviceType.SMOKE_DETECTOR:
-				self._parse_device_smoke_detector_info_packet(info_packet, device_number)
-			elif device_type == DeviceType.ELECTRICITY_METER_WITH_PULSE_OUTPUT:
-				self._parse_device_electricity_meter_with_pulse_info_packet(info_packet, device_number)
-			elif device_type == DeviceType.RADIO_MODULE:
-				self._log_debug_with_packet("Info packet of radio module", packet)
+			if device_number == DeviceNumber.CENTRAL_UNIT.value:
+				self._parse_central_unit_info_packet(info_packet)
+			else:
+				device_type = self._get_device_type(device_number)
+
+				device_battery_state = self._parse_device_battery_level_from_device_info_packet(info_packet)
+				if device_battery_state is not None:
+					if not self.is_device_with_battery(device_number):
+						self._add_battery_to_device(device_number, device_battery_state)
+
+					self._update_entity_state(
+						self._get_device_battery_problem_sensor_id(device_number),
+						STATE_OFF if device_battery_state.ok else STATE_ON,
+					)
+
+					self._update_entity_state(
+						self._get_device_battery_level_sensor_id(device_number),
+						device_battery_state.level,
+					)
+
+					if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
+						self._parse_device_siren_info_packet(info_packet, device_number)
+
+				if device_type in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT):
+					self._parse_device_input_value_info_packet(info_packet, device_number)
+				elif device_type == DeviceType.SMOKE_DETECTOR:
+					self._parse_device_smoke_detector_info_packet(info_packet, device_number)
+				elif device_type == DeviceType.ELECTRICITY_METER_WITH_PULSE_OUTPUT:
+					self._parse_device_electricity_meter_with_pulse_info_packet(info_packet, device_number)
+				elif device_type == DeviceType.RADIO_MODULE:
+					self._log_debug_with_packet("Info packet of radio module", packet)
 
 	def _parse_device_input_value_info_packet(self, packet: bytes, device_number: int) -> None:
-		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_subpacket(packet)
 
 		for info_packet in info_packets:
 			if info_packet.type == DeviceInfoType.INPUT_VALUE:
@@ -1419,7 +1430,7 @@ class Jablotron:
 				)
 
 	def _parse_device_smoke_detector_info_packet(self, packet: bytes, device_number: int) -> None:
-		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_subpacket(packet)
 
 		for info_packet in info_packets:
 			if info_packet.type != DeviceInfoType.SMOKE:
@@ -1435,7 +1446,7 @@ class Jablotron:
 			)
 
 	def _parse_device_siren_info_packet(self, packet: bytes, device_number: int) -> None:
-		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_subpacket(packet)
 
 		for info_packet in info_packets:
 			if info_packet.type not in (DeviceInfoType.POWER, DeviceInfoType.POWER_PRECISE):
@@ -1464,7 +1475,7 @@ class Jablotron:
 				)
 
 	def _parse_device_electricity_meter_with_pulse_info_packet(self, packet: bytes, device_number: int) -> None:
-		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_subpacket(packet)
 
 		for info_packet in info_packets:
 			if info_packet.type == DeviceInfoType.POWER_PRECISE:
@@ -1513,7 +1524,7 @@ class Jablotron:
 				battery_state.level,
 			)
 
-		info_packets = self._parse_device_info_packets_from_device_info_packet(packet)
+		info_packets = self._parse_device_info_packets_from_device_info_subpacket(packet)
 
 		for info_packet in info_packets:
 			if info_packet.type != DeviceInfoType.POWER:
@@ -2110,14 +2121,16 @@ class Jablotron:
 		return None
 
 	@staticmethod
-	def _parse_device_info_packets_from_device_info_packet(packet: bytes) -> List[ParsedDeviceInfoPacket]:
-		raw_info_packet = packet[2:]
+	def _parse_device_info_subpackets_from_device_info_packet(packet: bytes) -> List[bytes]:
+		return Jablotron.get_packets_from_packet(packet[3:])
 
+	@staticmethod
+	def _parse_device_info_packets_from_device_info_subpacket(packet: bytes) -> List[ParsedDeviceInfoPacket]:
 		info_packets = []
 
-		start = 0
-		while start < len(raw_info_packet):
-			info_type_packet = raw_info_packet[start:(start + 1)]
+		start = 2
+		while start < len(packet):
+			info_type_packet = packet[start:(start + 1)]
 
 			if info_type_packet == EMPTY_PACKET:
 				break
@@ -2132,9 +2145,9 @@ class Jablotron:
 				info_type = DeviceInfoType(info_type_int)
 
 				if not info_type.is_unknown():
-					info_packets.append(ParsedDeviceInfoPacket(info_type, raw_info_packet[start:end]))
+					info_packets.append(ParsedDeviceInfoPacket(info_type, packet[start:end]))
 
-			except (KeyError, TypeError):
+			except Exception:
 				Jablotron._log_error_with_packet(
 					"Unknown device info type {}".format(info_type_int),
 					packet,
@@ -2143,6 +2156,10 @@ class Jablotron:
 			start = end
 
 		return info_packets
+
+	@staticmethod
+	def _parse_device_signal_strength_from_device_info_subpacket(packet: bytes) -> JablotronBatteryState | None:
+		return Jablotron.bytes_to_int(packet[2:3]) * SIGNAL_STRENGTH_STEP
 
 	@staticmethod
 	def _parse_device_battery_level_from_device_info_packet(packet: bytes) -> JablotronBatteryState | None:
