@@ -1216,8 +1216,6 @@ class Jablotron:
 
 		self._update_entity_state(signal_strength_sensor_id, signal_strength)
 
-		self._store_devices_data()
-
 	def _parse_central_unit_lan_connection_status_packet(self, packet: bytes) -> None:
 		if len(packet) < 10:
 			return
@@ -1245,7 +1243,6 @@ class Jablotron:
 			async_dispatcher_send(self._hass, self.signal_entities_added())
 		else:
 			self._update_entity_state(lan_connection_ip_id, lan_ip)
-			self._store_devices_data()
 
 	def _parse_wireless_device_status_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_device_status_packet(packet)
