@@ -919,6 +919,7 @@ class Jablotron:
 				devices_to_update.append(device_number)
 
 		if self._is_central_unit_103_or_similar():
+			devices_to_update.append(self._get_central_unit_lan_connection_device_number())
 			devices_to_update.append(self._get_central_unit_gsm_device_number())
 
 		for device_number in devices_to_update:
@@ -1220,29 +1221,19 @@ class Jablotron:
 		if len(packet) < 10:
 			return
 
+		self._parse_lan_connection_ip_packet(packet[6:10])
+
+	def _parse_lan_connection_ip_packet(self, packet: bytes) -> None:
 		lan_connection_ip_id = self._get_lan_connection_ip_id()
 
 		ip_parts = []
-		for packet_position in range(6, 10):
+		for packet_position in range(0, 4):
 			ip_parts.append(str(self.bytes_to_int(packet[packet_position:(packet_position + 1)])))
 
 		lan_ip = ".".join(ip_parts)
 
-		if lan_connection_ip_id not in self.entities[EntityType.IP]:
-			self._add_entity(
-				None,
-				EntityType.IP,
-				lan_connection_ip_id,
-				self._get_lan_connection_ip_name(),
-				lan_ip,
-			)
-
-			self._central_unit_data[CentralUnitData.LAN_IP] = True
-			self._store_central_unit_data()
-
-			async_dispatcher_send(self._hass, self.signal_entities_added())
-		else:
-			self._update_entity_state(lan_connection_ip_id, lan_ip)
+		self._add_lan_connection_ip()
+		self._update_entity_state(lan_connection_ip_id, lan_ip)
 
 	def _parse_wireless_device_status_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_device_status_packet(packet)
@@ -1343,11 +1334,12 @@ class Jablotron:
 			)
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
+		lan_connection_number = self._get_central_unit_lan_connection_device_number()
 		gsm_device_number = self._get_central_unit_gsm_device_number()
 
 		device_number = self._parse_device_number_from_device_info_packet(packet)
 
-		if device_number == gsm_device_number:
+		if device_number in (lan_connection_number, gsm_device_number):
 			pass
 		elif device_number > self._config[CONF_NUMBER_OF_DEVICES]:
 			self._log_error_with_packet("Info packet of unknown device", packet)
@@ -1376,6 +1368,8 @@ class Jablotron:
 
 			if device_number == DeviceNumber.CENTRAL_UNIT.value:
 				self._parse_central_unit_info_packet(info_packet)
+			elif device_number == lan_connection_number:
+				self._parse_lan_connection_info_packet(info_packet)
 			elif device_number == gsm_device_number:
 				self._parse_gsm_info_packet(info_packet)
 			else:
@@ -1577,6 +1571,29 @@ class Jablotron:
 					"Unknown channel {} of power info packet {} of central unit".format(Jablotron.format_packet_to_string(channel), Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
+
+	def _parse_lan_connection_info_packet(self, packet: bytes) -> None:
+		info_packets = self._parse_device_info_packets_from_device_info_subpacket(packet)
+
+		for info_packet in info_packets:
+			if info_packet.type != DeviceInfoType.LAN:
+				self._log_error_with_packet(
+					"Unexpected info packet {} of LAN connection".format(Jablotron.format_packet_to_string(info_packet.packet)),
+					packet,
+				)
+				continue
+
+			state_binary = Jablotron._bytes_to_binary(info_packet.packet[1:2])
+
+			lan_ok = state_binary[0:1] == "1"
+			dhcp_ok = state_binary[6:7] == "1"
+
+			self._update_entity_state(
+				self._get_lan_connection_id(),
+				STATE_ON if lan_ok and dhcp_ok else STATE_OFF,
+			)
+
+			self._parse_lan_connection_ip_packet(info_packet.packet[2:6])
 
 	def _parse_gsm_info_packet(self, packet: bytes) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_subpacket(packet)
@@ -1850,6 +1867,24 @@ class Jablotron:
 			"{} (device {})".format(device_type.get_name(), device_number),
 			battery_level,
 		)
+
+	def _add_lan_connection_ip(self) -> None:
+		lan_connection_ip_id = self._get_lan_connection_ip_id()
+
+		if lan_connection_ip_id in self.entities[EntityType.IP]:
+			return
+
+		self._central_unit_data[CentralUnitData.LAN_IP] = True
+		self._store_central_unit_data()
+
+		self._add_entity(
+			None,
+			EntityType.IP,
+			lan_connection_ip_id,
+			self._get_lan_connection_ip_name(),
+		)
+
+		async_dispatcher_send(self._hass, self.signal_entities_added())
 
 	def _add_bus_to_central_unit(self, bus_number: int) -> None:
 		if bus_number in self._central_unit_data[CentralUnitData.BUSES]:
