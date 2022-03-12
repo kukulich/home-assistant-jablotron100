@@ -178,6 +178,7 @@ DEVICE_INFO_KNOWN_SUBPACKETS: Final = (
 
 class DeviceInfoType(Enum):
 	SMOKE = 3
+	GSM = 4
 	POWER = 10
 	POWER_PRECISE = 12
 	INPUT_VALUE = 14

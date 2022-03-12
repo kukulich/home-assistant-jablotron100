@@ -889,17 +889,18 @@ class Jablotron:
 	def _force_devices_status_update(self) -> None:
 		packets = []
 
-		power_supply_device_number = self._get_central_unit_power_supply_device_number()
-		if power_supply_device_number is not None:
-			packets.append(self.create_packet_device_info(power_supply_device_number))
+		if self._is_central_unit_101_or_similar():
+			power_supply_device_number = self._get_central_unit_power_supply_device_number()
+			if power_supply_device_number is not None:
+				packets.append(self.create_packet_device_info(power_supply_device_number))
 
-		gsm_device_number = self._get_central_unit_gsm_device_number()
-		if gsm_device_number is not None:
-			packets.append(self.create_packet_device_info(gsm_device_number))
+			gsm_device_number = self._get_central_unit_gsm_device_number()
+			if gsm_device_number is not None:
+				packets.append(self.create_packet_device_info(gsm_device_number))
 
-		lan_connection_device_number = self._get_central_unit_lan_connection_device_number()
-		if lan_connection_device_number is not None:
-			packets.append(self.create_packet_device_info(lan_connection_device_number))
+			lan_connection_device_number = self._get_central_unit_lan_connection_device_number()
+			if lan_connection_device_number is not None:
+				packets.append(self.create_packet_device_info(lan_connection_device_number))
 
 		for device_number in self._get_not_ignored_devices():
 			if self.is_wireless_device(device_number):
@@ -909,12 +910,18 @@ class Jablotron:
 			self._send_packets(packets)
 
 	def _force_devices_info_update(self) -> None:
+		devices_to_update = []
+
 		for device_number in self._get_not_ignored_devices():
 			device_type = self._get_device_type(device_number)
 
-			if device_type not in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT, DeviceType.SMOKE_DETECTOR, DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
-				continue
+			if device_type in (DeviceType.THERMOMETER, DeviceType.THERMOSTAT, DeviceType.SMOKE_DETECTOR, DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
+				devices_to_update.append(device_number)
 
+		if self._is_central_unit_103_or_similar():
+			devices_to_update.append(self._get_central_unit_gsm_device_number())
+
+		for device_number in devices_to_update:
 			self._stream_diagnostics_event.clear()
 
 			self._send_packets([
@@ -1339,9 +1346,13 @@ class Jablotron:
 			)
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
+		gsm_device_number = self._get_central_unit_gsm_device_number()
+
 		device_number = self._parse_device_number_from_device_info_packet(packet)
 
-		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
+		if device_number == gsm_device_number:
+			pass
+		elif device_number > self._config[CONF_NUMBER_OF_DEVICES]:
 			self._log_error_with_packet("Info packet of unknown device", packet)
 			return
 
@@ -1368,6 +1379,8 @@ class Jablotron:
 
 			if device_number == DeviceNumber.CENTRAL_UNIT.value:
 				self._parse_central_unit_info_packet(info_packet)
+			elif device_number == gsm_device_number:
+				self._parse_gsm_info_packet(info_packet)
 			else:
 				device_type = self._get_device_type(device_number)
 
@@ -1568,6 +1581,29 @@ class Jablotron:
 					packet,
 				)
 
+	def _parse_gsm_info_packet(self, packet: bytes) -> None:
+		info_packets = self._parse_device_info_packets_from_device_info_subpacket(packet)
+
+		for info_packet in info_packets:
+			if info_packet.type != DeviceInfoType.GSM:
+				self._log_error_with_packet(
+					"Unexpected info packet {} of GSM".format(Jablotron.format_packet_to_string(info_packet.packet)),
+					packet,
+				)
+				continue
+
+			state_binary = Jablotron._bytes_to_binary(info_packet.packet[5:6])
+
+			self._update_entity_state(
+				self._get_gsm_signal_sensor_id(),
+				STATE_ON if state_binary[7:8] == "1" else STATE_OFF,
+			)
+
+			self._update_entity_state(
+				self._get_gsm_signal_strength_sensor_id(),
+				float(Jablotron.bytes_to_int(info_packet.packet[1:2])),
+			)
+
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
 		lan_connection_device_number = self._get_central_unit_lan_connection_device_number()
 
@@ -1630,25 +1666,34 @@ class Jablotron:
 			)
 
 	def _get_central_unit_power_supply_device_number(self) -> int | None:
-		if self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G"):
+		if self._is_central_unit_101_or_similar():
 			return 124
 
 		return None
 
 	def _get_central_unit_lan_connection_device_number(self) -> int | None:
-		if self._central_unit.model in ("JA-101K-LAN", "JA-106K-3G"):
+		if self._is_central_unit_101_or_similar():
 			return 125
 
-		if self._central_unit.model in ("JA-103K", "JA-103KRY", "JA-107K"):
+		if self._is_central_unit_103_or_similar():
 			return 233
 
 		return None
 
 	def _get_central_unit_gsm_device_number(self) -> int | None:
-		if self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G"):
+		if self._is_central_unit_101_or_similar():
 			return 127
 
+		if self._is_central_unit_103_or_similar():
+			return 234
+
 		return None
+
+	def _is_central_unit_101_or_similar(self) -> bool:
+		return self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G")
+
+	def _is_central_unit_103_or_similar(self) -> bool:
+		return self._central_unit.model in ("JA-103K", "JA-103KRY", "JA-107K")
 
 	def _get_not_ignored_devices(self) -> List[int]:
 		not_ignored_devices = []
