@@ -865,7 +865,7 @@ class Jablotron:
 				self._add_entity(
 					None,
 					EntityType.IP,
-					self._get_lan_connection_id(),
+					self._get_lan_connection_ip_id(),
 					self._get_lan_connection_ip_name(),
 				)
 
