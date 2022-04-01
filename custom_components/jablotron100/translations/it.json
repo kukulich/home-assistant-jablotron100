@@ -150,7 +150,15 @@
 	"options": {
 		"step": {
 			"init": {
-				"title": "Impostazioni",
+				"menu_options": {
+					"settings": "Impostazioni di base",
+					"devices": "Dispositivi",
+					"options": "Opzioni",
+					"debug": "Debugging"
+				}
+			},
+			"settings": {
+				"title": "Impostazioni di base",
 				"data": {
 					"password": "Codice",
 					"number_of_devices": "Numero di dispositivi",
@@ -158,7 +166,7 @@
 				}
 			},
 			"devices": {
-				"title": "Impostazioni / Dispositivi",
+				"title": "Dispositivi",
 				"data": {
 					"device_001": "Dispositivo 1",
 					"device_002": "Dispositivo 2",
@@ -290,8 +298,8 @@
 					"enable_debugging": "Abilita debugging"
 				}
 			},
-			"options_debug": {
-				"title": "Opzioni di debug",
+			"debug": {
+				"title": "Debugging",
 				"data": {
 					"log_all_incoming_packets": "Registra tutti i pacchetti in entrata",
 					"log_all_outcoming_packets": "Registra tutti i pacchetti in uscita",

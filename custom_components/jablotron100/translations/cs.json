@@ -150,7 +150,15 @@
 	"options": {
 		"step": {
 			"init": {
-				"title": "Nastavení",
+				"menu_options": {
+					"settings": "Základní nastavení",
+					"devices": "Periferie",
+					"options": "Možnosti",
+					"debug": "Ladění"
+				}
+			},
+			"settings": {
+				"title": "Základní nastavení",
 				"data": {
 					"password": "Kód",
 					"number_of_devices": "Počet periferií",
@@ -158,7 +166,7 @@
 				}
 			},
 			"devices": {
-				"title": "Nastavení / Periferie",
+				"title": "Periferie",
 				"data": {
 					"device_001": "Periferie 1",
 					"device_002": "Periferie 2",
@@ -290,8 +298,8 @@
 					"enable_debugging": "Povolit ladění"
 				}
 			},
-			"options_debug": {
-				"title": "Možnosti ladění",
+			"debug": {
+				"title": "Ladění",
 				"data": {
 					"log_all_incoming_packets": "Logovat všechny příchozí pakety",
 					"log_all_outcoming_packets": "Logovat všechny odchozí pakety",

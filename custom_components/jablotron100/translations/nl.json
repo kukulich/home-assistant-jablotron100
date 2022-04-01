@@ -150,7 +150,15 @@
 	"options": {
 		"step": {
 			"init": {
-				"title": "Instellingen",
+				"menu_options": {
+					"settings": "Basisinstellingen",
+					"devices": "Apparaten",
+					"options": "Opties",
+					"debug": "Debugging"
+				}
+			},
+			"settings": {
+				"title": "Basisinstellingen",
 				"data": {
 					"password": "Code",
 					"number_of_devices": "Aantal apparaten",
@@ -158,7 +166,7 @@
 				}
 			},
 			"devices": {
-				"title": "Instellingen / Apparaten",
+				"title": "Apparaten",
 				"data": {
 					"device_001": "Apparaat 1",
 					"device_002": "Apparaat 2",
@@ -290,8 +298,8 @@
 					"enable_debugging": "Enable debugging"
 				}
 			},
-			"options_debug": {
-				"title": "Debugging options",
+			"debug": {
+				"title": "Debugging",
 				"data": {
 					"log_all_incoming_packets": "Log all incoming packets",
 					"log_all_outcoming_packets": "Log all outcoming packets",

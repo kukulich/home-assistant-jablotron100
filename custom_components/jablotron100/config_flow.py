@@ -252,6 +252,20 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 
 	async def async_step_init(self, user_input: Dict[str, Any] | None = None):
 
+		menu_options = ["settings"]
+
+		if self._config[CONF_NUMBER_OF_DEVICES] > 0:
+			menu_options.append("devices")
+
+		menu_options.append("options")
+		menu_options.append("debug")
+
+		return self.async_show_menu(
+			step_id="init",
+			menu_options=menu_options,
+		)
+
+	async def async_step_settings(self, user_input: Dict[str, Any] | None = None):
 		if user_input is not None:
 			self._config[CONF_NUMBER_OF_DEVICES] = user_input[CONF_NUMBER_OF_DEVICES]
 			self._config[CONF_NUMBER_OF_PG_OUTPUTS] = user_input[CONF_NUMBER_OF_PG_OUTPUTS]
@@ -286,7 +300,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			fields[vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=self._config[CONF_NUMBER_OF_PG_OUTPUTS])] = number_of_pg_outputs_validation
 
 		return self.async_show_form(
-			step_id="init",
+			step_id="settings",
 			data_schema=vol.Schema(fields),
 		)
 
@@ -312,10 +326,6 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 		if user_input is not None:
 			self._options[CONF_REQUIRE_CODE_TO_DISARM] = user_input[CONF_REQUIRE_CODE_TO_DISARM]
 			self._options[CONF_REQUIRE_CODE_TO_ARM] = user_input[CONF_REQUIRE_CODE_TO_ARM]
-			self._options[CONF_ENABLE_DEBUGGING] = user_input[CONF_ENABLE_DEBUGGING]
-
-			if self._options[CONF_ENABLE_DEBUGGING] is True:
-				return await self.async_step_options_debug()
 
 			return self._save()
 
@@ -331,15 +341,11 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 						CONF_REQUIRE_CODE_TO_ARM,
 						default=self._config_entry.options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM),
 					): bool,
-					vol.Optional(
-						CONF_ENABLE_DEBUGGING,
-						default=self._config_entry.options.get(CONF_ENABLE_DEBUGGING, DEFAULT_CONF_ENABLE_DEBUGGING),
-					): bool,
 				}
 			),
 		)
 
-	async def async_step_options_debug(self, user_input: Dict[str, Any] | None = None):
+	async def async_step_debug(self, user_input: Dict[str, Any] | None = None):
 		if user_input is not None:
 			self._options[CONF_LOG_ALL_INCOMING_PACKETS] = user_input[CONF_LOG_ALL_INCOMING_PACKETS]
 			self._options[CONF_LOG_ALL_OUTCOMING_PACKETS] = user_input[CONF_LOG_ALL_OUTCOMING_PACKETS]
@@ -347,10 +353,21 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			self._options[CONF_LOG_PG_OUTPUTS_PACKETS] = user_input[CONF_LOG_PG_OUTPUTS_PACKETS]
 			self._options[CONF_LOG_DEVICES_PACKETS] = user_input[CONF_LOG_DEVICES_PACKETS]
 
+			if (
+				self._options[CONF_LOG_ALL_INCOMING_PACKETS]
+				or self._options[CONF_LOG_ALL_OUTCOMING_PACKETS]
+				or self._options[CONF_LOG_SECTIONS_PACKETS]
+				or self._options[CONF_LOG_PG_OUTPUTS_PACKETS]
+				or self._options[CONF_LOG_DEVICES_PACKETS]
+			):
+				self._options[CONF_ENABLE_DEBUGGING] = True
+			else:
+				self._options[CONF_ENABLE_DEBUGGING] = False
+
 			return self._save()
 
 		return self.async_show_form(
-			step_id="options_debug",
+			step_id="debug",
 			data_schema=vol.Schema(
 				{
 					vol.Optional(

@@ -150,7 +150,15 @@
 	"options": {
 		"step": {
 			"init": {
-				"title": "Indstillinger",
+				"menu_options": {
+					"settings": "Grundindstillinger",
+					"devices": "Enheder",
+					"options": "Indstillinger",
+					"debug": "Fejlsøgning"
+				}
+			},
+			"settings": {
+				"title": "Grundindstillinger",
 				"data": {
 					"password": "Kode",
 					"number_of_devices": "Antal enheder",
@@ -158,7 +166,7 @@
 				}
 			},
 			"devices": {
-				"title": "Indstillinger / Enheder",
+				"title": "Enheder",
 				"description": "Vælg enheds type",
 				"data": {
 					"device_001": "Enhed 1",
@@ -291,8 +299,8 @@
 					"enable_debugging": "Aktiver fejlsøgning"
 				}
 			},
-			"options_debug": {
-				"title": "Fejlsøgnings indstillinger",
+			"debug": {
+				"title": "Fejlsøgning",
 				"data": {
 					"log_all_incoming_packets": "Log alle indgående pakker",
 					"log_all_outcoming_packets": "Log alle udgående pakker",
