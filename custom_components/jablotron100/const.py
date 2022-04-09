@@ -187,9 +187,10 @@ class DeviceInfoType(Enum):
 	UNKNOWN_1 = 16
 	PULSE = 17
 	UNKNOWN_2 = 19
+	UNKNOWN_GSM = 21
 
 	def is_unknown(self) -> bool:
-		return self in (self.UNKNOWN_1, self.UNKNOWN_2)
+		return self in (self.UNKNOWN_1, self.UNKNOWN_2, self.UNKNOWN_GSM)
 
 BATTERY_LEVEL_UNKNOWN_STATE: Final = b"\x0b"
 BATTERY_LEVEL_EXTERNAL_POWER_SUPPLY: Final = b"\x0c"
