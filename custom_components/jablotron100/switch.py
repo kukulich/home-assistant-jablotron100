@@ -40,15 +40,6 @@ class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 	_control: JablotronProgrammableOutput
 	_attr_device_class = SwitchDeviceClass.SWITCH
 
-	def __init__(
-		self,
-		jablotron: Jablotron,
-		control: JablotronProgrammableOutput,
-	) -> None:
-		super().__init__(jablotron, control)
-
-		self._update_attributes()
-
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
