@@ -6,10 +6,8 @@ from homeassistant.const import (
 )
 from homeassistant.components.alarm_control_panel import (
 	AlarmControlPanelEntity,
-	FORMAT_NUMBER,
-	FORMAT_TEXT,
-	SUPPORT_ALARM_ARM_AWAY,
-	SUPPORT_ALARM_ARM_NIGHT,
+	AlarmControlPanelEntityFeature,
+	CodeFormat,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback, HomeAssistant
@@ -44,7 +42,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	_control: JablotronAlarmControlPanel
 	_changed_by: str | None = None
 
-	_attr_supported_features = SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_NIGHT
+	_attr_supported_features = AlarmControlPanelEntityFeature.ARM_AWAY | AlarmControlPanelEntityFeature.ARM_NIGHT
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
@@ -92,7 +90,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 		super().update_state(state)
 
-	def _detect_code_format(self) -> str | None:
+	def _detect_code_format(self) -> CodeFormat | None:
 		if self._get_state() == STATE_ALARM_DISARMED:
 			code_required = self._jablotron.is_code_required_for_arm()
 		else:
@@ -101,7 +99,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if not code_required:
 			return None
 
-		return FORMAT_TEXT if self._jablotron.code_contains_asterisk() is True else FORMAT_NUMBER
+		return CodeFormat.TEXT if self._jablotron.code_contains_asterisk() is True else CodeFormat.NUMBER
 
 	@staticmethod
 	def _clean_code(code: str | None) -> str | None:
