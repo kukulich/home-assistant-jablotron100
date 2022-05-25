@@ -354,6 +354,9 @@ class Jablotron:
 
 		self._send_packet(packet)
 
+	def reset_problem_sensor(self, control: JablotronControl) -> None:
+		self._update_entity_state(control.id, STATE_OFF)
+
 	def _update_all_hass_entities(self) -> None:
 		for hass_entity in self.hass_entities.values():
 			hass_entity.refresh_state()
@@ -2706,6 +2709,10 @@ class JablotronEntity(Entity):
 			self._attr_extra_state_attributes = {
 				ATTR_BATTERY_LEVEL: self._control.hass_device.battery_level,
 			}
+
+	@property
+	def control(self) -> JablotronControl:
+		return self._control
 
 	@property
 	def available(self) -> bool:

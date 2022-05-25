@@ -1,0 +1,8 @@
+reset_problem:
+    name: Reset problem
+    description: Reset problem.
+    target:
+        entity:
+            integration: jablotron100
+            domain: binary_sensor
+            device_class: problem

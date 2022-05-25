@@ -4,10 +4,10 @@ from homeassistant.components.binary_sensor import (
 	BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.core import callback, HomeAssistant, ServiceCall
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import async_get_current_platform, AddEntitiesCallback
 from homeassistant.const import (
 	STATE_ON,
 )
@@ -60,6 +60,17 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 
 	config_entry.async_on_unload(
 		async_dispatcher_connect(hass, jablotron_instance.signal_entities_added(), add_entities)
+	)
+
+	async def reset_problem(entity: JablotronEntity, service_call: ServiceCall) -> None:
+		jablotron_instance.reset_problem_sensor(entity.control)
+
+	platform = async_get_current_platform()
+
+	platform.async_register_entity_service(
+		"reset_problem",
+		{},
+		reset_problem,
 	)
 
 
