@@ -21,6 +21,7 @@ from homeassistant.const import (
 from homeassistant.helpers import storage
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers import entity_registry as er
 import math
@@ -322,6 +323,22 @@ class Jablotron:
 		# Reset
 		self._successful_login = True
 
+		def callback(_) -> None:
+			if self._successful_login is True:
+				state_packet = self.int_to_bytes(int_packets[state] + section)
+				self._send_packet(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, state_packet))
+
+			after_packets = []
+
+			if code != self._config[CONF_PASSWORD]:
+				after_packets.append(self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END))
+				after_packets.extend(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
+
+			# Update states - should fix state when invalid code was inserted
+			after_packets.append(self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+
+			self._send_packets(after_packets)
+
 		if code != self._config[CONF_PASSWORD]:
 			packets = [
 				self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END),
@@ -329,22 +346,10 @@ class Jablotron:
 			]
 
 			self._send_packets(packets)
-			time.sleep(1)
 
-		if self._successful_login is True:
-			state_packet = self.int_to_bytes(int_packets[state] + section)
-			self._send_packet(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, state_packet))
-
-		after_packets = []
-
-		if code != self._config[CONF_PASSWORD]:
-			after_packets.append(self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END))
-			after_packets.extend(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
-
-		# Update states - should fix state when invalid code was inserted
-		after_packets.append(self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
-
-		self._send_packets(after_packets)
+			async_call_later(self._hass, 1.0, callback)
+		else:
+			callback(None)
 
 	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
 		pg_output_number_packet = self.int_to_bytes(pg_output_number - 1)
