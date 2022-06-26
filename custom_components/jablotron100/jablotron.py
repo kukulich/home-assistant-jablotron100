@@ -1448,17 +1448,19 @@ class Jablotron:
 		info_packets = self._parse_device_info_packets_from_device_info_subpacket(info_subpacket, packet)
 
 		for info_packet in info_packets:
-			if info_packet.type != DeviceInfoType.SMOKE:
+			if info_packet.type == DeviceInfoType.SMOKE:
+				self._update_entity_state(
+					self._get_device_temperature_sensor_id(device_number),
+					float(Jablotron.bytes_to_int(info_packet.packet[1:2])),
+				)
+			elif info_packet.type == DeviceInfoType.INPUT_EXTENDED:
+				# Ignore
+				pass
+			else:
 				self._log_error_with_packet(
 					"Unexpected info packet {} of smoke detector".format(Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
-				continue
-
-			self._update_entity_state(
-				self._get_device_temperature_sensor_id(device_number),
-				float(Jablotron.bytes_to_int(info_packet.packet[1:2])),
-			)
 
 	def _parse_device_siren_info_packet(self, info_subpacket: bytes, device_number: int, packet: bytes) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_subpacket(info_subpacket, packet)
