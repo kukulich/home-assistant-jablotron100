@@ -1791,13 +1791,19 @@ class Jablotron:
 
 		if (
 			self._options.get(CONF_LOG_SECTIONS_PACKETS, False)
-			and self._is_section_modify_packet(packet)
+			and (
+				self._is_section_modify_packet(packet)
+				or self._is_get_sections_and_pg_outputs_states_packet(packet)
+			)
 		):
 			return True
 
 		if (
 			self._options.get(CONF_LOG_PG_OUTPUTS_PACKETS, False)
-			and self._is_pg_output_toggle_packet(packet)
+			and (
+				self._is_pg_output_toggle_packet(packet)
+				or self._is_get_sections_and_pg_outputs_states_packet(packet)
+			)
 		):
 			return True
 
@@ -2059,6 +2065,10 @@ class Jablotron:
 	@staticmethod
 	def _is_section_modify_packet(packet: bytes) -> bool:
 		return packet[:1] == PACKET_UI_CONTROL and packet[2:3] == UI_CONTROL_MODIFY_SECTION
+
+	@staticmethod
+	def _is_get_sections_and_pg_outputs_states_packet(packet: bytes) -> bool:
+		return packet[:1] == PACKET_COMMAND and packet[2:3] == COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES
 
 	@staticmethod
 	def _is_login_error_packet(packet: bytes) -> bool:
