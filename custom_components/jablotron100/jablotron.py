@@ -1086,7 +1086,10 @@ class Jablotron:
 
 		stream.write(packet)
 
-		stream.close()
+		def callback(_) -> None:
+			stream.close()
+
+		async_call_later(self._hass, 0.1, callback)
 
 	def _open_write_stream(self):
 		return open(self._config[CONF_SERIAL_PORT], "wb", buffering=0)
