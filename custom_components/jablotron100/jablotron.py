@@ -323,33 +323,33 @@ class Jablotron:
 		# Reset
 		self._successful_login = True
 
-		def callback(_) -> None:
-			if self._successful_login is True:
-				state_packet = self.int_to_bytes(int_packets[state] + section)
-				self._send_packet(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, state_packet))
+		def after_modify_callback(_) -> None:
+			self._send_packet(self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 
-			after_packets = []
+		def after_login_callback(_) -> None:
+			if self._successful_login is True:
+				modify_packet = self.int_to_bytes(int_packets[state] + section)
+				self._send_packet(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
 
 			if code != self._config[CONF_PASSWORD]:
-				after_packets.append(self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END))
-				after_packets.extend(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
+				logout_packets = [self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END)]
+				logout_packets.extend(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
-			# Update states - should fix state when invalid code was inserted
-			after_packets.append(self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+				self._send_packets(logout_packets)
 
-			self._send_packets(after_packets)
+			async_call_later(self._hass, 1.0, after_modify_callback)
 
 		if code != self._config[CONF_PASSWORD]:
-			packets = [
+			login_packets = [
 				self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END),
 				self.create_packet_authorisation_code(code),
 			]
 
-			self._send_packets(packets)
+			self._send_packets(login_packets)
 
-			async_call_later(self._hass, 1.0, callback)
+			async_call_later(self._hass, 1.0, after_login_callback)
 		else:
-			callback(None)
+			after_login_callback(None)
 
 	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
 		pg_output_number_packet = self.int_to_bytes(pg_output_number - 1)
