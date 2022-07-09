@@ -33,6 +33,23 @@ DEVICE_CLASSES: Final = {
 	DeviceType.TAMPER: BinarySensorDeviceClass.TAMPER,
 }
 
+DEVICE_SENSOR_NAMES: Final = {
+	DeviceType.MOTION_DETECTOR: "Motion",
+	DeviceType.WINDOW_OPENING_DETECTOR: "Window",
+	DeviceType.DOOR_OPENING_DETECTOR: "Door",
+	DeviceType.GARAGE_DOOR_OPENING_DETECTOR: "Garage door",
+	DeviceType.GLASS_BREAK_DETECTOR: "Glass",
+	DeviceType.FLOOD_DETECTOR: "Moisture",
+	DeviceType.GAS_DETECTOR: "Gas",
+	DeviceType.SMOKE_DETECTOR: "Smoke",
+	DeviceType.LOCK: "Lock",
+	DeviceType.TAMPER: "Tamper",
+	DeviceType.THERMOSTAT: "Thermostat",
+	DeviceType.THERMOMETER: "Thermometer",
+	DeviceType.SIREN_INDOOR: "Button",
+	DeviceType.BUTTON: "Button",
+	DeviceType.KEY_FOB: "Button",
+}
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
@@ -106,9 +123,10 @@ class JablotronDeviceStateSensorEntity(JablotronBinarySensor):
 		control: JablotronDevice,
 	) -> None:
 
-		self._attr_device_class = DEVICE_CLASSES[control.type] if control.type in DEVICE_CLASSES else None
-
 		super().__init__(jablotron, control)
+
+		self._attr_device_class = DEVICE_CLASSES[control.type] if control.type in DEVICE_CLASSES else None
+		self._attr_name = DEVICE_SENSOR_NAMES[control.type] if control.type in DEVICE_SENSOR_NAMES else "State"
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
