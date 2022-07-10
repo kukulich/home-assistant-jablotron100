@@ -20,7 +20,7 @@ from homeassistant.const import (
 )
 from homeassistant.helpers import storage
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers import entity_registry as er
@@ -2710,17 +2710,17 @@ class JablotronEntity(Entity):
 		self._attr_name = self._control.name
 
 		if self._control.hass_device is None:
-			self._attr_device_info = {
-				"manufacturer": "Jablotron",
-				"identifiers": {(DOMAIN, self._control.central_unit.serial_port)},
-			}
+			self._attr_device_info = DeviceInfo(
+				manufacturer="Jablotron",
+				identifiers={(DOMAIN, self._control.central_unit.serial_port)},
+			)
 		else:
-			self._attr_device_info = {
-				"manufacturer": "Jablotron",
-				"identifiers": {(DOMAIN, self._control.hass_device.id)},
-				"name": self._control.hass_device.name,
-				"via_device": (DOMAIN, self._control.central_unit.serial_port),
-			}
+			self._attr_device_info = DeviceInfo(
+				manufacturer="Jablotron",
+				identifiers={(DOMAIN, self._control.hass_device.id)},
+				name=self._control.hass_device.name,
+				via_device=(DOMAIN, self._control.central_unit.serial_port),
+			)
 
 		self._update_attributes()
 
