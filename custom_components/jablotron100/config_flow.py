@@ -25,6 +25,7 @@ from .const import (
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
 	CONF_SERIAL_PORT,
+	CONF_UNIQUE_ID,
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DEFAULT_SERIAL_PORT,
@@ -166,6 +167,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				check_serial_port(user_input[CONF_SERIAL_PORT])
 
 				self._config = {
+					CONF_UNIQUE_ID: user_input[CONF_SERIAL_PORT],
 					CONF_SERIAL_PORT: user_input[CONF_SERIAL_PORT],
 					CONF_PASSWORD: user_input[CONF_PASSWORD],
 					CONF_NUMBER_OF_DEVICES: user_input[CONF_NUMBER_OF_DEVICES],
@@ -266,6 +268,10 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 
 	async def async_step_settings(self, user_input: Dict[str, Any] | None = None):
 		if user_input is not None:
+			if CONF_UNIQUE_ID not in self._config:
+				self._config[CONF_UNIQUE_ID] = self._config[CONF_SERIAL_PORT]
+			self._config[CONF_SERIAL_PORT] = user_input[CONF_SERIAL_PORT]
+
 			self._config[CONF_NUMBER_OF_DEVICES] = user_input[CONF_NUMBER_OF_DEVICES]
 			self._config[CONF_NUMBER_OF_PG_OUTPUTS] = user_input[CONF_NUMBER_OF_PG_OUTPUTS]
 
@@ -278,6 +284,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			return await self.async_step_options()
 
 		fields = {
+			vol.Required(CONF_SERIAL_PORT, default=self._config[CONF_SERIAL_PORT]): str,
 			vol.Optional(
 				CONF_PASSWORD,
 				default="",

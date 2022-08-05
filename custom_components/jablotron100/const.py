@@ -11,6 +11,7 @@ NAME: Final = "Jablotron"
 
 EVENT_WRONG_CODE: Final = "{}_wrong_code".format(DOMAIN)
 
+CONF_UNIQUE_ID: Final = "unique_id"
 CONF_SERIAL_PORT: Final = "serial_port"
 CONF_NUMBER_OF_DEVICES: Final = "number_of_devices"
 CONF_NUMBER_OF_PG_OUTPUTS: Final = "number_of_pg_outputs"

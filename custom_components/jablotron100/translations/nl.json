@@ -160,6 +160,7 @@
 			"settings": {
 				"title": "Basisinstellingen",
 				"data": {
+					"serial_port": "Seriele port",
 					"password": "Code",
 					"number_of_devices": "Aantal apparaten",
 					"number_of_pg_outputs": "Number of programmable PG outputs"

@@ -160,6 +160,7 @@
 			"settings": {
 				"title": "Grundeinstellungen",
 				"data": {
+					"serial_port": "Serielle Schnittstelle",
 					"password": "Pin-Code",
 					"number_of_devices": "Anzahl der Komponenten (Geräte)",
 					"number_of_pg_outputs": "Anzahl programmierbarer PG Ausgänge"

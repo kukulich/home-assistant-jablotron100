@@ -160,6 +160,7 @@
 			"settings": {
 				"title": "Základné nastavenia",
 				"data": {
+					"serial_port": "Sériový port",
 					"password": "Kód",
 					"number_of_devices": "Počet periferií",
 					"number_of_pg_outputs": "Počet programovateľných výstupů PG"

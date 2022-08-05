@@ -31,7 +31,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
 	device_registry.async_get_or_create(
 		config_entry_id=config_entry.entry_id,
-		identifiers={(DOMAIN, central_unit.serial_port)},
+		identifiers={(DOMAIN, central_unit.unique_id)},
 		name="Jablotron 100",
 		model="{} ({})".format(central_unit.model, central_unit.hardware_version),
 		manufacturer="Jablotron",

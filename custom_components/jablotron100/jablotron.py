@@ -51,6 +51,7 @@ from .const import (
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
 	CONF_SERIAL_PORT,
+	CONF_UNIQUE_ID,
 	DEFAULT_CONF_ENABLE_DEBUGGING,
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
@@ -135,8 +136,8 @@ class JablotronSectionState:
 
 class JablotronCentralUnit:
 
-	def __init__(self, serial_port: str, model: str, hardware_version: str, firmware_version: str) -> None:
-		self.serial_port: str = serial_port
+	def __init__(self, unique_id: str, model: str, hardware_version: str, firmware_version: str) -> None:
+		self.unique_id: str = unique_id
 		self.model: str = model
 		self.hardware_version: str = hardware_version
 		self.firmware_version: str = firmware_version
@@ -291,8 +292,8 @@ class Jablotron:
 	def shutdown_and_clean(self) -> None:
 		self.shutdown()
 
-		serial_port = self._config[CONF_SERIAL_PORT]
-		del self._stored_data[serial_port]
+		unique_id = self._get_unique_id()
+		del self._stored_data[unique_id]
 		self._store.async_delay_save(self._data_to_store)
 
 	def shutdown(self) -> None:
@@ -376,19 +377,22 @@ class Jablotron:
 		if self._stored_data is None:
 			self._stored_data = {}
 
-		serial_port = self._config[CONF_SERIAL_PORT]
+		unique_id = self._get_unique_id()
 
-		if serial_port not in self._stored_data:
+		if unique_id not in self._stored_data:
 			return
 
-		if STORAGE_CENTRAL_UNIT_KEY in self._stored_data[serial_port]:
-			self._central_unit_data = copy.deepcopy(self._stored_data[serial_port][STORAGE_CENTRAL_UNIT_KEY])
+		if STORAGE_CENTRAL_UNIT_KEY in self._stored_data[unique_id]:
+			self._central_unit_data = copy.deepcopy(self._stored_data[unique_id][STORAGE_CENTRAL_UNIT_KEY])
 
-		if STORAGE_DEVICES_KEY in self._stored_data[serial_port]:
-			self._devices_data = copy.deepcopy(self._stored_data[serial_port][STORAGE_DEVICES_KEY])
+		if STORAGE_DEVICES_KEY in self._stored_data[unique_id]:
+			self._devices_data = copy.deepcopy(self._stored_data[unique_id][STORAGE_DEVICES_KEY])
 
-		if STORAGE_STATES_KEY in self._stored_data[serial_port]:
-			self.entities_states = copy.deepcopy(self._stored_data[serial_port][STORAGE_STATES_KEY])
+		if STORAGE_STATES_KEY in self._stored_data[unique_id]:
+			self.entities_states = copy.deepcopy(self._stored_data[unique_id][STORAGE_STATES_KEY])
+
+	def _get_unique_id(self) -> str:
+		return self._config[CONF_UNIQUE_ID] if CONF_UNIQUE_ID in self._config else self._config[CONF_SERIAL_PORT]
 
 	def _detect_central_unit(self) -> None:
 		stop_event = threading.Event()
@@ -435,7 +439,7 @@ class Jablotron:
 			if model is None or hardware_version is None or firmware_version is None:
 				return None
 
-			return JablotronCentralUnit(self._config[CONF_SERIAL_PORT], model, hardware_version, firmware_version)
+			return JablotronCentralUnit(self._get_unique_id(), model, hardware_version, firmware_version)
 
 		def writer_thread() -> None:
 			while not stop_event.is_set():
@@ -1822,54 +1826,54 @@ class Jablotron:
 		return False
 
 	def _store_state(self, entity_id: str, state: StateType) -> None:
-		serial_port = self._config[CONF_SERIAL_PORT]
+		unquie_id = self._get_unique_id()
 
-		if serial_port not in self._stored_data:
-			self._stored_data[serial_port] = {}
+		if unquie_id not in self._stored_data:
+			self._stored_data[unquie_id] = {}
 
-		if STORAGE_STATES_KEY not in self._stored_data[serial_port]:
-			self._stored_data[serial_port][STORAGE_STATES_KEY] = {}
+		if STORAGE_STATES_KEY not in self._stored_data[unquie_id]:
+			self._stored_data[unquie_id][STORAGE_STATES_KEY] = {}
 
 		if (
-			entity_id in self._stored_data[serial_port][STORAGE_STATES_KEY]
-			and self._stored_data[serial_port][STORAGE_STATES_KEY][entity_id] == state
+			entity_id in self._stored_data[unquie_id][STORAGE_STATES_KEY]
+			and self._stored_data[unquie_id][STORAGE_STATES_KEY][entity_id] == state
 		):
 			return
 
-		self._stored_data[serial_port][STORAGE_STATES_KEY][entity_id] = state
+		self._stored_data[unquie_id][STORAGE_STATES_KEY][entity_id] = state
 		self._store.async_delay_save(self._data_to_store)
 
 	def _remove_stored_entity_state(self, entity_id: str) -> None:
-		serial_port = self._config[CONF_SERIAL_PORT]
+		unique_id = self._get_unique_id()
 
-		if serial_port not in self._stored_data:
+		if unique_id not in self._stored_data:
 			return
 
-		if STORAGE_STATES_KEY not in self._stored_data[serial_port]:
+		if STORAGE_STATES_KEY not in self._stored_data[unique_id]:
 			return
 
-		if entity_id not in self._stored_data[serial_port][STORAGE_STATES_KEY]:
+		if entity_id not in self._stored_data[unique_id][STORAGE_STATES_KEY]:
 			return
 
-		del self._stored_data[serial_port][STORAGE_STATES_KEY][entity_id]
+		del self._stored_data[unique_id][STORAGE_STATES_KEY][entity_id]
 		self._store.async_delay_save(self._data_to_store)
 
 	def _store_central_unit_data(self) -> None:
-		serial_port = self._config[CONF_SERIAL_PORT]
+		unique_id = self._get_unique_id()
 
-		if serial_port not in self._stored_data:
-			self._stored_data[serial_port] = {}
+		if unique_id not in self._stored_data:
+			self._stored_data[unique_id] = {}
 
-		self._stored_data[serial_port][STORAGE_CENTRAL_UNIT_KEY] = self._central_unit_data
+		self._stored_data[unique_id][STORAGE_CENTRAL_UNIT_KEY] = self._central_unit_data
 		self._store.async_delay_save(self._data_to_store)
 
 	def _store_devices_data(self) -> None:
-		serial_port = self._config[CONF_SERIAL_PORT]
+		unique_id = self._get_unique_id()
 
-		if serial_port not in self._stored_data:
-			self._stored_data[serial_port] = {}
+		if unique_id not in self._stored_data:
+			self._stored_data[unique_id] = {}
 
-		self._stored_data[serial_port][STORAGE_DEVICES_KEY] = self._devices_data
+		self._stored_data[unique_id][STORAGE_DEVICES_KEY] = self._devices_data
 		self._store.async_delay_save(self._data_to_store)
 
 	def _create_device_hass_device(self, device_number: int) -> JablotronHassDevice:
@@ -2656,21 +2660,21 @@ class JablotronEntity(Entity):
 		self._jablotron: Jablotron = jablotron
 		self._control: JablotronControl = control
 
-		self._attr_unique_id = "{}.{}.{}".format(DOMAIN, self._control.central_unit.serial_port, self._control.id)
+		self._attr_unique_id = "{}.{}.{}".format(DOMAIN, self._control.central_unit.unique_id, self._control.id)
 
 		self._attr_name = self._control.name
 
 		if self._control.hass_device is None:
 			self._attr_device_info = DeviceInfo(
 				manufacturer="Jablotron",
-				identifiers={(DOMAIN, self._control.central_unit.serial_port)},
+				identifiers={(DOMAIN, self._control.central_unit.unique_id)},
 			)
 		else:
 			self._attr_device_info = DeviceInfo(
 				manufacturer="Jablotron",
 				identifiers={(DOMAIN, self._control.hass_device.id)},
 				name=self._control.hass_device.name,
-				via_device=(DOMAIN, self._control.central_unit.serial_port),
+				via_device=(DOMAIN, self._control.central_unit.unique_id),
 			)
 
 		self._update_attributes()

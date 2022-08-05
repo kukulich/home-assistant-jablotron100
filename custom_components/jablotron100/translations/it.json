@@ -160,6 +160,7 @@
 			"settings": {
 				"title": "Impostazioni di base",
 				"data": {
+					"serial_port": "Porta seriale",
 					"password": "Codice",
 					"number_of_devices": "Numero di dispositivi",
 					"number_of_pg_outputs": "Numero di uscite programmabili PG"
