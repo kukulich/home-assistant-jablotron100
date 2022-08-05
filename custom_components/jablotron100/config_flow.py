@@ -272,16 +272,18 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 				self._config[CONF_UNIQUE_ID] = self._config[CONF_SERIAL_PORT]
 			self._config[CONF_SERIAL_PORT] = user_input[CONF_SERIAL_PORT]
 
-			self._config[CONF_NUMBER_OF_DEVICES] = user_input[CONF_NUMBER_OF_DEVICES]
-			self._config[CONF_NUMBER_OF_PG_OUTPUTS] = user_input[CONF_NUMBER_OF_PG_OUTPUTS]
-
 			if user_input[CONF_PASSWORD] != "":
 				self._config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
 
-			if user_input[CONF_NUMBER_OF_DEVICES] > 0:
+			previous_number_of_devices = self._config[CONF_NUMBER_OF_DEVICES]
+
+			self._config[CONF_NUMBER_OF_DEVICES] = user_input[CONF_NUMBER_OF_DEVICES]
+			self._config[CONF_NUMBER_OF_PG_OUTPUTS] = user_input[CONF_NUMBER_OF_PG_OUTPUTS]
+
+			if user_input[CONF_NUMBER_OF_DEVICES] > previous_number_of_devices:
 				return await self.async_step_devices()
 
-			return await self.async_step_options()
+			return self._save()
 
 		fields = {
 			vol.Required(CONF_SERIAL_PORT, default=self._config[CONF_SERIAL_PORT]): str,
@@ -319,7 +321,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 
 			self._config[CONF_DEVICES] = devices
 
-			return await self.async_step_options()
+			return self._save()
 
 		fields = get_devices_fields(self._config[CONF_NUMBER_OF_DEVICES], self._config[CONF_DEVICES])
 
