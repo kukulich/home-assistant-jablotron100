@@ -300,12 +300,13 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 		else:
 			fields[vol.Optional(CONF_NUMBER_OF_DEVICES, default=self._config[CONF_NUMBER_OF_DEVICES])] = number_of_devices_validation
 
-		number_of_pg_outputs_validation = create_range_validation(self._config[CONF_NUMBER_OF_PG_OUTPUTS], MAX_PG_OUTPUTS)
+		configured_number_of_pg_outputs = self._config[CONF_NUMBER_OF_PG_OUTPUTS] if CONF_NUMBER_OF_PG_OUTPUTS in self._config else 0
+		number_of_pg_outputs_validation = create_range_validation(configured_number_of_pg_outputs, MAX_PG_OUTPUTS)
 
-		if self._config[CONF_NUMBER_OF_PG_OUTPUTS] > 0:
-			fields[vol.Required(CONF_NUMBER_OF_PG_OUTPUTS, default=self._config[CONF_NUMBER_OF_PG_OUTPUTS])] = number_of_pg_outputs_validation
+		if configured_number_of_pg_outputs > 0:
+			fields[vol.Required(CONF_NUMBER_OF_PG_OUTPUTS, default=configured_number_of_pg_outputs)] = number_of_pg_outputs_validation
 		else:
-			fields[vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=self._config[CONF_NUMBER_OF_PG_OUTPUTS])] = number_of_pg_outputs_validation
+			fields[vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=configured_number_of_pg_outputs)] = number_of_pg_outputs_validation
 
 		return self.async_show_form(
 			step_id="settings",
