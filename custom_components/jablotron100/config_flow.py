@@ -153,7 +153,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 	def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
 		return JablotronOptionsFlow(config_entry)
 
-	async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> Dict[str, Any]:
+	async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
 		errors = {}
 
 		if user_input is not None:
@@ -215,7 +215,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 			errors=errors,
 		)
 
-	async def async_step_devices(self, user_input: Dict[str, Any] | None = None) -> Dict[str, Any]:
+	async def async_step_devices(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
 		errors = {}
 
 		if user_input is not None:
@@ -251,7 +251,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 		self._config = dict(self._config_entry.data)
 		self._options = dict(self._config_entry.options)
 
-	async def async_step_init(self, user_input: Dict[str, Any] | None = None):
+	async def async_step_init(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
 
 		menu_options = ["settings"]
 
@@ -266,7 +266,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			menu_options=menu_options,
 		)
 
-	async def async_step_settings(self, user_input: Dict[str, Any] | None = None):
+	async def async_step_settings(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
 		if user_input is not None:
 			if CONF_UNIQUE_ID not in self._config:
 				self._config[CONF_UNIQUE_ID] = self._config[CONF_SERIAL_PORT]
@@ -313,7 +313,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			data_schema=vol.Schema(fields),
 		)
 
-	async def async_step_devices(self, user_input: Dict[str, Any] | None = None):
+	async def async_step_devices(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
 
 		if user_input is not None:
 			devices = []
@@ -331,7 +331,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			data_schema=vol.Schema(fields),
 		)
 
-	async def async_step_options(self, user_input: Dict[str, Any] | None = None):
+	async def async_step_options(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
 		if user_input is not None:
 			self._options[CONF_REQUIRE_CODE_TO_DISARM] = user_input[CONF_REQUIRE_CODE_TO_DISARM]
 			self._options[CONF_REQUIRE_CODE_TO_ARM] = user_input[CONF_REQUIRE_CODE_TO_ARM]
@@ -354,7 +354,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 			),
 		)
 
-	async def async_step_debug(self, user_input: Dict[str, Any] | None = None):
+	async def async_step_debug(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
 		if user_input is not None:
 			self._options[CONF_LOG_ALL_INCOMING_PACKETS] = user_input[CONF_LOG_ALL_INCOMING_PACKETS]
 			self._options[CONF_LOG_ALL_OUTCOMING_PACKETS] = user_input[CONF_LOG_ALL_OUTCOMING_PACKETS]
