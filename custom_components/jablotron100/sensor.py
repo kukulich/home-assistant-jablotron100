@@ -7,7 +7,7 @@ from homeassistant.const import (
 	ELECTRIC_CURRENT_MILLIAMPERE,
 	ELECTRIC_POTENTIAL_VOLT,
 	PERCENTAGE,
-	TEMP_CELSIUS,
+	UnitOfTemperature,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback, HomeAssistant
@@ -79,7 +79,7 @@ class JablotronBatteryLevelEntity(JablotronSensor):
 
 class JablotronTemperatureEntity(JablotronSensor):
 
-	_attr_native_unit_of_measurement = TEMP_CELSIUS
+	_attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
 	_attr_device_class = SensorDeviceClass.TEMPERATURE
 
 
