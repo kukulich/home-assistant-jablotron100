@@ -59,16 +59,13 @@ from .const import (
 	DEVICE_INFO_KNOWN_SUBPACKETS,
 	DEVICE_INFO_SUBPACKET_WIRELESS,
 	DEVICE_INFO_SUBPACKET_REQUESTED,
-	DEVICE_PACKET_TYPE_BATTERY,
-	DEVICE_PACKET_TYPE_FAULT,
-	DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT,
-	DEVICE_PACKET_TYPE_SABOTAGE,
 	DIAGNOSTICS_COMMAND_GET_INFO,
 	DIAGNOSTICS_OFF,
 	DIAGNOSTICS_ON,
 	DOMAIN,
 	DeviceConnection,
 	DeviceData,
+	DeviceFault,
 	DeviceInfoType,
 	DeviceNumber,
 	DeviceType,
@@ -1316,30 +1313,33 @@ class Jablotron:
 			return
 
 		packet_state_binary = self._bytes_to_binary(packet[2:3])
-		packet_type = self.binary_to_int(packet_state_binary[5:])
+		is_fault = self.binary_to_int(packet_state_binary[4:6]) == 1
+		fault = DeviceFault(self.binary_to_int(packet_state_binary[6:]))
 
-		if packet_type == DEVICE_PACKET_TYPE_BATTERY and self.is_device_with_battery(device_number):
-			self._update_entity_state(
-				self._get_device_battery_problem_sensor_id(device_number),
-				device_state,
-			)
-		elif self._is_device_state_packet_for_fault(packet_type):
-			self._update_entity_state(
-				self._get_device_problem_sensor_id(device_number),
-				device_state,
-			)
-		elif self._is_device_state_packet_for_state(packet_type):
-			if self._is_device_with_state(device_number):
+		if is_fault and fault == DeviceFault.BATTERY and not self.is_device_with_battery(device_number):
+			# It's active state when device does not have battery
+			is_fault = False
+
+		if is_fault:
+			if fault == DeviceFault.BATTERY:
 				self._update_entity_state(
-					self._get_device_state_sensor_id(device_number),
+					self._get_device_battery_problem_sensor_id(device_number),
 					device_state,
-					store_state=False,
 				)
 			else:
-				# Ignore - probably heartbeat
-				pass
+				self._update_entity_state(
+					self._get_device_problem_sensor_id(device_number),
+					device_state,
+				)
+		elif self._is_device_with_state(device_number):
+			self._update_entity_state(
+				self._get_device_state_sensor_id(device_number),
+				device_state,
+				store_state=False,
+			)
 		else:
-			self._log_error_with_packet("Unknown state packet", packet)
+			# Ignore - probably heartbeat
+			pass
 
 		if self.is_wireless_device(device_number):
 			device_signal_strength = self.bytes_to_int(packet[10:11]) * SIGNAL_STRENGTH_STEP
@@ -2141,21 +2141,6 @@ class Jablotron:
 	@staticmethod
 	def _is_requested_device_info_packet(packet: bytes) -> bool:
 		return Jablotron._is_device_info_packet(packet) and packet[3:4] == DEVICE_INFO_SUBPACKET_REQUESTED
-
-	@staticmethod
-	def _is_device_state_packet_for_state(packet_type: int) -> bool:
-		return (
-			not Jablotron._is_device_state_packet_for_fault(packet_type)
-			and packet_type != DEVICE_PACKET_TYPE_BATTERY
-		)
-
-	@staticmethod
-	def _is_device_state_packet_for_fault(packet_type: int) -> bool:
-		return packet_type in (
-			DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT,
-			DEVICE_PACKET_TYPE_SABOTAGE,
-			DEVICE_PACKET_TYPE_FAULT,
-		)
 
 	@staticmethod
 	def _convert_sections_states_packet_to_sections_states(packet: bytes) -> Dict[int, JablotronSectionState]:

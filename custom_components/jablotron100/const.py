@@ -143,11 +143,6 @@ DIAGNOSTICS_ON: Final = b"\x01"
 DIAGNOSTICS_OFF: Final = b"\x00"
 DIAGNOSTICS_COMMAND_GET_INFO: Final = b"\x09"
 
-DEVICE_PACKET_TYPE_BATTERY: Final = 4
-DEVICE_PACKET_TYPE_POWER_SUPPLY_FAULT: Final = 5
-DEVICE_PACKET_TYPE_SABOTAGE: Final = 6
-DEVICE_PACKET_TYPE_FAULT: Final = 7
-
 EMPTY_PACKET: Final = b"\x00"
 
 # In minutes
@@ -192,6 +187,12 @@ class DeviceInfoType(Enum):
 
 	def is_unknown(self) -> bool:
 		return self in (self.UNKNOWN_1, self.UNKNOWN_2, self.UNKNOWN_GSM)
+
+class DeviceFault(Enum):
+	BATTERY: Final = 0
+	POWER_SUPPLY: Final = 1
+	SABOTAGE: Final = 2
+	UNKNOWN: Final = 3
 
 BATTERY_LEVEL_NO_CHANGE_FROM_PREVIOUS_STATE: Final = b"\x0b"
 BATTERY_LEVEL_EXTERNAL_POWER_SUPPLY: Final = b"\x0c"
