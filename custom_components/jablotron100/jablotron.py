@@ -30,6 +30,7 @@ import threading
 import time
 from .const import (
 	BATTERY_LEVEL_NO_BATTERY,
+	BATTERY_LEVEL_NO_CHANGE_FROM_PREVIOUS_STATE,
 	BATTERY_LEVELS_TO_IGNORE,
 	BATTERY_LEVEL_STEP,
 	CentralUnitData,
@@ -2285,6 +2286,9 @@ class Jablotron:
 		battery_level_packet = Jablotron.int_to_bytes(Jablotron.binary_to_int(packet_binary[4:]))
 
 		if battery_level_packet == BATTERY_LEVEL_NO_BATTERY:
+			return None
+
+		if battery_level_packet == BATTERY_LEVEL_NO_CHANGE_FROM_PREVIOUS_STATE:
 			return None
 
 		if battery_level_packet not in BATTERY_LEVELS_TO_IGNORE:
