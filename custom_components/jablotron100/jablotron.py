@@ -59,6 +59,7 @@ from .const import (
 	DEVICE_INFO_KNOWN_SUBPACKETS,
 	DEVICE_INFO_SUBPACKET_WIRELESS,
 	DEVICE_INFO_SUBPACKET_REQUESTED,
+	DEVICE_INFO_UNKNOWN_SUBPACKETS,
 	DIAGNOSTICS_COMMAND_GET_INFO,
 	DIAGNOSTICS_OFF,
 	DIAGNOSTICS_ON,
@@ -1366,10 +1367,11 @@ class Jablotron:
 			subpacket_type = subpacket[0:1]
 
 			if subpacket_type not in DEVICE_INFO_KNOWN_SUBPACKETS:
-				self._log_error_with_packet(
-					"Unknown info subpacket type {}".format(self.format_packet_to_string(subpacket_type)),
-					packet,
-				)
+				if subpacket_type not in DEVICE_INFO_UNKNOWN_SUBPACKETS:
+					self._log_error_with_packet(
+						"Unknown info subpacket type {}".format(self.format_packet_to_string(subpacket_type)),
+						packet,
+					)
 				continue
 
 			if subpacket_type == DEVICE_INFO_SUBPACKET_WIRELESS:
