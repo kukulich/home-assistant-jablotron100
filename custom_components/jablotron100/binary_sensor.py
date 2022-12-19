@@ -49,6 +49,7 @@ DEVICE_SENSOR_NAMES: Final = {
 	DeviceType.SIREN_INDOOR: "Button",
 	DeviceType.BUTTON: "Button",
 	DeviceType.KEY_FOB: "Button",
+	DeviceType.VALVE: "Valve",
 }
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -139,6 +140,8 @@ class JablotronDeviceStateSensorEntity(JablotronBinarySensor):
 			self._attr_icon = "mdi:gesture-tap-box" if self._attr_is_on else "mdi:circle-box-outline"
 		elif self._control.type == DeviceType.THERMOSTAT:
 			self._attr_icon = "mdi:thermometer" if self._attr_is_on else "mdi:thermometer-off"
+		elif self._control.type == DeviceType.VALVE:
+			self._attr_icon = "mdi:valve-open" if self._attr_is_on else "mdi:valve-closed"
 
 
 class JablotronLanConnectionEntity(JablotronBinarySensor):

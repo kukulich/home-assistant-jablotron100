@@ -78,6 +78,7 @@ class DeviceType(StrEnum):
 	KEY_FOB = "key_fob"
 	ELECTRICITY_METER_WITH_PULSE_OUTPUT = "electricity_meter_with_pulse_output"
 	RADIO_MODULE = "radio_module"
+	VALVE = "valve"
 	CUSTOM = "custom"
 	OTHER = "other"
 	EMPTY = "empty"
