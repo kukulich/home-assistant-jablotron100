@@ -4,7 +4,7 @@
 
 Home Assistant custom component for JABLOTRON 100+ alarm system.
 
-Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-107K.
+Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-107K and JA-14K.
 
 
 ## Features
