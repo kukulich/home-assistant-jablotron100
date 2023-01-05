@@ -1,6 +1,7 @@
 from homeassistant.components.sensor import (
 	SensorDeviceClass,
 	SensorEntity,
+	SensorEntityDescription,
 	SensorStateClass,
 )
 from homeassistant.const import (
@@ -14,13 +15,62 @@ from homeassistant.core import callback, HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from typing import Dict
 from .const import (
 	DATA_JABLOTRON,
 	DOMAIN,
 	EntityType,
 )
-from .jablotron import Jablotron, JablotronEntity
+from .jablotron import (
+	Jablotron,
+	JablotronControl,
+	JablotronEntity,
+)
 
+SENSOR_TYPES: Dict[EntityType, SensorEntityDescription] = {
+	EntityType.SIGNAL_STRENGTH: SensorEntityDescription(
+		key=EntityType.SIGNAL_STRENGTH,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=PERCENTAGE,
+		entity_category=EntityCategory.DIAGNOSTIC,
+		icon="mdi:wifi",
+	),
+	EntityType.BATTERY_LEVEL: SensorEntityDescription(
+		key=EntityType.BATTERY_LEVEL,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=PERCENTAGE,
+		device_class=SensorDeviceClass.BATTERY,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+	EntityType.TEMPERATURE: SensorEntityDescription(
+		key=EntityType.TEMPERATURE,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+		device_class=SensorDeviceClass.TEMPERATURE,
+	),
+	EntityType.VOLTAGE: SensorEntityDescription(
+		key=EntityType.VOLTAGE,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=ELECTRIC_POTENTIAL_VOLT,
+		device_class=SensorDeviceClass.VOLTAGE,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+	EntityType.CURRENT: SensorEntityDescription(
+		key=EntityType.CURRENT,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=ELECTRIC_CURRENT_MILLIAMPERE,
+		device_class=SensorDeviceClass.CURRENT,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+	EntityType.PULSE: SensorEntityDescription(
+		key=EntityType.PULSE,
+		state_class=SensorStateClass.TOTAL_INCREASING,
+	),
+	EntityType.IP: SensorEntityDescription(
+		key=EntityType.IP,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+}
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
@@ -29,20 +79,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 	def add_entities() -> None:
 		entities = []
 
-		mapping = {
-			EntityType.SIGNAL_STRENGTH: JablotronSignalStrengthEntity,
-			EntityType.BATTERY_LEVEL: JablotronBatteryLevelEntity,
-			EntityType.TEMPERATURE: JablotronTemperatureEntity,
-			EntityType.VOLTAGE: JablotronVoltageEntity,
-			EntityType.CURRENT: JablotronCurrentEntity,
-			EntityType.PULSE: JablotronPulseEntity,
-			EntityType.IP: JablotronIpEntity,
-		}
-
-		for entity_type, entity_class in mapping.items():
+		for entity_type in SENSOR_TYPES:
 			for entity in jablotron_instance.entities[entity_type].values():
 				if entity.id not in jablotron_instance.hass_entities:
-					entities.append(entity_class(jablotron_instance, entity))
+					entities.append(JablotronSensor(jablotron_instance, entity, SENSOR_TYPES[entity_type]))
 
 		async_add_entities(entities)
 
@@ -55,54 +95,17 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 
 class JablotronSensor(JablotronEntity, SensorEntity):
 
-	_attr_state_class = SensorStateClass.MEASUREMENT
+	def __init__(
+		self,
+		jablotron: Jablotron,
+		control: JablotronControl,
+		description: SensorEntityDescription,
+	) -> None:
+		self.entity_description = description
+
+		super().__init__(jablotron, control)
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
 		self._attr_native_value = self._get_state()
-
-
-class JablotronSignalStrengthEntity(JablotronSensor):
-
-	_attr_native_unit_of_measurement = PERCENTAGE
-	_attr_entity_category = EntityCategory.DIAGNOSTIC
-	_attr_icon = "mdi:wifi"
-
-
-class JablotronBatteryLevelEntity(JablotronSensor):
-
-	_attr_native_unit_of_measurement = PERCENTAGE
-	_attr_device_class = SensorDeviceClass.BATTERY
-	_attr_entity_category = EntityCategory.DIAGNOSTIC
-
-
-class JablotronTemperatureEntity(JablotronSensor):
-
-	_attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
-	_attr_device_class = SensorDeviceClass.TEMPERATURE
-
-
-class JablotronVoltageEntity(JablotronSensor):
-
-	_attr_native_unit_of_measurement = ELECTRIC_POTENTIAL_VOLT
-	_attr_device_class = SensorDeviceClass.VOLTAGE
-	_attr_entity_category = EntityCategory.DIAGNOSTIC
-
-
-class JablotronCurrentEntity(JablotronSensor):
-
-	_attr_native_unit_of_measurement = ELECTRIC_CURRENT_MILLIAMPERE
-	_attr_device_class = SensorDeviceClass.CURRENT
-	_attr_entity_category = EntityCategory.DIAGNOSTIC
-
-
-class JablotronPulseEntity(JablotronSensor):
-
-	_attr_state_class = SensorStateClass.TOTAL_INCREASING
-
-
-class JablotronIpEntity(JablotronSensor):
-
-	_attr_state_class = None
-	_attr_entity_category = EntityCategory.DIAGNOSTIC
