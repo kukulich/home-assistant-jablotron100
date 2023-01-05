@@ -5,9 +5,9 @@ from homeassistant.components.sensor import (
 	SensorStateClass,
 )
 from homeassistant.const import (
-	ELECTRIC_CURRENT_MILLIAMPERE,
-	ELECTRIC_POTENTIAL_VOLT,
 	PERCENTAGE,
+	UnitOfElectricCurrent,
+	UnitOfElectricPotential,
 	UnitOfTemperature,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -51,14 +51,14 @@ SENSOR_TYPES: Dict[EntityType, SensorEntityDescription] = {
 	EntityType.VOLTAGE: SensorEntityDescription(
 		key=EntityType.VOLTAGE,
 		state_class=SensorStateClass.MEASUREMENT,
-		native_unit_of_measurement=ELECTRIC_POTENTIAL_VOLT,
+		native_unit_of_measurement=UnitOfElectricPotential.VOLT,
 		device_class=SensorDeviceClass.VOLTAGE,
 		entity_category=EntityCategory.DIAGNOSTIC,
 	),
 	EntityType.CURRENT: SensorEntityDescription(
 		key=EntityType.CURRENT,
 		state_class=SensorStateClass.MEASUREMENT,
-		native_unit_of_measurement=ELECTRIC_CURRENT_MILLIAMPERE,
+		native_unit_of_measurement=UnitOfElectricCurrent.MILLIAMPERE,
 		device_class=SensorDeviceClass.CURRENT,
 		entity_category=EntityCategory.DIAGNOSTIC,
 	),
