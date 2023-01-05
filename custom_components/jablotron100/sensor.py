@@ -66,8 +66,8 @@ class JablotronSensor(JablotronEntity, SensorEntity):
 class JablotronSignalStrengthEntity(JablotronSensor):
 
 	_attr_native_unit_of_measurement = PERCENTAGE
-	_attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
 	_attr_entity_category = EntityCategory.DIAGNOSTIC
+	_attr_icon = "mdi:wifi"
 
 
 class JablotronBatteryLevelEntity(JablotronSensor):
