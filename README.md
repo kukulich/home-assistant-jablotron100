@@ -96,7 +96,7 @@ logger:
     custom_components.jablotron100: debug
 ```
 
-2. Enable debug logging in the Jablotron integration. Go to the Integration page of your Home Assistant and click on the `Configure` button belonging to the Jablotron integration. Without changing any of the options, press the `Send` button. Afterwards, a second pop-up window opens: leave that too without any change and click on the `Send` button again. In the third pop-up window, enable the debugging by checking the `Enable debugging` checkbox and submit the configuration by pressing the `Send` button. Final, fourth pop-up window allows one to specify specific debugging options, such as `Log all incoming packets`. Finish the configuration by pressing the `Send` button.
+2. Enable debug logging in the Jablotron integration. Go to the Integration page of your Home Assistant and click on the `Configure` button belonging to the Jablotron integration and then select `Debugging` to specify specific debugging options, such as `Log all incoming packets`. Finish the configuration by pressing the `Submit` button.
 3. After enabling 1. and 2., the home assistant log should contain debug log of the Jablotron integration, e.g.,
 ```
 2022-02-17 10:57:19 DEBUG (ThreadPoolExecutor-2_0) [custom_components.jablotron100] Incoming: 801a0cffffffff010001002820010027ffffffffffffffffffffffff
