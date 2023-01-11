@@ -5,7 +5,7 @@
 				"title": "Jablotron 100",
 				"description": "For at tilføje skal der bruges en administrator kode og det samlet antal enheder",
 				"data": {
-					"serial_port": "Serial port",
+					"serial_port": "Serielport",
 					"password": "Kode",
 					"number_of_devices": "Antal enheder",
 					"number_of_pg_outputs": "Antal programmerbare udgange"
@@ -160,7 +160,7 @@
 			"settings": {
 				"title": "Grundindstillinger",
 				"data": {
-					"serial_port": "Serial port",
+					"serial_port": "Serielport",
 					"password": "Kode",
 					"number_of_devices": "Antal enheder",
 					"number_of_pg_outputs": "Antal programmerbare udgange"
