@@ -801,16 +801,12 @@ class Jablotron:
 				await self._remove_entity(EntityType.TEMPERATURE, device_temperature_sensor_id)
 
 			# Pulses sensor
-			device_pulse_sensor_id = self._get_device_pulse_sensor_id(device_number)
 			if device_type == DeviceType.ELECTRICITY_METER_WITH_PULSE_OUTPUT:
-				self._add_entity(
-					hass_device,
-					EntityType.PULSE,
-					device_pulse_sensor_id,
-					"Pulses",
-				)
+				self._add_pulse_to_electricity_meter(device_number)
 			else:
-				await self._remove_entity(EntityType.PULSE, device_pulse_sensor_id)
+				# We can add only two sensors currently
+				await self._remove_entity(EntityType.PULSE, self._get_device_pulse_sensor_id(device_number))
+				await self._remove_entity(EntityType.PULSE, self._get_device_pulse_sensor_id(device_number, 1))
 
 	def _create_central_unit_sensors(self) -> None:
 		if CentralUnitData.BATTERY not in self._central_unit_data:
@@ -1503,6 +1499,7 @@ class Jablotron:
 	def _parse_device_electricity_meter_with_pulse_info_packet(self, info_subpacket: bytes, device_number: int, packet: bytes) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_subpacket(info_subpacket, packet)
 
+		pulse_number = 0
 		for info_packet in info_packets:
 			if info_packet.type == DeviceInfoType.POWER_PRECISE:
 				# We know the packet but don't know its content
@@ -1515,18 +1512,20 @@ class Jablotron:
 				)
 				continue
 
-			if info_packet.packet[1:2] == EMPTY_PACKET:
-				continue
+			if info_packet.packet[1:2] != EMPTY_PACKET:
+				pulses = self.bytes_to_int(info_packet.packet[1:2]) + 255 * self.bytes_to_int(info_packet.packet[2:3])
 
-			pulses = self.bytes_to_int(info_packet.packet[1:2]) + 255 * self.bytes_to_int(info_packet.packet[2:3])
+				# We have to add it dynamically
+				self._add_pulse_to_electricity_meter(device_number, pulse_number)
+				self._update_entity_state(
+					self._get_device_pulse_sensor_id(device_number, pulse_number),
+					pulses,
+				)
 
-			self._update_entity_state(
-				self._get_device_pulse_sensor_id(device_number),
-				pulses,
-			)
-
-			# We parse only first pulse packet
-			break
+			# We parse only first two pulse packet
+			pulse_number += 1
+			if pulse_number > 1:
+				break
 
 	def _parse_central_unit_info_packet(self, info_subpacket: bytes, packet: bytes) -> None:
 		power_supply_and_battery_binary = Jablotron._bytes_to_binary(info_subpacket[0:1])
@@ -2001,6 +2000,25 @@ class Jablotron:
 			self._get_central_unit_bus_devices_loss_sensor_name(bus_number),
 		)
 
+	def _add_pulse_to_electricity_meter(self, device_number: int, pulse_number: int = 0) -> None:
+		pulse_sensor_id = self._get_device_pulse_sensor_id(device_number, pulse_number)
+
+		if pulse_sensor_id in self.entities[EntityType.PULSE]:
+			# May be already added
+			return
+
+		device_id = self._get_device_id(device_number)
+		hass_device = self._device_hass_devices[device_id]
+
+		self._add_entity(
+			hass_device,
+			EntityType.PULSE,
+			pulse_sensor_id,
+			"Pulses",
+		)
+
+		async_dispatcher_send(self._hass, self.signal_entities_added())
+
 	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, entity_name: str, initial_state: StateType = None) -> None:
 		if entity_id in self.entities[entity_type]:
 			return
@@ -2436,8 +2454,11 @@ class Jablotron:
 		return sensor_name
 
 	@staticmethod
-	def _get_device_pulse_sensor_id(device_number: int) -> str:
-		return "pulses_{}".format(device_number)
+	def _get_device_pulse_sensor_id(device_number: int, pulse_number: int = 0) -> str:
+		if pulse_number == 0:
+			return "pulses_{}".format(device_number)
+
+		return "pulses_{}_{}".format(device_number, pulse_number)
 
 	@staticmethod
 	def _get_lan_connection_id() -> str:
