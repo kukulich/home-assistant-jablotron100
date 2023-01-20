@@ -1042,7 +1042,7 @@ class Jablotron:
 					if counter == 0 and not self._is_alarm_active():
 						self._send_packets(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
-						# Check some devices once a hour (and on the start too)
+						# Check some devices once an hour (and on the start too)
 						actual_time = datetime.datetime.now()
 						if (
 							last_devices_update is None
