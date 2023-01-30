@@ -1385,7 +1385,7 @@ class Jablotron:
 				self._parse_lan_connection_info_packet(info_subpacket, packet)
 			elif device_number == gsm_device_number:
 				self._parse_gsm_info_packet(info_subpacket, packet)
-			else:
+			elif not self._is_device_ignored(device_number):
 				device_type = self._get_device_type(device_number)
 
 				device_battery_state = self._parse_device_battery_level_from_device_info_packet(info_subpacket, packet)
