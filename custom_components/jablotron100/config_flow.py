@@ -5,6 +5,7 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow, FlowResult
+from homeassistant.helpers import selector
 import re
 import time
 import threading
@@ -47,8 +48,6 @@ from .errors import (
 	ServiceUnavailable,
 )
 from .jablotron import Jablotron
-
-devices_by_names = {device_type.get_name():device_type.value for device_type in DeviceType}
 
 def check_serial_port(serial_port: str) -> None:
 	stop_event = threading.Event()
@@ -123,10 +122,10 @@ def get_devices_fields(number_of_devices: int, default_values: List | None = Non
 	if default_values is None:
 		default_values = []
 
-	devices_values = []
+	device_types = []
 	for device_type in DeviceType:
 		if device_type != DeviceType.CENTRAL_UNIT:
-			devices_values.append(device_type.get_name())
+			device_types.append(device_type)
 
 	fields = OrderedDict()
 
@@ -135,9 +134,16 @@ def get_devices_fields(number_of_devices: int, default_values: List | None = Non
 
 		default_value_index = i - 1
 		if default_value_index < len(default_values):
-			default_value = DeviceType(default_values[default_value_index]).get_name()
+			default_value = DeviceType(default_values[default_value_index])
 
-		fields[vol.Required("device_{:03}".format(i), default=default_value)] = vol.In(devices_values)
+		# vol.In(devices_values)
+		fields[vol.Required("device_{:03}".format(i), default=default_value)] = selector.SelectSelector(
+			selector.SelectSelectorConfig(
+				options=device_types,
+				mode=selector.SelectSelectorMode.DROPDOWN,
+				translation_key="device_type",
+			),
+		)
 
 	return fields
 
@@ -222,7 +228,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 			try:
 				devices = []
 				for device_number in sorted(user_input):
-					devices.append(devices_by_names[user_input[device_number]])
+					devices.append(user_input[device_number])
 
 				self._config[CONF_DEVICES] = devices
 
@@ -318,7 +324,7 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 		if user_input is not None:
 			devices = []
 			for device_number in sorted(user_input):
-				devices.append(devices_by_names[user_input[device_number]])
+				devices.append(user_input[device_number])
 
 			self._config[CONF_DEVICES] = devices
 

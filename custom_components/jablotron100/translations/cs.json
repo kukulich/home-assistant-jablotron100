@@ -310,5 +310,34 @@
 				}
 			}
 		}
+	},
+	"selector": {
+		"device_type": {
+			"options": {
+				"keypad": "Klávesnice",
+				"outdoor_siren": "Venkovní siréna",
+				"indoor_siren": "Vnitřní siréna",
+				"motion_detector": "Detektor pohybu",
+				"window_opening_detector": "Detektor otevření okna",
+				"door_opening_detector": "Detektor otevření dveří",
+				"garage_door_opening_detector": "Detektor otevření garáže",
+				"glass_break_detector": "Detektor rozbití skla",
+				"smoke_detector": "Kouřový detektor",
+				"flood_detector": "Záplavový detektor",
+				"gas_detector": "Detektor plynu",
+				"thermostat": "Termostat",
+				"thermometer": "Teploměr",
+				"lock": "Zámek",
+				"tamper": "Tamper",
+				"button": "Tlačítko",
+				"key_fob": "Dálkový ovladač",
+				"electricity_meter_with_pulse_output": "Elektroměr s pulsním výstupem",
+				"radio_module": "Rádiový modul",
+				"valve": "Ventil",
+				"custom": "Vlastní",
+				"other": "Ostatní",
+				"empty": "Prázdné"
+			}
+		}
 	}
 }

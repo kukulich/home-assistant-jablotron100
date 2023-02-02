@@ -310,5 +310,34 @@
 				}
 			}
 		}
+	},
+	"selector": {
+		"device_type": {
+			"options": {
+				"keypad": "Keypad",
+				"outdoor_siren": "Outdoor siren",
+				"indoor_siren": "Indoor siren",
+				"motion_detector": "Motion detector",
+				"window_opening_detector": "Window opening detector",
+				"door_opening_detector": "Door opening detector",
+				"garage_door_opening_detector": "Garage door opening detector",
+				"glass_break_detector": "Glass break detector",
+				"smoke_detector": "Smoke detector",
+				"flood_detector": "Flood detector",
+				"gas_detector": "Gas detector",
+				"thermostat": "Thermostat",
+				"thermometer": "Thermometer",
+				"lock": "Lock",
+				"tamper": "Tamper",
+				"button": "Button",
+				"key_fob": "Key fob",
+				"electricity_meter_with_pulse_output": "Electricity meter with pulse output",
+				"radio_module": "Radio module",
+				"valve": "Valve",
+				"custom": "Custom",
+				"other": "Other",
+				"empty": "Empty"
+			}
+		}
 	}
 }
