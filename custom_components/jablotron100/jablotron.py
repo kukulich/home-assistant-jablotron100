@@ -122,7 +122,7 @@ class ParsedDeviceInfoPacket:
 
 class JablotronSectionState:
 
-	def __init__(self, state: SectionPrimaryState, pending: bool, arming: bool, triggered: bool, problem: bool, sabotage: bool, fire: bool, alert: bool) -> None:
+	def __init__(self, state: SectionPrimaryState, pending: bool, arming: bool, triggered: bool, problem: bool, sabotage: bool, fire: bool) -> None:
 		self.state: SectionPrimaryState = state
 		self.arming: bool = arming
 		self.pending: bool = pending
@@ -130,7 +130,6 @@ class JablotronSectionState:
 		self.problem: bool = problem
 		self.sabotage: bool = sabotage
 		self.fire: bool = fire
-		self.alert: bool = alert
 
 
 class JablotronCentralUnit:
@@ -2520,11 +2519,10 @@ class Jablotron:
 			SectionPrimaryState(Jablotron.binary_to_int(section_binary[5:8])),
 			arming=section_binary[0:1] == "1",
 			pending=section_binary[1:2] == "1",
-			triggered=section_binary[3:4] == "1" or section_binary[4:5] == "1",
+			triggered=section_binary[3:4] == "1" or section_binary[4:5] == "1" or section_binary[12:13] == "1" or section_binary[13:14] == "1",
 			problem=section_binary[2:3] == "1",
 			sabotage=section_binary[11:12] == "1",
 			fire=section_binary[14:15] == "1",
-			alert=section_binary[13:14] == "1",
 		)
 
 	@staticmethod
