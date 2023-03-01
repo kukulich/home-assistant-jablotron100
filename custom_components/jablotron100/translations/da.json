@@ -168,7 +168,6 @@
 			},
 			"devices": {
 				"title": "Enheder",
-				"description": "Vælg enheds type",
 				"data": {
 					"device_001": "Enhed 1",
 					"device_002": "Enhed 2",
@@ -309,6 +308,35 @@
 					"log_devices_packets": "Log enheds pakker",
 					"log_pg_outputs_packets": "Log programmerbare udganges pakker"
 				}
+			}
+		}
+	},
+	"selector": {
+		"device_type": {
+			"options": {
+				"keypad": "Betjeningspanel",
+				"outdoor_siren": "Udendørssiren",
+				"indoor_siren": "Inddørssiren",
+				"motion_detector": "Bevægelsessensor",
+				"window_opening_detector": "vinduesensor",
+				"door_opening_detector": "Dørsensor",
+				"garage_door_opening_detector": "Garagedørsensor",
+				"glass_break_detector": "Glasbrudssensor",
+				"smoke_detector": "Røgsensor",
+				"flood_detector": "Gulvsensor",
+				"gas_detector": "Gassensor",
+				"thermostat": "Termostat",
+				"thermometer": "Termometer",
+				"lock": "Lås",
+				"tamper": "Tamper",
+				"button": "Knap",
+				"key_fob": "Nøglering",
+				"electricity_meter_with_pulse_output": "Elmåler med pulsudgang",
+				"radio_module": "Radio modul",
+				"valve": "Ventil",
+				"custom": "Tilpasset",
+				"other": "Anden",
+				"empty": "Tom"
 			}
 		}
 	}
