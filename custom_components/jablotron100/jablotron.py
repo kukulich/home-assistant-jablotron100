@@ -1309,33 +1309,36 @@ class Jablotron:
 			return
 
 		packet_state_binary = self._bytes_to_binary(packet[2:3])
-		is_fault = self.binary_to_int(packet_state_binary[4:6]) == 1
-		fault = DeviceFault(self.binary_to_int(packet_state_binary[6:]))
+		is_heartbeat = self.binary_to_int(packet_state_binary[4:]) == 15
 
-		if is_fault and fault == DeviceFault.BATTERY and not self.is_device_with_battery(device_number):
-			# It's active state when device does not have battery
-			is_fault = False
+		if not is_heartbeat:
+			is_fault = self.binary_to_int(packet_state_binary[4:6]) == 1
+			fault = DeviceFault(self.binary_to_int(packet_state_binary[6:]))
 
-		if is_fault:
-			if fault == DeviceFault.BATTERY:
+			if is_fault and fault == DeviceFault.BATTERY and not self.is_device_with_battery(device_number):
+				# It's active state when device does not have battery
+				is_fault = False
+
+			if is_fault:
+				if fault == DeviceFault.BATTERY:
+					self._update_entity_state(
+						self._get_device_battery_problem_sensor_id(device_number),
+						device_state,
+					)
+				else:
+					self._update_entity_state(
+						self._get_device_problem_sensor_id(device_number),
+						device_state,
+					)
+			elif self._is_device_with_state(device_number):
 				self._update_entity_state(
-					self._get_device_battery_problem_sensor_id(device_number),
+					self._get_device_state_sensor_id(device_number),
 					device_state,
+					store_state=False,
 				)
 			else:
-				self._update_entity_state(
-					self._get_device_problem_sensor_id(device_number),
-					device_state,
-				)
-		elif self._is_device_with_state(device_number):
-			self._update_entity_state(
-				self._get_device_state_sensor_id(device_number),
-				device_state,
-				store_state=False,
-			)
-		else:
-			# Ignore - probably heartbeat
-			pass
+				# Ignore - probably heartbeat
+				pass
 
 		if self.is_wireless_device(device_number):
 			device_signal_strength = self.bytes_to_int(packet[10:11]) * SIGNAL_STRENGTH_STEP
