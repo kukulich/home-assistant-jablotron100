@@ -3,7 +3,7 @@
 	"content_in_root": false,
 	"domains": ["alarm_control_panel", "binary_sensor", "sensor", "switch"],
 	"country": ["CS", "DA", "DE", "EN", "IT", "NB", "NL", "SK"],
-	"homeassistant": "2023.3.0",
+	"homeassistant": "2023.4.0",
 	"render_readme": true
 }
 
