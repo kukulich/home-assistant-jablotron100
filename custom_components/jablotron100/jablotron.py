@@ -562,7 +562,6 @@ class Jablotron:
 			section_hass_device,
 			EntityType.PROBLEM,
 			section_problem_sensor_id,
-			"Problem",
 			self._convert_jablotron_section_state_to_problem_sensor_state(section_state),
 		)
 
@@ -571,7 +570,6 @@ class Jablotron:
 				section_hass_device,
 				EntityType.FIRE,
 				section_fire_sensor_id,
-				"Fire",
 				self._convert_jablotron_section_state_to_fire_sensor_state(section_state),
 			)
 
@@ -734,7 +732,6 @@ class Jablotron:
 				hass_device,
 				EntityType.PROBLEM,
 				device_problem_sensor_id,
-				"Problem",
 				STATE_OFF,
 			)
 
@@ -744,7 +741,6 @@ class Jablotron:
 					hass_device,
 					self._get_device_state_entity_type(device_type),
 					self._get_device_state_sensor_id(device_number),
-					self._get_device_sensor_name(device_number),
 					STATE_OFF,
 				)
 
@@ -755,7 +751,6 @@ class Jablotron:
 					hass_device,
 					EntityType.SIGNAL_STRENGTH,
 					device_signal_strength_sensor_id,
-					"Signal strength",
 					self._devices_data[device_id][DeviceData.SIGNAL_STRENGTH],
 				)
 			else:
@@ -767,7 +762,7 @@ class Jablotron:
 			if self.is_device_with_battery(device_number):
 				self._add_battery_entities(device_number, JablotronBatteryState(True, self._devices_data[device_id][DeviceData.BATTERY_LEVEL]))
 			else:
-				await self._remove_entity(EntityType.PROBLEM, device_battery_problem_sensor_id)
+				await self._remove_entity(EntityType.BATTERY_PROBLEM, device_battery_problem_sensor_id)
 				await self._remove_entity(EntityType.BATTERY_LEVEL, device_battery_level_sensor_id)
 
 			# Battery voltage sensors
@@ -779,8 +774,8 @@ class Jablotron:
 			):
 				self._add_battery_voltage_entities(device_number)
 			else:
-				await self._remove_entity(EntityType.VOLTAGE, device_battery_standby_voltage_sensor_id)
-				await self._remove_entity(EntityType.VOLTAGE, device_battery_load_voltage_sensor_id)
+				await self._remove_entity(EntityType.BATTERY_STANDBY_VOLTAGE, device_battery_standby_voltage_sensor_id)
+				await self._remove_entity(EntityType.BATTERY_LOAD_VOLTAGE, device_battery_load_voltage_sensor_id)
 
 			# Temperature sensor
 			device_temperature_sensor_id = self._get_device_temperature_sensor_id(device_number)
@@ -789,7 +784,6 @@ class Jablotron:
 					hass_device,
 					EntityType.TEMPERATURE,
 					device_temperature_sensor_id,
-					"Temperature",
 				)
 			else:
 				await self._remove_entity(EntityType.TEMPERATURE, device_temperature_sensor_id)
@@ -799,8 +793,8 @@ class Jablotron:
 				self._add_pulse_to_electricity_meter(device_number)
 			else:
 				# We can add only two sensors currently
-				await self._remove_entity(EntityType.PULSE, self._get_device_pulse_sensor_id(device_number))
-				await self._remove_entity(EntityType.PULSE, self._get_device_pulse_sensor_id(device_number, 1))
+				await self._remove_entity(EntityType.PULSES, self._get_device_pulse_sensor_id(device_number))
+				await self._remove_entity(EntityType.PULSES, self._get_device_pulse_sensor_id(device_number, 1))
 
 	def _create_central_unit_sensors(self) -> None:
 		if CentralUnitData.BATTERY not in self._central_unit_data:
@@ -811,39 +805,34 @@ class Jablotron:
 
 		self._add_entity(
 			None,
-			EntityType.PROBLEM,
+			EntityType.POWER_SUPPLY,
 			self._get_device_power_supply_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-			"Power supply",
 			STATE_OFF,
 		)
 
 		if self._central_unit_data[CentralUnitData.BATTERY]:
 			self._add_entity(
 				None,
-				EntityType.PROBLEM,
+				EntityType.BATTERY_PROBLEM,
 				self._get_device_battery_problem_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-				"Battery problem",
 			)
 
 			self._add_entity(
 				None,
 				EntityType.BATTERY_LEVEL,
 				self._get_device_battery_level_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-				"Battery level",
 			)
 
 			self._add_entity(
 				None,
-				EntityType.VOLTAGE,
+				EntityType.BATTERY_STANDBY_VOLTAGE,
 				self._get_device_battery_standby_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-				"Battery standby voltage",
 			)
 
 			self._add_entity(
 				None,
-				EntityType.VOLTAGE,
+				EntityType.BATTERY_LOAD_VOLTAGE,
 				self._get_device_battery_load_voltage_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
-				"Battery load voltage",
 			)
 
 		for bus_number in self._central_unit_data[CentralUnitData.BUSES]:
@@ -857,16 +846,14 @@ class Jablotron:
 				None,
 				EntityType.LAN_CONNECTION,
 				self._get_lan_connection_id(),
-				"LAN connection",
 				STATE_ON,
 			)
 
 			if self._central_unit_data[CentralUnitData.LAN_IP]:
 				self._add_entity(
 					None,
-					EntityType.IP,
+					EntityType.LAN_IP,
 					self._get_lan_connection_ip_id(),
-					"LAN IP",
 				)
 
 		if self._get_central_unit_gsm_device_number() is not None:
@@ -874,15 +861,13 @@ class Jablotron:
 				None,
 				EntityType.GSM_SIGNAL,
 				self._get_gsm_signal_sensor_id(),
-				"GMS signal",
 				STATE_ON,
 			)
 
 			self._add_entity(
 				None,
-				EntityType.SIGNAL_STRENGTH,
+				EntityType.GSM_SIGNAL_STRENGTH,
 				self._get_gsm_signal_strength_sensor_id(),
-				"GSM signal strength",
 				100,
 			)
 
@@ -1894,7 +1879,7 @@ class Jablotron:
 	def _add_lan_connection_ip(self) -> None:
 		lan_connection_ip_id = self._get_lan_connection_ip_id()
 
-		if lan_connection_ip_id in self.entities[EntityType.IP]:
+		if lan_connection_ip_id in self.entities[EntityType.LAN_IP]:
 			return
 
 		self._central_unit_data[CentralUnitData.LAN_IP] = True
@@ -1902,9 +1887,8 @@ class Jablotron:
 
 		self._add_entity(
 			None,
-			EntityType.IP,
+			EntityType.LAN_IP,
 			lan_connection_ip_id,
-			"LAN IP",
 		)
 
 		async_dispatcher_send(self._hass, self.signal_entities_added())
@@ -1954,15 +1938,13 @@ class Jablotron:
 			hass_device,
 			EntityType.BATTERY_LEVEL,
 			self._get_device_battery_level_sensor_id(device_number),
-			"Battery level",
 			battery_state.level,
 		)
 
 		self._add_entity(
 			hass_device,
-			EntityType.PROBLEM,
+			EntityType.BATTERY_PROBLEM,
 			self._get_device_battery_problem_sensor_id(device_number),
-			"Battery problem",
 			STATE_OFF if battery_state.ok else STATE_ON,
 		)
 
@@ -1972,37 +1954,37 @@ class Jablotron:
 
 		self._add_entity(
 			hass_device,
-			EntityType.VOLTAGE,
+			EntityType.BATTERY_STANDBY_VOLTAGE,
 			self._get_device_battery_standby_voltage_sensor_id(device_number),
-			"Battery standby voltage",
 		)
 
 		self._add_entity(
 			hass_device,
-			EntityType.VOLTAGE,
+			EntityType.BATTERY_LOAD_VOLTAGE,
 			self._get_device_battery_load_voltage_sensor_id(device_number),
-			"Battery load voltage",
 		)
 
 	def _add_central_unit_bus_entities(self, bus_number: int) -> None:
 		self._add_entity(
 			None,
-			EntityType.VOLTAGE,
+			EntityType.BUS_VOLTAGE,
 			self._get_central_unit_bus_voltage_sensor_id(bus_number),
+			None,
 			self._get_central_unit_bus_voltage_sensor_name(bus_number),
 		)
 
 		self._add_entity(
 			None,
-			EntityType.CURRENT,
+			EntityType.BUS_DEVICES_CURRENT,
 			self._get_central_unit_bus_devices_loss_sensor_id(bus_number),
+			None,
 			self._get_central_unit_bus_devices_loss_sensor_name(bus_number),
 		)
 
 	def _add_pulse_to_electricity_meter(self, device_number: int, pulse_number: int = 0) -> None:
 		pulse_sensor_id = self._get_device_pulse_sensor_id(device_number, pulse_number)
 
-		if pulse_sensor_id in self.entities[EntityType.PULSE]:
+		if pulse_sensor_id in self.entities[EntityType.PULSES]:
 			# May be already added
 			return
 
@@ -2011,14 +1993,13 @@ class Jablotron:
 
 		self._add_entity(
 			hass_device,
-			EntityType.PULSE,
+			EntityType.PULSES,
 			pulse_sensor_id,
-			"Pulses",
 		)
 
 		async_dispatcher_send(self._hass, self.signal_entities_added())
 
-	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, entity_name: str, initial_state: StateType = None) -> None:
+	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, initial_state: StateType = None, entity_name: str | None = None) -> None:
 		if entity_id in self.entities[entity_type]:
 			return
 
@@ -2427,14 +2408,7 @@ class Jablotron:
 
 	@staticmethod
 	def _get_central_unit_bus_voltage_sensor_name(bus_number: int) -> str:
-		sensor_name = "BUS"
-
-		if bus_number != 1:
-			sensor_name += " {}".format(bus_number)
-
-		sensor_name += " voltage"
-
-		return sensor_name
+		return "BUS {} voltage".format(bus_number)
 
 	@staticmethod
 	def _get_central_unit_bus_devices_loss_sensor_id(bus_number: int) -> str:
@@ -2447,14 +2421,7 @@ class Jablotron:
 
 	@staticmethod
 	def _get_central_unit_bus_devices_loss_sensor_name(bus_number: int) -> str:
-		sensor_name = "BUS"
-
-		if bus_number != 1:
-			sensor_name += " {}".format(bus_number)
-
-		sensor_name += " devices loss"
-
-		return sensor_name
+		return "BUS {} devices loss".format(bus_number)
 
 	@staticmethod
 	def _get_device_pulse_sensor_id(device_number: int, pulse_number: int = 0) -> str:

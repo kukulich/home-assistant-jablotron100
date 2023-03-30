@@ -28,83 +28,72 @@ class JablotronBinarySensorEntityDescription(BinarySensorEntityDescription):
 	icon_func: Callable | None = None
 
 BINARY_SENSOR_TYPES: Dict[EntityType, JablotronBinarySensorEntityDescription] = {
+	EntityType.BATTERY_PROBLEM: JablotronBinarySensorEntityDescription(
+		key=EntityType.BATTERY_PROBLEM,
+		device_class=BinarySensorDeviceClass.PROBLEM,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
 	EntityType.DEVICE_STATE_MOTION: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_MOTION,
 		device_class=BinarySensorDeviceClass.MOTION,
-		name="Motion",
 	),
 	EntityType.DEVICE_STATE_WINDOW: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_WINDOW,
 		device_class=BinarySensorDeviceClass.WINDOW,
-		name="Window",
 	),
 	EntityType.DEVICE_STATE_DOOR: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_DOOR,
 		device_class=BinarySensorDeviceClass.DOOR,
-		name="Door",
 	),
 	EntityType.DEVICE_STATE_GARAGE_DOOR: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_GARAGE_DOOR,
 		device_class=BinarySensorDeviceClass.GARAGE_DOOR,
-		name="Garage door",
 	),
 	EntityType.DEVICE_STATE_GLASS: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_GLASS,
-		name="Glass",
 		icon_func=lambda is_on: "mdi:image-broken-variant" if is_on else "mdi:square-outline"
 	),
 	EntityType.DEVICE_STATE_MOISTURE: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_MOISTURE,
 		device_class=BinarySensorDeviceClass.MOISTURE,
-		name="Moisture",
 	),
 	EntityType.DEVICE_STATE_GAS: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_GAS,
 		device_class=BinarySensorDeviceClass.GAS,
-		name="Gas",
 	),
 	EntityType.DEVICE_STATE_SMOKE: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_SMOKE,
 		device_class=BinarySensorDeviceClass.SMOKE,
-		name="Smoke",
 	),
 	EntityType.DEVICE_STATE_LOCK: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_LOCK,
 		device_class=BinarySensorDeviceClass.LOCK,
-		name="Lock",
 	),
 	EntityType.DEVICE_STATE_TAMPER: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_TAMPER,
 		device_class=BinarySensorDeviceClass.TAMPER,
-		name="Tamper",
 	),
 	EntityType.DEVICE_STATE_THERMOSTAT: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_THERMOSTAT,
-		name="Thermostat",
 		icon_func=lambda is_on: "mdi:thermometer" if is_on else "mdi:thermometer-off",
 	),
 	EntityType.DEVICE_STATE_THERMOMETER: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_THERMOMETER,
-		name="Thermometer",
 	),
 	EntityType.DEVICE_STATE_INDOOR_SIREN_BUTTON: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_INDOOR_SIREN_BUTTON,
-		name="Button",
 		icon_func=lambda is_on: "mdi:gesture-tap-box" if is_on else "mdi:circle-box-outline",
 	),
 	EntityType.DEVICE_STATE_BUTTON: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_BUTTON,
-		name="Button",
 		icon_func=lambda is_on: "mdi:gesture-double-tap" if is_on else "mdi:circle-double"
 	),
 	EntityType.DEVICE_STATE_VALVE: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_VALVE,
-		name="Valve",
 		icon_func=lambda is_on: "mdi:valve-open" if is_on else "mdi:valve-closed",
 	),
 	EntityType.DEVICE_STATE_CUSTOM: JablotronBinarySensorEntityDescription(
 		key=EntityType.DEVICE_STATE_CUSTOM,
-		name="Custom",
 	),
 	EntityType.FIRE: JablotronBinarySensorEntityDescription(
 		key=EntityType.FIRE,
@@ -119,6 +108,11 @@ BINARY_SENSOR_TYPES: Dict[EntityType, JablotronBinarySensorEntityDescription] = 
 	EntityType.LAN_CONNECTION: JablotronBinarySensorEntityDescription(
 		key=EntityType.LAN_CONNECTION,
 		device_class=BinarySensorDeviceClass.CONNECTIVITY,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+	EntityType.POWER_SUPPLY: JablotronBinarySensorEntityDescription(
+		key=EntityType.POWER_SUPPLY,
+		device_class=BinarySensorDeviceClass.PROBLEM,
 		entity_category=EntityCategory.DIAGNOSTIC,
 	),
 	EntityType.PROBLEM: JablotronBinarySensorEntityDescription(
@@ -171,6 +165,7 @@ class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 		description: JablotronBinarySensorEntityDescription,
 	) -> None:
 		self.entity_description = description
+		self._attr_translation_key = description.key
 
 		super().__init__(jablotron, control)
 
@@ -178,8 +173,6 @@ class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 		super()._update_attributes()
 
 		self._attr_is_on = self._get_state() == STATE_ON
-
-		self._attr_name = self.entity_description.name
 
 		if self.entity_description.icon_func is not None:
 			self._attr_icon = self.entity_description.icon_func(self._attr_is_on)

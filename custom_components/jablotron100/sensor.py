@@ -36,12 +36,36 @@ SENSOR_TYPES: Dict[EntityType, SensorEntityDescription] = {
 		entity_category=EntityCategory.DIAGNOSTIC,
 		icon="mdi:wifi",
 	),
+	EntityType.GSM_SIGNAL_STRENGTH: SensorEntityDescription(
+		key=EntityType.GSM_SIGNAL_STRENGTH,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=PERCENTAGE,
+		suggested_display_precision=0,
+		entity_category=EntityCategory.DIAGNOSTIC,
+		icon="mdi:wifi",
+	),
 	EntityType.BATTERY_LEVEL: SensorEntityDescription(
 		key=EntityType.BATTERY_LEVEL,
 		state_class=SensorStateClass.MEASUREMENT,
 		native_unit_of_measurement=PERCENTAGE,
 		suggested_display_precision=0,
 		device_class=SensorDeviceClass.BATTERY,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+	EntityType.BATTERY_STANDBY_VOLTAGE: SensorEntityDescription(
+		key=EntityType.BATTERY_STANDBY_VOLTAGE,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+		suggested_display_precision=1,
+		device_class=SensorDeviceClass.VOLTAGE,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+	EntityType.BATTERY_LOAD_VOLTAGE: SensorEntityDescription(
+		key=EntityType.BATTERY_LOAD_VOLTAGE,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+		suggested_display_precision=1,
+		device_class=SensorDeviceClass.VOLTAGE,
 		entity_category=EntityCategory.DIAGNOSTIC,
 	),
 	EntityType.TEMPERATURE: SensorEntityDescription(
@@ -51,29 +75,29 @@ SENSOR_TYPES: Dict[EntityType, SensorEntityDescription] = {
 		suggested_display_precision=1,
 		device_class=SensorDeviceClass.TEMPERATURE,
 	),
-	EntityType.VOLTAGE: SensorEntityDescription(
-		key=EntityType.VOLTAGE,
-		state_class=SensorStateClass.MEASUREMENT,
-		native_unit_of_measurement=UnitOfElectricPotential.VOLT,
-		suggested_display_precision=1,
-		device_class=SensorDeviceClass.VOLTAGE,
-		entity_category=EntityCategory.DIAGNOSTIC,
-	),
-	EntityType.CURRENT: SensorEntityDescription(
-		key=EntityType.CURRENT,
+	EntityType.BUS_DEVICES_CURRENT: SensorEntityDescription(
+		key=EntityType.BUS_DEVICES_CURRENT,
 		state_class=SensorStateClass.MEASUREMENT,
 		native_unit_of_measurement=UnitOfElectricCurrent.MILLIAMPERE,
 		suggested_display_precision=0,
 		device_class=SensorDeviceClass.CURRENT,
 		entity_category=EntityCategory.DIAGNOSTIC,
 	),
-	EntityType.PULSE: SensorEntityDescription(
-		key=EntityType.PULSE,
+	EntityType.BUS_VOLTAGE: SensorEntityDescription(
+		key=EntityType.BUS_VOLTAGE,
+		state_class=SensorStateClass.MEASUREMENT,
+		native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+		suggested_display_precision=1,
+		device_class=SensorDeviceClass.VOLTAGE,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+	EntityType.PULSES: SensorEntityDescription(
+		key=EntityType.PULSES,
 		state_class=SensorStateClass.TOTAL_INCREASING,
 		suggested_display_precision=0,
 	),
-	EntityType.IP: SensorEntityDescription(
-		key=EntityType.IP,
+	EntityType.LAN_IP: SensorEntityDescription(
+		key=EntityType.LAN_IP,
 		entity_category=EntityCategory.DIAGNOSTIC,
 	),
 }
@@ -108,11 +132,11 @@ class JablotronSensor(JablotronEntity, SensorEntity):
 		description: SensorEntityDescription,
 	) -> None:
 		self.entity_description = description
+		self._attr_translation_key = description.key if control.name is None else control.name.lower().replace(" ", "_")
 
 		super().__init__(jablotron, control)
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
-		self._attr_name = self._control.name
 		self._attr_native_value = self._get_state()

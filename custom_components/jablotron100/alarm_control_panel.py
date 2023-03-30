@@ -44,10 +44,16 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 	_attr_supported_features = AlarmControlPanelEntityFeature.ARM_AWAY | AlarmControlPanelEntityFeature.ARM_NIGHT
 
+	def __init__(
+		self,
+		jablotron: Jablotron,
+		control: JablotronAlarmControlPanel,
+	) -> None:
+		super().__init__(jablotron, control)
+
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
-		self._attr_name = self._control.name
 		self._attr_state = self._get_state()
 		self._attr_changed_by = self._changed_by
 		self._attr_code_format = self._detect_code_format()

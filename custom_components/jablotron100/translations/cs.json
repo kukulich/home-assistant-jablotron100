@@ -339,5 +339,119 @@
 				"empty": "Prázdné"
 			}
 		}
+	},
+	"entity": {
+		"binary_sensor": {
+			"battery_problem": {
+				"name": "Problém baterie"
+			},
+			"device_state_motion": {
+				"name": "Pohyb"
+			},
+			"device_state_window": {
+				"name": "Okno"
+			},
+			"device_state_door": {
+				"name": "Dveře"
+			},
+			"device_state_garage_door": {
+				"name": "Garážová vrata"
+			},
+			"device_state_glass": {
+				"name": "Sklo"
+			},
+			"device_state_moisture": {
+				"name": "Vlhkost"
+			},
+			"device_state_gas": {
+				"name": "Plyn"
+			},
+			"device_state_smoke": {
+				"name": "Kouř"
+			},
+			"device_state_lock": {
+				"name": "Zámek"
+			},
+			"device_state_tamper": {
+				"name": "Tamper"
+			},
+			"device_state_thermostat": {
+				"name": "Termostat"
+			},
+			"device_state_thermometer": {
+				"name": "Teploměr"
+			},
+			"device_state_indoor_siren_button": {
+				"name": "Tlačítko"
+			},
+			"device_state_button": {
+				"name": "Tlačítko"
+			},
+			"device_state_valve": {
+				"name": "Ventil"
+			},
+			"device_state_custom": {
+				"name": "Vlastní"
+			},
+			"fire": {
+				"name": "Oheň"
+			},
+			"gsm_signal": {
+				"name": "GSM signál"
+			},
+			"lan_connection": {
+				"name": "Připojení k LAN"
+			},
+			"power_supple": {
+				"name": "Napájení"
+			},
+			"problem": {
+				"name": "Problém"
+			}
+		},
+		"sensor": {
+			"battery_level": {
+				"name": "Úroveň baterie"
+			},
+			"battery_standby_voltage": {
+				"name": "Napětí baterie v klidu"
+			},
+			"battery_load_voltage": {
+				"name": "Napětí baterie při zátěži"
+			},
+			"bus_1_devices_loss": {
+				"name": "Odebíraný proud na sběrnici 1"
+			},
+			"bus_2_devices_loss": {
+				"name": "Odebíraný proud na sběrnici 2"
+			},
+			"bus_3_devices_loss": {
+				"name": "Odebíraný proud na sběrnici 3"
+			},
+			"bus_1_voltage": {
+				"name": "Napětí na sběrnici 1"
+			},
+			"bus_2_voltage": {
+				"name": "Napětí na sběrnici 2"
+			},
+			"bus_3_voltage": {
+				"name": "Napětí na sběrnici 3"
+			},
+			"gsm_signal_strength": {
+				"name": "Síla GSM signálu"
+			},
+			"lan_ip": {
+				"name": "IP adresa LAN"
+			},
+			"pulses": {
+				"name": "Pulsy"
+			},
+			"signal_strength": {
+				"name": "Síla signálu"
+			},
+			"temperature": {
+				"name": "Teplota"
+			}
+		}
 	}
 }

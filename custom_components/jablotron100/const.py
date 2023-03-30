@@ -90,7 +90,11 @@ class DeviceType(StrEnum):
 class EntityType(StrEnum):
 	ALARM_CONTROL_PANEL = "alarm_control_panel"
 	BATTERY_LEVEL = "battery_level"
-	CURRENT = "current"
+	BATTERY_PROBLEM = "battery_problem"
+	BATTERY_LOAD_VOLTAGE = "battery_load_voltage"
+	BATTERY_STANDBY_VOLTAGE = "battery_standby_voltage"
+	BUS_DEVICES_CURRENT = "bus_devices_current"
+	BUS_VOLTAGE = "bus_voltage"
 	DEVICE_STATE_MOTION = "device_state_motion"
 	DEVICE_STATE_WINDOW = "device_state_window"
 	DEVICE_STATE_DOOR = "device_state_door"
@@ -109,14 +113,15 @@ class EntityType(StrEnum):
 	DEVICE_STATE_CUSTOM = "device_state_custom"
 	FIRE = "fire"
 	GSM_SIGNAL = "gsm_signal"
-	IP = "ip"
+	GSM_SIGNAL_STRENGTH = "gsm_signal_strength"
 	LAN_CONNECTION = "lan_connection"
-	PULSE = "pulse"
+	LAN_IP = "lan_ip"
+	POWER_SUPPLY = "power_supple"
 	PROBLEM = "problem"
+	PULSES = "pulses"
 	PROGRAMMABLE_OUTPUT = "programmable_output"
 	SIGNAL_STRENGTH = "signal_strength"
 	TEMPERATURE = "temperature"
-	VOLTAGE = "voltage"
 
 CODE_MIN_LENGTH: Final = 4
 CODE_MAX_LENGTH: Final = 8
