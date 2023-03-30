@@ -47,6 +47,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
+		self._attr_name = self._control.name
 		self._attr_state = self._get_state()
 		self._attr_changed_by = self._changed_by
 		self._attr_code_format = self._detect_code_format()

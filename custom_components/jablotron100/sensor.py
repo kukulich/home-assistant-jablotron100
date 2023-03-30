@@ -114,4 +114,5 @@ class JablotronSensor(JablotronEntity, SensorEntity):
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
+		self._attr_name = self._control.name
 		self._attr_native_value = self._get_state()

@@ -1,6 +1,9 @@
 from __future__ import annotations
+from collections.abc import Callable
+from dataclasses import dataclass
 from homeassistant.components.binary_sensor import (
 	BinarySensorDeviceClass,
+	BinarySensorEntityDescription,
 	BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -12,44 +15,117 @@ from homeassistant.const import (
 	STATE_ON,
 )
 
-from typing import Final
+from typing import Dict
 from .const import (
 	DATA_JABLOTRON,
-	DeviceType,
 	DOMAIN,
 	EntityType,
 )
-from .jablotron import Jablotron, JablotronDevice, JablotronEntity
+from .jablotron import Jablotron, JablotronControl, JablotronEntity
 
-DEVICE_CLASSES: Final = {
-	DeviceType.MOTION_DETECTOR: BinarySensorDeviceClass.MOTION,
-	DeviceType.WINDOW_OPENING_DETECTOR: BinarySensorDeviceClass.WINDOW,
-	DeviceType.DOOR_OPENING_DETECTOR: BinarySensorDeviceClass.DOOR,
-	DeviceType.GARAGE_DOOR_OPENING_DETECTOR: BinarySensorDeviceClass.GARAGE_DOOR,
-	DeviceType.FLOOD_DETECTOR: BinarySensorDeviceClass.MOISTURE,
-	DeviceType.GAS_DETECTOR: BinarySensorDeviceClass.GAS,
-	DeviceType.SMOKE_DETECTOR: BinarySensorDeviceClass.SMOKE,
-	DeviceType.LOCK: BinarySensorDeviceClass.LOCK,
-	DeviceType.TAMPER: BinarySensorDeviceClass.TAMPER,
-}
+@dataclass
+class JablotronBinarySensorEntityDescription(BinarySensorEntityDescription):
+	icon_func: Callable | None = None
 
-DEVICE_SENSOR_NAMES: Final = {
-	DeviceType.MOTION_DETECTOR: "Motion",
-	DeviceType.WINDOW_OPENING_DETECTOR: "Window",
-	DeviceType.DOOR_OPENING_DETECTOR: "Door",
-	DeviceType.GARAGE_DOOR_OPENING_DETECTOR: "Garage door",
-	DeviceType.GLASS_BREAK_DETECTOR: "Glass",
-	DeviceType.FLOOD_DETECTOR: "Moisture",
-	DeviceType.GAS_DETECTOR: "Gas",
-	DeviceType.SMOKE_DETECTOR: "Smoke",
-	DeviceType.LOCK: "Lock",
-	DeviceType.TAMPER: "Tamper",
-	DeviceType.THERMOSTAT: "Thermostat",
-	DeviceType.THERMOMETER: "Thermometer",
-	DeviceType.SIREN_INDOOR: "Button",
-	DeviceType.BUTTON: "Button",
-	DeviceType.KEY_FOB: "Button",
-	DeviceType.VALVE: "Valve",
+BINARY_SENSOR_TYPES: Dict[EntityType, JablotronBinarySensorEntityDescription] = {
+	EntityType.DEVICE_STATE_MOTION: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_MOTION,
+		device_class=BinarySensorDeviceClass.MOTION,
+		name="Motion",
+	),
+	EntityType.DEVICE_STATE_WINDOW: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_WINDOW,
+		device_class=BinarySensorDeviceClass.WINDOW,
+		name="Window",
+	),
+	EntityType.DEVICE_STATE_DOOR: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_DOOR,
+		device_class=BinarySensorDeviceClass.DOOR,
+		name="Door",
+	),
+	EntityType.DEVICE_STATE_GARAGE_DOOR: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_GARAGE_DOOR,
+		device_class=BinarySensorDeviceClass.GARAGE_DOOR,
+		name="Garage door",
+	),
+	EntityType.DEVICE_STATE_GLASS: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_GLASS,
+		name="Glass",
+		icon_func=lambda is_on: "mdi:image-broken-variant" if is_on else "mdi:square-outline"
+	),
+	EntityType.DEVICE_STATE_MOISTURE: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_MOISTURE,
+		device_class=BinarySensorDeviceClass.MOISTURE,
+		name="Moisture",
+	),
+	EntityType.DEVICE_STATE_GAS: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_GAS,
+		device_class=BinarySensorDeviceClass.GAS,
+		name="Gas",
+	),
+	EntityType.DEVICE_STATE_SMOKE: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_SMOKE,
+		device_class=BinarySensorDeviceClass.SMOKE,
+		name="Smoke",
+	),
+	EntityType.DEVICE_STATE_LOCK: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_LOCK,
+		device_class=BinarySensorDeviceClass.LOCK,
+		name="Lock",
+	),
+	EntityType.DEVICE_STATE_TAMPER: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_TAMPER,
+		device_class=BinarySensorDeviceClass.TAMPER,
+		name="Tamper",
+	),
+	EntityType.DEVICE_STATE_THERMOSTAT: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_THERMOSTAT,
+		name="Thermostat",
+		icon_func=lambda is_on: "mdi:thermometer" if is_on else "mdi:thermometer-off",
+	),
+	EntityType.DEVICE_STATE_THERMOMETER: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_THERMOMETER,
+		name="Thermometer",
+	),
+	EntityType.DEVICE_STATE_INDOOR_SIREN_BUTTON: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_INDOOR_SIREN_BUTTON,
+		name="Button",
+		icon_func=lambda is_on: "mdi:gesture-tap-box" if is_on else "mdi:circle-box-outline",
+	),
+	EntityType.DEVICE_STATE_BUTTON: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_BUTTON,
+		name="Button",
+		icon_func=lambda is_on: "mdi:gesture-double-tap" if is_on else "mdi:circle-double"
+	),
+	EntityType.DEVICE_STATE_VALVE: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_VALVE,
+		name="Valve",
+		icon_func=lambda is_on: "mdi:valve-open" if is_on else "mdi:valve-closed",
+	),
+	EntityType.DEVICE_STATE_CUSTOM: JablotronBinarySensorEntityDescription(
+		key=EntityType.DEVICE_STATE_CUSTOM,
+		name="Custom",
+	),
+	EntityType.FIRE: JablotronBinarySensorEntityDescription(
+		key=EntityType.FIRE,
+		icon_func=lambda is_on: "mdi:fire" if is_on else "mdi:fire-off",
+	),
+	EntityType.GSM_SIGNAL: JablotronBinarySensorEntityDescription(
+		key=EntityType.GSM_SIGNAL,
+		device_class=BinarySensorDeviceClass.CONNECTIVITY,
+		entity_category=EntityCategory.DIAGNOSTIC,
+		icon_func=lambda is_on: "mdi:signal" if is_on else "mdi:signal-off",
+	),
+	EntityType.LAN_CONNECTION: JablotronBinarySensorEntityDescription(
+		key=EntityType.LAN_CONNECTION,
+		device_class=BinarySensorDeviceClass.CONNECTIVITY,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	),
+	EntityType.PROBLEM: JablotronBinarySensorEntityDescription(
+		key=EntityType.PROBLEM,
+		device_class=BinarySensorDeviceClass.PROBLEM,
+		entity_category=EntityCategory.DIAGNOSTIC,
+	)
 }
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -59,18 +135,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 	def add_entities() -> None:
 		entities = []
 
-		mapping = {
-			EntityType.DEVICE_STATE: JablotronDeviceStateSensorEntity,
-			EntityType.PROBLEM: JablotronProblemSensorEntity,
-			EntityType.FIRE: JablotronFireSensorEntity,
-			EntityType.LAN_CONNECTION: JablotronLanConnectionEntity,
-			EntityType.GSM_SIGNAL: JablotronGsmSignalEntity,
-		}
-
-		for entity_type, entity_class in mapping.items():
+		for entity_type in BINARY_SENSOR_TYPES:
 			for entity in jablotron_instance.entities[entity_type].values():
 				if entity.id not in jablotron_instance.hass_entities:
-					entities.append(entity_class(jablotron_instance, entity))
+					entities.append(JablotronBinarySensor(jablotron_instance, entity, BINARY_SENSOR_TYPES[entity_type]))
 
 		async_add_entities(entities)
 
@@ -94,68 +162,24 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 
 class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 
+	entity_description: JablotronBinarySensorEntityDescription
+
+	def __init__(
+		self,
+		jablotron: Jablotron,
+		control: JablotronControl,
+		description: JablotronBinarySensorEntityDescription,
+	) -> None:
+		self.entity_description = description
+
+		super().__init__(jablotron, control)
+
 	def _update_attributes(self) -> None:
 		super()._update_attributes()
 
 		self._attr_is_on = self._get_state() == STATE_ON
 
+		self._attr_name = self.entity_description.name
 
-class JablotronProblemSensorEntity(JablotronBinarySensor):
-
-	_attr_device_class = BinarySensorDeviceClass.PROBLEM
-	_attr_entity_category = EntityCategory.DIAGNOSTIC
-
-
-class JablotronFireSensorEntity(JablotronBinarySensor):
-
-	def _update_attributes(self) -> None:
-		super()._update_attributes()
-
-		self._attr_icon = "mdi:fire" if self._attr_is_on else "mdi:fire-off"
-
-
-class JablotronDeviceStateSensorEntity(JablotronBinarySensor):
-
-	_control: JablotronDevice
-
-	def __init__(
-		self,
-		jablotron: Jablotron,
-		control: JablotronDevice,
-	) -> None:
-
-		super().__init__(jablotron, control)
-
-		self._attr_device_class = DEVICE_CLASSES[control.type] if control.type in DEVICE_CLASSES else None
-		self._attr_name = DEVICE_SENSOR_NAMES[control.type] if control.type in DEVICE_SENSOR_NAMES else "State"
-
-	def _update_attributes(self) -> None:
-		super()._update_attributes()
-
-		if self._control.type == DeviceType.GLASS_BREAK_DETECTOR:
-			self._attr_icon = "mdi:image-broken-variant" if self._attr_is_on else "mdi:square-outline"
-		elif self._control.type in (DeviceType.KEY_FOB, DeviceType.BUTTON):
-			self._attr_icon = "mdi:gesture-double-tap" if self._attr_is_on else "mdi:circle-double"
-		elif self._control.type == DeviceType.SIREN_INDOOR:
-			self._attr_icon = "mdi:gesture-tap-box" if self._attr_is_on else "mdi:circle-box-outline"
-		elif self._control.type == DeviceType.THERMOSTAT:
-			self._attr_icon = "mdi:thermometer" if self._attr_is_on else "mdi:thermometer-off"
-		elif self._control.type == DeviceType.VALVE:
-			self._attr_icon = "mdi:valve-open" if self._attr_is_on else "mdi:valve-closed"
-
-
-class JablotronLanConnectionEntity(JablotronBinarySensor):
-
-	_attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-	_attr_entity_category = EntityCategory.DIAGNOSTIC
-
-
-class JablotronGsmSignalEntity(JablotronBinarySensor):
-
-	_attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-	_attr_entity_category = EntityCategory.DIAGNOSTIC
-
-	def _update_attributes(self) -> None:
-		super()._update_attributes()
-
-		self._attr_icon = "mdi:signal" if self._attr_is_on else "mdi:signal-off"
+		if self.entity_description.icon_func is not None:
+			self._attr_icon = self.entity_description.icon_func(self._attr_is_on)

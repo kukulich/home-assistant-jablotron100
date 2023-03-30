@@ -114,6 +114,26 @@ STORAGE_CENTRAL_UNIT_KEY: Final = "central_unit"
 STORAGE_DEVICES_KEY: Final = "devices"
 STORAGE_STATES_KEY: Final = "states"
 
+DEVICE_TYPE_TO_ENTITY_TYPE: Final = {
+	DeviceType.MOTION_DETECTOR: EntityType.DEVICE_STATE_MOTION,
+	DeviceType.WINDOW_OPENING_DETECTOR: EntityType.DEVICE_STATE_WINDOW,
+	DeviceType.DOOR_OPENING_DETECTOR: EntityType.DEVICE_STATE_DOOR,
+	DeviceType.GARAGE_DOOR_OPENING_DETECTOR: EntityType.DEVICE_STATE_GARAGE_DOOR,
+	DeviceType.GLASS_BREAK_DETECTOR: EntityType.DEVICE_STATE_GLASS,
+	DeviceType.FLOOD_DETECTOR: EntityType.DEVICE_STATE_MOISTURE,
+	DeviceType.GAS_DETECTOR: EntityType.DEVICE_STATE_GAS,
+	DeviceType.SMOKE_DETECTOR: EntityType.DEVICE_STATE_SMOKE,
+	DeviceType.LOCK: EntityType.DEVICE_STATE_LOCK,
+	DeviceType.TAMPER: EntityType.DEVICE_STATE_TAMPER,
+	DeviceType.THERMOSTAT: EntityType.DEVICE_STATE_THERMOSTAT,
+	DeviceType.THERMOMETER: EntityType.DEVICE_STATE_THERMOMETER,
+	DeviceType.SIREN_INDOOR: EntityType.DEVICE_STATE_INDOOR_SIREN_BUTTON,
+	DeviceType.BUTTON: EntityType.DEVICE_STATE_BUTTON,
+	DeviceType.KEY_FOB: EntityType.DEVICE_STATE_BUTTON,
+	DeviceType.VALVE: EntityType.DEVICE_STATE_VALVE,
+	DeviceType.CUSTOM: EntityType.DEVICE_STATE_CUSTOM,
+}
+
 class ParsedDeviceInfoPacket:
 
 	def __init__(self, packet_type: DeviceInfoType, packet: bytes) -> None:
@@ -158,14 +178,6 @@ class JablotronControl:
 		self.name: str | None = control_name
 
 
-class JablotronDevice(JablotronControl):
-
-	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, device_id: str, device_name: str, device_type: str) -> None:
-		self.type: str = device_type
-
-		super().__init__(central_unit, hass_device, device_id, device_name)
-
-
 class JablotronAlarmControlPanel(JablotronControl):
 
 	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, panel_id: str, section: int) -> None:
@@ -200,22 +212,10 @@ class Jablotron:
 		self._central_unit: JablotronCentralUnit | None = None
 		self._device_hass_devices: Dict[str, JablotronHassDevice] = {}
 
-		self.entities: Dict[EntityType, Dict[str, JablotronControl]] = {
-			EntityType.ALARM_CONTROL_PANEL: {},
-			EntityType.BATTERY_LEVEL: {},
-			EntityType.CURRENT: {},
-			EntityType.DEVICE_STATE: {},
-			EntityType.FIRE: {},
-			EntityType.GSM_SIGNAL: {},
-			EntityType.IP: {},
-			EntityType.LAN_CONNECTION: {},
-			EntityType.PULSE: {},
-			EntityType.PROBLEM: {},
-			EntityType.PROGRAMMABLE_OUTPUT: {},
-			EntityType.SIGNAL_STRENGTH: {},
-			EntityType.TEMPERATURE: {},
-			EntityType.VOLTAGE: {},
-		}
+		self.entities: Dict[EntityType, Dict[str, JablotronControl]] = {}
+		for entity_type in EntityType.__members__.values():
+			self.entities[entity_type] = {}
+
 		self.entities_states: Dict[str, StateType] = {}
 		self.hass_entities: Dict[str, JablotronEntity] = {}
 
@@ -739,19 +739,14 @@ class Jablotron:
 			)
 
 			# State sensor
-			device_state_sensor_id = self._get_device_state_sensor_id(device_number)
 			if self._is_device_with_state(device_number):
-				if device_state_sensor_id not in self.entities[EntityType.DEVICE_STATE]:
-					self.entities[EntityType.DEVICE_STATE][device_state_sensor_id] = JablotronDevice(
-						self._central_unit,
-						hass_device,
-						device_state_sensor_id,
-						self._get_device_sensor_name(device_number),
-						device_type,
-					)
-					self._set_entity_initial_state(device_state_sensor_id, STATE_OFF)
-			else:
-				await self._remove_entity(EntityType.DEVICE_STATE, device_state_sensor_id)
+				self._add_entity(
+					hass_device,
+					self._get_device_state_entity_type(device_type),
+					self._get_device_state_sensor_id(device_number),
+					self._get_device_sensor_name(device_number),
+					STATE_OFF,
+				)
 
 			# Signal strength sensor
 			device_signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
@@ -1149,8 +1144,10 @@ class Jablotron:
 		return self._central_unit_data[CentralUnitData.BUSES]
 
 	def _is_device_with_state(self, number: int) -> bool:
-		device_type = self._get_device_type(number)
+		return self._is_device_type_with_state(self._get_device_type(number))
 
+	@staticmethod
+	def _is_device_type_with_state(device_type: DeviceType) -> bool:
 		return device_type not in (
 			DeviceType.KEYPAD,
 			DeviceType.SIREN_OUTDOOR,
@@ -2384,6 +2381,10 @@ class Jablotron:
 		return "{} (device {})".format(self._get_device_name(device_number), device_number)
 
 	@staticmethod
+	def _get_device_state_entity_type(device_type: DeviceType) -> EntityType | None:
+		return DEVICE_TYPE_TO_ENTITY_TYPE[device_type] if Jablotron._is_device_type_with_state(device_type) else None
+
+	@staticmethod
 	def _get_device_problem_sensor_id(device_number: int) -> str:
 		return "device_problem_sensor_{}".format(device_number)
 
@@ -2674,8 +2675,6 @@ class JablotronEntity(Entity):
 		self._control: JablotronControl = control
 
 		self._attr_unique_id = "{}.{}.{}".format(DOMAIN, self._control.central_unit.unique_id, self._control.id)
-
-		self._attr_name = self._control.name
 
 		if self._control.hass_device is None:
 			self._attr_device_info = DeviceInfo(
