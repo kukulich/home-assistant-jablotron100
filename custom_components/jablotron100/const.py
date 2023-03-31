@@ -180,6 +180,7 @@ class SectionPrimaryState(Enum):
 	DISARMED = 1
 	ARMED_PARTIALLY = 2
 	ARMED_FULL = 3
+	MAINTENANCE = 4
 	SERVICE = 5
 	BLOCKED = 6
 	OFF = 7
