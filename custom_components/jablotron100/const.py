@@ -18,6 +18,7 @@ CONF_NUMBER_OF_PG_OUTPUTS: Final = "number_of_pg_outputs"
 CONF_DEVICES: Final = "devices"
 CONF_REQUIRE_CODE_TO_ARM: Final = "require_code_to_arm"
 CONF_REQUIRE_CODE_TO_DISARM: Final = "require_code_to_disarm"
+CONF_PARTIALLY_ARMING_MODE: Final = "partially_arming_mode"
 CONF_ENABLE_DEBUGGING: Final = "enable_debugging"
 
 CONF_LOG_ALL_INCOMING_PACKETS: Final = "log_all_incoming_packets"
@@ -122,6 +123,11 @@ class EntityType(StrEnum):
 	PROGRAMMABLE_OUTPUT = "programmable_output"
 	SIGNAL_STRENGTH = "signal_strength"
 	TEMPERATURE = "temperature"
+
+class PartiallyArmingMode(StrEnum):
+	NOT_SUPPORTED = "not_supported"
+	NIGHT_MODE = "night_mode"
+	HOME_MODE = "home_mode"
 
 CODE_MIN_LENGTH: Final = 4
 CODE_MAX_LENGTH: Final = 8

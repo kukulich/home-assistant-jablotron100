@@ -23,6 +23,7 @@ from .const import (
 	CONF_LOG_SECTIONS_PACKETS,
 	CONF_NUMBER_OF_DEVICES,
 	CONF_NUMBER_OF_PG_OUTPUTS,
+	CONF_PARTIALLY_ARMING_MODE,
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
 	CONF_SERIAL_PORT,
@@ -37,6 +38,7 @@ from .const import (
 	MAX_PG_OUTPUTS,
 	NAME,
 	PACKET_SYSTEM_INFO,
+	PartiallyArmingMode,
 	STREAM_MAX_WORKERS,
 	STREAM_PACKET_SIZE,
 	STREAM_TIMEOUT,
@@ -339,15 +341,30 @@ class JablotronOptionsFlow(config_entries.OptionsFlow):
 
 	async def async_step_options(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
 		if user_input is not None:
+			self._options[CONF_PARTIALLY_ARMING_MODE] = user_input[CONF_PARTIALLY_ARMING_MODE]
 			self._options[CONF_REQUIRE_CODE_TO_DISARM] = user_input[CONF_REQUIRE_CODE_TO_DISARM]
 			self._options[CONF_REQUIRE_CODE_TO_ARM] = user_input[CONF_REQUIRE_CODE_TO_ARM]
 
 			return self._save()
 
+		partially_arming_modes = []
+		for partially_arming in PartiallyArmingMode:
+			partially_arming_modes.append(partially_arming)
+
 		return self.async_show_form(
 			step_id="options",
 			data_schema=vol.Schema(
 				{
+					vol.Required(
+						CONF_PARTIALLY_ARMING_MODE,
+						default=self._config_entry.options.get(CONF_PARTIALLY_ARMING_MODE, PartiallyArmingMode.NIGHT_MODE.value),
+					): selector.SelectSelector(
+						selector.SelectSelectorConfig(
+							options=partially_arming_modes,
+							mode=selector.SelectSelectorMode.DROPDOWN,
+							translation_key="partially_arming_mode",
+						),
+					),
 					vol.Optional(
 						CONF_REQUIRE_CODE_TO_DISARM,
 						default=self._config_entry.options.get(CONF_REQUIRE_CODE_TO_DISARM, DEFAULT_CONF_REQUIRE_CODE_TO_DISARM),

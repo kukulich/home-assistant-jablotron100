@@ -294,6 +294,7 @@
 			"options": {
 				"title": "Možnosti",
 				"data": {
+					"partially_arming_mode": "Částečné zabezpečení",
 					"require_code_to_arm": "Vyžadovat kód k zabezpečení",
 					"require_code_to_disarm": "Vyžadovat kód k odbezpečení"
 				}
@@ -336,6 +337,13 @@
 				"custom": "Vlastní",
 				"other": "Ostatní",
 				"empty": "Prázdné"
+			}
+		},
+		"partially_arming_mode": {
+			"options": {
+				"not_supported": "Nepodporováno",
+				"night_mode": "Noční režim",
+				"home_mode": "Režim Domov"
 			}
 		}
 	},

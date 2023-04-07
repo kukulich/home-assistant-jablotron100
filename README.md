@@ -12,7 +12,7 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 ### Sections
 
 - States are reported to Home Assistant.
-- You can arm/disarm all sections. Supported states are `arm_away` (= armed) and `arm_night` (= armed partially).
+- You can arm/disarm all sections. Supported states are `arm_away` (= armed) and `arm_night`/`arm_home` (choose in options what means "armed partially" for you).
 - Event `jablotron100_wrong_code` is triggered when wrong code is inserted in Home Assistant.
 - Problem in a section is reported in specific "problem" sensor.
 

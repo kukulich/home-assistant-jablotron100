@@ -11,6 +11,7 @@ from homeassistant.const import (
 	EVENT_HOMEASSISTANT_STOP,
 	STATE_ALARM_DISARMED,
 	STATE_ALARM_ARMED_AWAY,
+	STATE_ALARM_ARMED_HOME,
 	STATE_ALARM_ARMED_NIGHT,
 	STATE_ALARM_ARMING,
 	STATE_ALARM_PENDING,
@@ -49,6 +50,7 @@ from .const import (
 	CONF_LOG_SECTIONS_PACKETS,
 	CONF_NUMBER_OF_DEVICES,
 	CONF_NUMBER_OF_PG_OUTPUTS,
+	CONF_PARTIALLY_ARMING_MODE,
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
 	CONF_SERIAL_PORT,
@@ -88,6 +90,7 @@ from .const import (
 	PACKET_SECTIONS_STATES,
 	PACKET_SYSTEM_INFO,
 	PACKET_UI_CONTROL,
+	PartiallyArmingMode,
 	PG_OUTPUT_TURN_OFF,
 	PG_OUTPUT_TURN_ON,
 	SIGNAL_STRENGTH_STEP,
@@ -253,6 +256,9 @@ class Jablotron:
 	def is_code_required_for_arm(self) -> bool:
 		return self._options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM)
 
+	def partially_arming_mode(self) -> PartiallyArmingMode:
+		return PartiallyArmingMode(self._options.get(CONF_PARTIALLY_ARMING_MODE, PartiallyArmingMode.NIGHT_MODE.value))
+
 	def code_contains_asterisk(self) -> bool:
 		return self._config[CONF_PASSWORD].find("*") != -1
 
@@ -303,7 +309,7 @@ class Jablotron:
 	def substribe_hass_entity_for_updates(self, control_id: str, hass_entity: JablotronEntity) -> None:
 		self.hass_entities[control_id] = hass_entity
 
-	def modify_alarm_control_panel_section_state(self, section: int, state: str, code: str | None) -> None:
+	def modify_alarm_control_panel_section_state(self, section: int, state: StateType, code: str | None) -> None:
 		if code is None:
 			code = self._config[CONF_PASSWORD]
 
@@ -316,6 +322,7 @@ class Jablotron:
 		int_packets = {
 			STATE_ALARM_DISARMED: 143,
 			STATE_ALARM_ARMED_AWAY: 159,
+			STATE_ALARM_ARMED_HOME: 175,
 			STATE_ALARM_ARMED_NIGHT: 175,
 		}
 
@@ -556,7 +563,7 @@ class Jablotron:
 				section_alarm_id,
 				section,
 			)
-			self._set_entity_initial_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state))
+			self._set_entity_initial_state(section_alarm_id, self._convert_jablotron_section_state_to_alarm_state(section_state, self.partially_arming_mode()))
 
 		self._add_entity(
 			section_hass_device,
@@ -1154,7 +1161,7 @@ class Jablotron:
 
 			self._update_entity_state(
 				self._get_section_alarm_id(section),
-				self._convert_jablotron_section_state_to_alarm_state(section_state),
+				self._convert_jablotron_section_state_to_alarm_state(section_state, self.partially_arming_mode()),
 				store_state=False,
 			)
 			self._update_entity_state(
@@ -2455,7 +2462,7 @@ class Jablotron:
 		return "PG output {}".format(pg_output_number)
 
 	@staticmethod
-	def _convert_jablotron_section_state_to_alarm_state(state: JablotronSectionState) -> StateType:
+	def _convert_jablotron_section_state_to_alarm_state(state: JablotronSectionState, partially_arming_mode: PartiallyArmingMode) -> StateType:
 		if state.state in (SectionPrimaryState.SERVICE, SectionPrimaryState.BLOCKED):
 			return None
 
@@ -2472,7 +2479,7 @@ class Jablotron:
 			return STATE_ALARM_ARMED_AWAY
 
 		if state.state == SectionPrimaryState.ARMED_PARTIALLY:
-			return STATE_ALARM_ARMED_NIGHT
+			return STATE_ALARM_ARMED_HOME if partially_arming_mode == PartiallyArmingMode.HOME_MODE else STATE_ALARM_ARMED_NIGHT
 
 		return STATE_ALARM_DISARMED
 

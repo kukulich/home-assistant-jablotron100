@@ -294,6 +294,7 @@
 			"options": {
 				"title": "Options",
 				"data": {
+					"partially_arming_mode": "Partially arming",
 					"require_code_to_arm": "Require code to arm",
 					"require_code_to_disarm": "Require code to disarm"
 				}
@@ -336,6 +337,13 @@
 				"custom": "Custom",
 				"other": "Other",
 				"empty": "Empty"
+			}
+		},
+		"partially_arming_mode": {
+			"options": {
+				"not_supported": "Not supported",
+				"night_mode": "Night",
+				"home_mode": "Home"
 			}
 		}
 	},

@@ -294,6 +294,7 @@
 			"options": {
 				"title": "Alternativer",
 				"data": {
+					"partially_arming_mode": "Partially arming",
 					"require_code_to_arm": "Krever kode for å koble til",
 					"require_code_to_disarm": "Krever kode for å koble fra"
 				}
@@ -336,6 +337,13 @@
 				"custom": "Custom",
 				"other": "Other",
 				"empty": "Empty"
+			}
+		},
+		"partially_arming_mode": {
+			"options": {
+				"not_supported": "Not supported",
+				"night_mode": "Night",
+				"home_mode": "Home"
 			}
 		}
 	},
