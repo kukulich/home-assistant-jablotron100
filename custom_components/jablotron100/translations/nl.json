@@ -309,5 +309,148 @@
 				}
 			}
 		}
+	},
+	"selector": {
+		"device_type": {
+			"options": {
+				"keypad": "Keypad",
+				"outdoor_siren": "Outdoor siren",
+				"indoor_siren": "Indoor siren",
+				"motion_detector": "Motion detector",
+				"window_opening_detector": "Window opening detector",
+				"door_opening_detector": "Door opening detector",
+				"garage_door_opening_detector": "Garage door opening detector",
+				"glass_break_detector": "Glass break detector",
+				"smoke_detector": "Smoke detector",
+				"flood_detector": "Flood detector",
+				"gas_detector": "Gas detector",
+				"thermostat": "Thermostat",
+				"thermometer": "Thermometer",
+				"lock": "Lock",
+				"tamper": "Tamper",
+				"button": "Button",
+				"key_fob": "Key fob",
+				"electricity_meter_with_pulse_output": "Electricity meter with pulse output",
+				"radio_module": "Radio module",
+				"valve": "Valve",
+				"custom": "Custom",
+				"other": "Other",
+				"empty": "Empty"
+			}
+		}
+	},
+	"entity": {
+		"binary_sensor": {
+			"battery_problem": {
+				"name": "Battery problem"
+			},
+			"device_state_motion": {
+				"name": "Motion"
+			},
+			"device_state_window": {
+				"name": "Window"
+			},
+			"device_state_door": {
+				"name": "Door"
+			},
+			"device_state_garage_door": {
+				"name": "Garage door"
+			},
+			"device_state_glass": {
+				"name": "Glass"
+			},
+			"device_state_moisture": {
+				"name": "Moisture"
+			},
+			"device_state_gas": {
+				"name": "Gas"
+			},
+			"device_state_smoke": {
+				"name": "Smoke"
+			},
+			"device_state_lock": {
+				"name": "Lock"
+			},
+			"device_state_tamper": {
+				"name": "Tamper"
+			},
+			"device_state_thermostat": {
+				"name": "Thermostat"
+			},
+			"device_state_thermometer": {
+				"name": "Thermometer"
+			},
+			"device_state_indoor_siren_button": {
+				"name": "Button"
+			},
+			"device_state_button": {
+				"name": "Button"
+			},
+			"device_state_valve": {
+				"name": "Valve"
+			},
+			"device_state_custom": {
+				"name": "Custom"
+			},
+			"fire": {
+				"name": "Fire"
+			},
+			"gsm_signal": {
+				"name": "GSM signal"
+			},
+			"lan_connection": {
+				"name": "LAN connection"
+			},
+			"power_supple": {
+				"name": "Power supply"
+			},
+			"problem": {
+				"name": "Problem"
+			}
+		},
+		"sensor": {
+			"battery_level": {
+				"name": "Battery level"
+			},
+			"battery_standby_voltage": {
+				"name": "Battery standby voltage"
+			},
+			"battery_load_voltage": {
+				"name": "Battery load voltage"
+			},
+			"bus_1_devices_loss": {
+				"name": "BUS 1 devices loss"
+			},
+			"bus_2_devices_loss": {
+				"name": "BUS 2 devices loss"
+			},
+			"bus_3_devices_loss": {
+				"name": "BUS 3 devices loss"
+			},
+			"bus_1_voltage": {
+				"name": "BUS 1 voltage"
+			},
+			"bus_2_voltage": {
+				"name": "BUS 2 voltage"
+			},
+			"bus_3_voltage": {
+				"name": "BUS 3 voltage"
+			},
+			"gsm_signal_strength": {
+				"name": "GSM signal strength"
+			},
+			"lan_ip": {
+				"name": "LAN IP"
+			},
+			"pulses": {
+				"name": "Pulses"
+			},
+			"signal_strength": {
+				"name": "Signal strength"
+			},
+			"temperature": {
+				"name": "Temperature"
+			}
+		}
 	}
 }
