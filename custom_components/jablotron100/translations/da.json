@@ -295,8 +295,7 @@
 				"title": "Indstillinger",
 				"data": {
 					"require_code_to_arm": "Kræver kode for at tilkoble",
-					"require_code_to_disarm": "Kræver kode for at frakoble",
-					"enable_debugging": "Aktiver fejlsøgning"
+					"require_code_to_disarm": "Kræver kode for at frakoble"
 				}
 			},
 			"debug": {

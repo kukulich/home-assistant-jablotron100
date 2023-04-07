@@ -295,8 +295,7 @@
 				"title": "Optionen",
 				"data": {
 					"require_code_to_arm": "Benötigt Pin-Code zum Scharfstellen",
-					"require_code_to_disarm": "Benötigt Pin-Code zum Entschärfen",
-					"enable_debugging": "Enable debugging"
+					"require_code_to_disarm": "Benötigt Pin-Code zum Entschärfen"
 				}
 			},
 			"debug": {

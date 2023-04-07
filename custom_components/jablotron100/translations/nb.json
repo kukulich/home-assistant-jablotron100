@@ -295,8 +295,7 @@
 				"title": "Alternativer",
 				"data": {
 					"require_code_to_arm": "Krever kode for å koble til",
-					"require_code_to_disarm": "Krever kode for å koble fra",
-					"enable_debugging": "Enable debugging"
+					"require_code_to_disarm": "Krever kode for å koble fra"
 				}
 			},
 			"debug": {

@@ -295,8 +295,7 @@
 				"title": "Opties",
 				"data": {
 					"require_code_to_arm": "Code verplicht om in te schakelen",
-					"require_code_to_disarm": "Code verplicht om uit te schakelen",
-					"enable_debugging": "Enable debugging"
+					"require_code_to_disarm": "Code verplicht om uit te schakelen"
 				}
 			},
 			"debug": {

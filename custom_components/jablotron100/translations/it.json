@@ -295,8 +295,7 @@
 				"title": "Opzioni",
 				"data": {
 					"require_code_to_arm": "Richiedi il codice per abilitare",
-					"require_code_to_disarm": "Richiedi il codice per disabilitare",
-					"enable_debugging": "Abilita debugging"
+					"require_code_to_disarm": "Richiedi il codice per disabilitare"
 				}
 			},
 			"debug": {

@@ -295,8 +295,7 @@
 				"title": "Options",
 				"data": {
 					"require_code_to_arm": "Require code to arm",
-					"require_code_to_disarm": "Require code to disarm",
-					"enable_debugging": "Enable debugging"
+					"require_code_to_disarm": "Require code to disarm"
 				}
 			},
 			"debug": {

@@ -295,8 +295,7 @@
 				"title": "Možnosti",
 				"data": {
 					"require_code_to_arm": "Vyžadovat kód k zabezpečení",
-					"require_code_to_disarm": "Vyžadovat kód k odbezpečení",
-					"enable_debugging": "Povolit ladění"
+					"require_code_to_disarm": "Vyžadovat kód k odbezpečení"
 				}
 			},
 			"debug": {
