@@ -5,6 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from typing import Final
 
 from .const import (
 	DATA_JABLOTRON,
@@ -14,6 +15,12 @@ from .const import (
 )
 from .jablotron import Jablotron
 
+PLATFORMS: Final = [
+	Platform.ALARM_CONTROL_PANEL,
+	Platform.BINARY_SENSOR,
+	Platform.SENSOR,
+	Platform.SWITCH
+];
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
 	hass.data.setdefault(DOMAIN, {})
@@ -38,19 +45,20 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 		sw_version=central_unit.firmware_version,
 	)
 
-	for platform in (Platform.ALARM_CONTROL_PANEL, Platform.BINARY_SENSOR, Platform.SENSOR, Platform.SWITCH):
-		hass.async_create_task(
-			hass.config_entries.async_forward_entry_setup(config_entry, platform)
-		)
+	await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
 	return True
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-	options_update_unsubscriber = hass.data[DOMAIN][config_entry.entry_id][DATA_OPTIONS_UPDATE_UNSUBSCRIBER]
+	await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
+
+	data = hass.data[DOMAIN].pop(config_entry.entry_id)
+
+	options_update_unsubscriber = data[DATA_OPTIONS_UPDATE_UNSUBSCRIBER]
 	options_update_unsubscriber()
 
-	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
+	jablotron_instance: Jablotron = data[DATA_JABLOTRON]
 	jablotron_instance.shutdown_and_clean()
 
 	return True
