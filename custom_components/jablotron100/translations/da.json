@@ -3,7 +3,7 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
-				"description": "For at tilføje skal der bruges en administrator kode og det samlet antal enheder",
+				"description": "For sensor understøttelse skal der bruges en administratorkode og det samlet antal enheder",
 				"data": {
 					"serial_port": "Serielport",
 					"password": "Kode",
@@ -294,7 +294,7 @@
 			"options": {
 				"title": "Indstillinger",
 				"data": {
-					"partially_arming_mode": "Partially arming",
+					"partially_arming_mode": "Delvistilkobling",
 					"require_code_to_arm": "Kræver kode for at tilkoble",
 					"require_code_to_disarm": "Kræver kode for at frakoble"
 				}
@@ -341,76 +341,76 @@
 		},
 		"partially_arming_mode": {
 			"options": {
-				"not_supported": "Not supported",
-				"night_mode": "Night",
-				"home_mode": "Home"
+				"not_supported": "Ikke understøttet",
+				"night_mode": "Nat",
+				"home_mode": "Hjemme"
 			}
 		}
 	},
 	"entity": {
 		"binary_sensor": {
 			"battery_problem": {
-				"name": "Battery problem"
+				"name": "Batteri fejl"
 			},
 			"device_state_motion": {
-				"name": "Motion"
+				"name": "Bevægelse"
 			},
 			"device_state_window": {
-				"name": "Window"
+				"name": "Vindue"
 			},
 			"device_state_door": {
-				"name": "Door"
+				"name": "Dør"
 			},
 			"device_state_garage_door": {
-				"name": "Garage door"
+				"name": "Garagedør"
 			},
 			"device_state_glass": {
-				"name": "Glass"
+				"name": "Glas"
 			},
 			"device_state_moisture": {
-				"name": "Moisture"
+				"name": "Fugt"
 			},
 			"device_state_gas": {
 				"name": "Gas"
 			},
 			"device_state_smoke": {
-				"name": "Smoke"
+				"name": "Røg"
 			},
 			"device_state_lock": {
-				"name": "Lock"
+				"name": "Lås"
 			},
 			"device_state_tamper": {
-				"name": "Tamper"
+				"name": "Sabotage"
 			},
 			"device_state_thermostat": {
-				"name": "Thermostat"
+				"name": "Termostat"
 			},
 			"device_state_thermometer": {
-				"name": "Thermometer"
+				"name": "Termometer"
 			},
 			"device_state_indoor_siren_button": {
-				"name": "Button"
+				"name": "Knap"
 			},
 			"device_state_button": {
-				"name": "Button"
+				"name": "Knap"
 			},
 			"device_state_valve": {
-				"name": "Valve"
+				"name": "Ventil"
 			},
 			"device_state_custom": {
 				"name": "Custom"
 			},
 			"fire": {
-				"name": "Fire"
+				"name": "Ild"
 			},
 			"gsm_signal": {
 				"name": "GSM signal"
 			},
 			"lan_connection": {
-				"name": "LAN connection"
+				"name": "LAN forbindelse"
 			},
 			"power_supple": {
-				"name": "Power supply"
+				"name": "Strømforsyning"
 			},
 			"problem": {
 				"name": "Problem"
@@ -418,46 +418,46 @@
 		},
 		"sensor": {
 			"battery_level": {
-				"name": "Battery level"
+				"name": "Batteri niveau"
 			},
 			"battery_standby_voltage": {
-				"name": "Battery standby voltage"
+				"name": "Batteri standby spænding"
 			},
 			"battery_load_voltage": {
-				"name": "Battery load voltage"
+				"name": "Batteri load spænding"
 			},
 			"bus_1_devices_loss": {
-				"name": "BUS 1 devices loss"
+				"name": "BUS 1 enheder tab"
 			},
 			"bus_2_devices_loss": {
-				"name": "BUS 2 devices loss"
+				"name": "BUS 2 enheder tab"
 			},
 			"bus_3_devices_loss": {
-				"name": "BUS 3 devices loss"
+				"name": "BUS 3 enheder tab"
 			},
 			"bus_1_voltage": {
-				"name": "BUS 1 voltage"
+				"name": "BUS 1 spænding"
 			},
 			"bus_2_voltage": {
-				"name": "BUS 2 voltage"
+				"name": "BUS 2 spænding"
 			},
 			"bus_3_voltage": {
-				"name": "BUS 3 voltage"
+				"name": "BUS 3 spænding"
 			},
 			"gsm_signal_strength": {
-				"name": "GSM signal strength"
+				"name": "GSM signal styrke"
 			},
 			"lan_ip": {
 				"name": "LAN IP"
 			},
 			"pulses": {
-				"name": "Pulses"
+				"name": "Pulser"
 			},
 			"signal_strength": {
-				"name": "Signal strength"
+				"name": "Signal styrke"
 			},
 			"temperature": {
-				"name": "Temperature"
+				"name": "Temperatur"
 			}
 		}
 	}
