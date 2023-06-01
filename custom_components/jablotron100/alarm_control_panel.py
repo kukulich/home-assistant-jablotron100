@@ -81,10 +81,10 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
 	async def async_alarm_arm_home(self, code: str | None = None) -> None:
-		await self._arm_partially(STATE_ALARM_ARMED_HOME)
+		await self._arm_partially(STATE_ALARM_ARMED_HOME, code)
 
 	async def async_alarm_arm_night(self, code: str | None = None) -> None:
-		await self._arm_partially(STATE_ALARM_ARMED_NIGHT)
+		await self._arm_partially(STATE_ALARM_ARMED_NIGHT, code)
 
 	def update_state(self, state: StateType) -> None:
 		if self._get_state() != state:
