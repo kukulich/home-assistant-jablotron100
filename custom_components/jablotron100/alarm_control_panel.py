@@ -106,10 +106,10 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	def _detect_supported_features(self) -> AlarmControlPanelEntityFeature:
 		partially_arming_mode = self._jablotron.partially_arming_mode()
 
-		if (partially_arming_mode == PartiallyArmingMode.NOT_SUPPORTED):
+		if partially_arming_mode == PartiallyArmingMode.NOT_SUPPORTED:
 			return AlarmControlPanelEntityFeature.ARM_AWAY
 
-		if (partially_arming_mode == PartiallyArmingMode.HOME_MODE):
+		if partially_arming_mode == PartiallyArmingMode.HOME_MODE:
 			return AlarmControlPanelEntityFeature.ARM_AWAY | AlarmControlPanelEntityFeature.ARM_HOME
 
 		return AlarmControlPanelEntityFeature.ARM_AWAY | AlarmControlPanelEntityFeature.ARM_NIGHT
