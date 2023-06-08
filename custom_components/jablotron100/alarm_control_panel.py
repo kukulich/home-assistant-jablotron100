@@ -81,10 +81,10 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
 	async def async_alarm_arm_home(self, code: str | None = None) -> None:
-		await self._arm_partially(STATE_ALARM_ARMED_HOME)
+		await self._arm_partially(STATE_ALARM_ARMED_HOME, code)
 
 	async def async_alarm_arm_night(self, code: str | None = None) -> None:
-		await self._arm_partially(STATE_ALARM_ARMED_NIGHT)
+		await self._arm_partially(STATE_ALARM_ARMED_NIGHT, code)
 
 	def update_state(self, state: StateType) -> None:
 		if self._get_state() != state:
@@ -106,10 +106,10 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	def _detect_supported_features(self) -> AlarmControlPanelEntityFeature:
 		partially_arming_mode = self._jablotron.partially_arming_mode()
 
-		if (partially_arming_mode == PartiallyArmingMode.NOT_SUPPORTED):
+		if partially_arming_mode == PartiallyArmingMode.NOT_SUPPORTED:
 			return AlarmControlPanelEntityFeature.ARM_AWAY
 
-		if (partially_arming_mode == PartiallyArmingMode.HOME_MODE):
+		if partially_arming_mode == PartiallyArmingMode.HOME_MODE:
 			return AlarmControlPanelEntityFeature.ARM_AWAY | AlarmControlPanelEntityFeature.ARM_HOME
 
 		return AlarmControlPanelEntityFeature.ARM_AWAY | AlarmControlPanelEntityFeature.ARM_NIGHT
