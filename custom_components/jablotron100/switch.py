@@ -38,6 +38,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 
 	_control: JablotronProgrammableOutput
+
+	_attr_name = None
 	_attr_device_class = SwitchDeviceClass.SWITCH
 
 	def _update_attributes(self) -> None:

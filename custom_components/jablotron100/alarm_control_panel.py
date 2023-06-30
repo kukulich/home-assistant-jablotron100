@@ -43,6 +43,8 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 	_control: JablotronAlarmControlPanel
 	_changed_by: str | None = None
 
+	_attr_name = None
+
 	def __init__(
 		self,
 		jablotron: Jablotron,
