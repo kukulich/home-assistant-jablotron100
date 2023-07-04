@@ -112,6 +112,11 @@ from .errors import (
 	InvalidBatteryLevel,
 )
 
+from os import listdir
+import os.path
+
+BASEPATH='/sys/class/hidraw/'
+
 STORAGE_VERSION: Final = 2
 STORAGE_CENTRAL_UNIT_KEY: Final = "central_unit"
 STORAGE_DEVICES_KEY: Final = "devices"
@@ -1076,10 +1081,28 @@ class Jablotron:
 		async_call_later(self._hass, 0.1, callback)
 
 	def _open_write_stream(self):
-		return open(self._config[CONF_SERIAL_PORT], "wb", buffering=0)
+		port = self._config[CONF_SERIAL_PORT]
+
+		if port == "auto":
+			detected_port = self.detect_jablotron()
+			if not detected_port:
+				raise Exception("Autodetected port not found")
+			else:
+				LOGGER.warning(f"Autodetected port is {detected_port}")
+				port = detected_port
+		return open(port, "wb", buffering=0)
 
 	def _open_read_stream(self):
-		return open(self._config[CONF_SERIAL_PORT], "rb", buffering=0)
+		port = self._config[CONF_SERIAL_PORT]
+
+		if port == "auto":
+			detected_port = self.detect_jablotron()
+			if not detected_port:
+				raise Exception("Autodetected port not found")
+			else:
+				LOGGER.warning(f"Autodetected port is {detected_port}")
+				port = detected_port
+		return open(port, "rb", buffering=0)
 
 	def _is_alarm_active(self) -> bool:
 		for section_alarm_id in self.entities[EntityType.ALARM_CONTROL_PANEL]:
@@ -2633,6 +2656,13 @@ class Jablotron:
 			Jablotron.create_packet_authorisation_code(code),
 			Jablotron.create_packet_enable_device_states(),
 		]
+
+	@staticmethod
+	def detect_jablotron():
+		for p in listdir(BASEPATH):
+			r = os.path.realpath(BASEPATH+p)
+			if '16D6:0008' in r:
+				return f'/dev/{p}'
 
 
 class JablotronEntity(Entity):

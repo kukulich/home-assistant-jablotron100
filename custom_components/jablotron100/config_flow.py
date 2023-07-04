@@ -172,7 +172,14 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				await self.async_set_unique_id(unique_id)
 				self._abort_if_unique_id_configured()
 
-				check_serial_port(user_input[CONF_SERIAL_PORT])
+				if user_input[CONF_SERIAL_PORT] != "auto":
+					check_serial_port(user_input[CONF_SERIAL_PORT])
+				else:
+					detected_port = Jablotron.detect_jablotron()
+					if not detected_port:
+						LOGGER.error("No Jablotron port found")
+						raise ServiceUnavailable
+					check_serial_port(detected_port)
 
 				self._config = {
 					CONF_UNIQUE_ID: user_input[CONF_SERIAL_PORT],
