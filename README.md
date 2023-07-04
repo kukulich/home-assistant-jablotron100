@@ -40,7 +40,16 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 
 1. Connect the USB cable to Jablotron central unit
 2. Restart the Home Assistant OS
-3. Use the following command line to identify the port:
+
+## Installation
+
+- If you use code with a prefix, insert the code with the asterisk, e.g. `12*3456`.
+- Use code of administrator to make devices work. If you cannot use code of administrator, or you don't want to use devices, set the number of devices to 0.
+- You have to set devices in the same order as you see them in your J-Link/F-Link/mobile application. Ignore the central unit on position 0.
+- If you want to use PG outputs, the user of the code has to have rights to control the PG outputs. Set the number of PG outputs to 0 to ignore them.
+
+
+Serial port should be automatically detected. If not, you can detect it manually and set it during integration installation.
 
     ```
     $ dmesg | grep usb
@@ -49,13 +58,6 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 
     The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
 
-
-## Installation
-
-- If you use code with a prefix, insert the code with the asterisk, e.g. `12*3456`.
-- Use code of administrator to make devices work. If you cannot use code of administrator, or you don't want to use devices, set the number of devices to 0.
-- You have to set devices in the same order as you see them in your J-Link/F-Link/mobile application. Ignore the central unit on position 0.
-- If you want to use PG outputs, the user of the code has to have rights to control the PG outputs. Set the number of PG outputs to 0 to ignore them.
 
 ### HACS
 

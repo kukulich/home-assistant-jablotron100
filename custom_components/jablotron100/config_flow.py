@@ -12,6 +12,7 @@ import threading
 from typing import Any, Dict, List
 import voluptuous as vol
 from .const import (
+	AUTODETECT_SERIAL_PORT,
 	CODE_MAX_LENGTH,
 	CODE_MIN_LENGTH,
 	CONF_DEVICES,
@@ -30,7 +31,6 @@ from .const import (
 	CONF_UNIQUE_ID,
 	DEFAULT_CONF_REQUIRE_CODE_TO_ARM,
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
-	DEFAULT_SERIAL_PORT,
 	DOMAIN,
 	DeviceType,
 	LOGGER,
@@ -172,7 +172,16 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				await self.async_set_unique_id(unique_id)
 				self._abort_if_unique_id_configured()
 
-				check_serial_port(user_input[CONF_SERIAL_PORT])
+				if user_input[CONF_SERIAL_PORT] == AUTODETECT_SERIAL_PORT:
+					serial_port = Jablotron.detect_serial_port()
+
+					if serial_port is None:
+						LOGGER.error("No serial port found")
+						raise ServiceUnavailable
+				else:
+					serial_port = user_input[CONF_SERIAL_PORT]
+
+				check_serial_port(serial_port)
 
 				self._config = {
 					CONF_UNIQUE_ID: user_input[CONF_SERIAL_PORT],
@@ -214,7 +223,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 			step_id="user",
 			data_schema=vol.Schema(
 				{
-					vol.Required(CONF_SERIAL_PORT, default=DEFAULT_SERIAL_PORT): str,
+					vol.Required(CONF_SERIAL_PORT, default=AUTODETECT_SERIAL_PORT): str,
 					vol.Required(CONF_PASSWORD): vol.All(str, vol.Length(min=CODE_MIN_LENGTH, max=CODE_MAX_LENGTH)),
 					vol.Optional(CONF_NUMBER_OF_DEVICES, default=0): create_range_validation(0, MAX_DEVICES),
 					vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=0): create_range_validation(0, MAX_PG_OUTPUTS),

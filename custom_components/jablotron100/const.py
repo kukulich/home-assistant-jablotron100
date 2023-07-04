@@ -9,6 +9,8 @@ LOGGER: Final = logging.getLogger(__package__)
 DOMAIN: Final = "jablotron100"
 NAME: Final = "Jablotron"
 
+HIDRAW_PATH: Final = "/sys/class/hidraw"
+
 EVENT_WRONG_CODE: Final = "{}_wrong_code".format(DOMAIN)
 
 CONF_UNIQUE_ID: Final = "unique_id"
@@ -27,7 +29,7 @@ CONF_LOG_SECTIONS_PACKETS: Final = "log_sections_packets"
 CONF_LOG_PG_OUTPUTS_PACKETS: Final = "log_pg_outputs_packets"
 CONF_LOG_DEVICES_PACKETS: Final = "log_devices_packets"
 
-DEFAULT_SERIAL_PORT: Final = "/dev/hidraw0"
+AUTODETECT_SERIAL_PORT: Final = "auto"
 
 DATA_JABLOTRON: Final = "jablotron"
 DATA_OPTIONS_UPDATE_UNSUBSCRIBER: Final = "options_update_unsubscriber"

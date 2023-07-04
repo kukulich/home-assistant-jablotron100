@@ -26,10 +26,12 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers import entity_registry as er
 import math
+import os
 import sys
 import threading
 import time
 from .const import (
+	AUTODETECT_SERIAL_PORT,
 	BATTERY_LEVEL_NO_BATTERY,
 	BATTERY_LEVEL_NO_CHANGE_FROM_PREVIOUS_STATE,
 	BATTERY_LEVELS_TO_IGNORE,
@@ -75,6 +77,7 @@ from .const import (
 	EVENT_WRONG_CODE,
 	EMPTY_PACKET,
 	EntityType,
+	HIDRAW_PATH,
 	LOGGER,
 	MAX_SECTIONS,
 	PACKET_COMMAND,
@@ -222,6 +225,8 @@ class Jablotron:
 		self.entities_states: Dict[str, StateType] = {}
 		self.hass_entities: Dict[str, JablotronEntity] = {}
 
+		self._serial_port: str | None = None
+
 		self._stream_thread_pool_executor: ThreadPoolExecutor | None = None
 		self._stream_stop_event: threading.Event = threading.Event()
 		self._stream_data_updating_event: threading.Event = threading.Event()
@@ -272,6 +277,13 @@ class Jablotron:
 		self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, shutdown_event)
 
 		await self._load_stored_data()
+
+		if self._config[CONF_SERIAL_PORT] == AUTODETECT_SERIAL_PORT:
+			self._serial_port = self.detect_serial_port()
+			if self._serial_port is None:
+				raise ServiceUnavailable("No serial port found")
+		else:
+			self._serial_port = self._config[CONF_SERIAL_PORT]
 
 		self._detect_central_unit()
 		await self._detect_and_create_devices_and_sections_and_pg_outputs()
@@ -1076,10 +1088,10 @@ class Jablotron:
 		async_call_later(self._hass, 0.1, callback)
 
 	def _open_write_stream(self):
-		return open(self._config[CONF_SERIAL_PORT], "wb", buffering=0)
+		return open(self._serial_port, "wb", buffering=0)
 
 	def _open_read_stream(self):
-		return open(self._config[CONF_SERIAL_PORT], "rb", buffering=0)
+		return open(self._serial_port, "rb", buffering=0)
 
 	def _is_alarm_active(self) -> bool:
 		for section_alarm_id in self.entities[EntityType.ALARM_CONTROL_PANEL]:
@@ -2633,6 +2645,17 @@ class Jablotron:
 			Jablotron.create_packet_authorisation_code(code),
 			Jablotron.create_packet_enable_device_states(),
 		]
+
+	@staticmethod
+	def detect_serial_port() -> str | None:
+		for possible_path in os.listdir(HIDRAW_PATH):
+			possible_realpath = os.path.realpath("{}/{}".format(HIDRAW_PATH, possible_path))
+			if "16D6:0008" in possible_realpath:
+				serial_port = "/dev/{}".format(possible_path)
+				LOGGER.debug("Detected serial port: {}".format(serial_port))
+				return serial_port
+
+		return None
 
 
 class JablotronEntity(Entity):
