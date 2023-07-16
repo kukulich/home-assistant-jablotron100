@@ -51,12 +51,12 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 
 Serial port should be automatically detected. If not, you can detect it manually and set it during integration installation.
 
-    ```
-    $ dmesg | grep usb
-    $ dmesg | grep hid
-    ```
+```
+$ dmesg | grep usb
+$ dmesg | grep hid
+```
 
-    The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
+The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
 
 
 ### HACS
