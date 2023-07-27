@@ -460,5 +460,11 @@
 				"name": "Teplota"
 			}
 		}
+	},
+	"services": {
+		"reset_problem": {
+			"name": "Resetovat problém",
+			"description": "Resetuje problém."
+		}
 	}
 }

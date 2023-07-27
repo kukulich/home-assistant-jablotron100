@@ -460,5 +460,11 @@
 				"name": "Temperature"
 			}
 		}
+	},
+	"services": {
+		"reset_problem": {
+			"name": "Reset problem",
+			"description": "Reset problem."
+		}
 	}
 }
