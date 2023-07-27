@@ -77,6 +77,7 @@ from .const import (
 	EVENT_WRONG_CODE,
 	EMPTY_PACKET,
 	EntityType,
+	EventLoginType,
 	HIDRAW_PATH,
 	LOGGER,
 	MAX_SECTIONS,
@@ -824,6 +825,13 @@ class Jablotron:
 
 		self._add_entity(
 			None,
+			EntityType.EVENT_LOGIN,
+			"login",
+			STATE_ON, # Fake state so the entity is available
+		)
+
+		self._add_entity(
+			None,
 			EntityType.POWER_SUPPLY,
 			self._get_device_power_supply_sensor_id(DeviceNumber.CENTRAL_UNIT.value),
 			STATE_OFF,
@@ -946,6 +954,10 @@ class Jablotron:
 		return self._config[CONF_NUMBER_OF_PG_OUTPUTS] > 0
 
 	def _login_error(self) -> None:
+		for control in self.entities[EntityType.EVENT_LOGIN].values():
+			if control.id in self.hass_entities:
+				self.hass_entities[control.id].trigger_event(EventLoginType.WRONG_CODE)
+
 		self._hass.bus.fire(EVENT_WRONG_CODE)
 
 	def _read_packets(self) -> None:

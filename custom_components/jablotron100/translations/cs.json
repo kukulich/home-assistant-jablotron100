@@ -416,6 +416,18 @@
 				"name": "Problém"
 			}
 		},
+		"event": {
+			"login": {
+				"name": "Přihlášení",
+				"state_attributes": {
+					"event_type": {
+						"state": {
+							"wrong_code": "Nesprávný kód"
+						}
+					}
+				}
+			}
+		},
 		"sensor": {
 			"battery_level": {
 				"name": "Úroveň baterie"

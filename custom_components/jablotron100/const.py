@@ -114,6 +114,7 @@ class EntityType(StrEnum):
 	DEVICE_STATE_BUTTON = "device_state_button"
 	DEVICE_STATE_VALVE = "device_state_valve"
 	DEVICE_STATE_CUSTOM = "device_state_custom"
+	EVENT_LOGIN = "event_login"
 	FIRE = "fire"
 	GSM_SIGNAL = "gsm_signal"
 	GSM_SIGNAL_STRENGTH = "gsm_signal_strength"
@@ -125,6 +126,9 @@ class EntityType(StrEnum):
 	PROGRAMMABLE_OUTPUT = "programmable_output"
 	SIGNAL_STRENGTH = "signal_strength"
 	TEMPERATURE = "temperature"
+
+class EventLoginType(StrEnum):
+	WRONG_CODE = "wrong_code"
 
 class PartiallyArmingMode(StrEnum):
 	NOT_SUPPORTED = "not_supported"

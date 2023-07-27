@@ -18,6 +18,7 @@ from .jablotron import Jablotron
 PLATFORMS: Final = [
 	Platform.ALARM_CONTROL_PANEL,
 	Platform.BINARY_SENSOR,
+	Platform.EVENT,
 	Platform.SENSOR,
 	Platform.SWITCH
 ];

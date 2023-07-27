@@ -1,9 +1,8 @@
 {
 	"name": "Jablotron 100",
 	"content_in_root": false,
-	"domains": ["alarm_control_panel", "binary_sensor", "sensor", "switch"],
+	"domains": ["alarm_control_panel", "binary_sensor", "event", "sensor", "switch"],
 	"country": ["CS", "DA", "DE", "EN", "IT", "NB", "NL", "SK"],
 	"homeassistant": "2023.8.0",
 	"render_readme": true
 }
-
