@@ -113,7 +113,7 @@ def check_serial_port(serial_port: str) -> None:
 			raise ModelNotSupported("Model {} not supported".format(model))
 
 	except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
-		LOGGER.error(format(ex))
+		LOGGER.exception("Service unavailable: %s", ex)
 		raise ServiceUnavailable
 
 	finally:
@@ -210,7 +210,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				errors["base"] = "service_unavailable"
 
 			except Exception as ex:
-				LOGGER.debug(format(ex))
+				LOGGER.exception("Unknown error: %s", ex)
 				LOGGER.error(
 					"Unknown error connecting to %s at %s",
 					NAME,
@@ -246,7 +246,7 @@ class JablotronConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 				return self.async_create_entry(title=NAME, data=self._config)
 
 			except Exception as ex:
-				LOGGER.debug(format(ex))
+				LOGGER.exception("Unknown error: %s", ex)
 
 				return self.async_abort(reason="unknown")
 

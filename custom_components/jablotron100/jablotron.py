@@ -474,7 +474,7 @@ class Jablotron:
 			self._central_unit = reader.result(STREAM_TIMEOUT)
 
 		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
-			LOGGER.error(format(ex))
+			LOGGER.exception("Service unavailable: %s", ex)
 			raise ServiceUnavailable
 
 		finally:
@@ -526,7 +526,7 @@ class Jablotron:
 			packets = reader.result(STREAM_TIMEOUT)
 
 		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
-			LOGGER.error(format(ex))
+			LOGGER.exception("Service unavailable: %s", ex)
 			raise ServiceUnavailable
 
 		finally:
@@ -680,7 +680,7 @@ class Jablotron:
 			packets = reader.result(estimated_duration * 2)
 
 		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
-			LOGGER.error(format(ex))
+			LOGGER.exception("Service unavailable: %s", ex)
 			raise ServiceUnavailable
 
 		finally:
@@ -1018,7 +1018,7 @@ class Jablotron:
 					break
 
 			except Exception as ex:
-				LOGGER.error("Read error: {}".format(format(ex)))
+				LOGGER.exception("Read error: %s", ex)
 				self.last_update_success = False
 				self._update_all_hass_entities()
 
@@ -1050,7 +1050,7 @@ class Jablotron:
 						self._send_packet(self.create_packet_command(COMMAND_HEARTBEAT))
 
 				except Exception as ex:
-					LOGGER.error("Write error: {}".format(format(ex)))
+					LOGGER.exception("Write error: %s", ex)
 
 				counter += 1
 			else:
