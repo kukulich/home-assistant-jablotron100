@@ -122,7 +122,7 @@ def check_serial_port(serial_port: str) -> None:
 
 def get_devices_fields(number_of_devices: int, default_values: List | None = None) -> OrderedDict:
 	if default_values is None:
-		default_values = []
+		default_values = [ DeviceType.EMPTY ] * number_of_devices
 
 	device_types = []
 	for device_type in DeviceType:
