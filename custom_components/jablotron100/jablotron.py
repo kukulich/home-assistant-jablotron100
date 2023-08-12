@@ -628,7 +628,7 @@ class Jablotron:
 		thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
 
 		estimated_duration = math.ceil(not_ignored_devices_count / 10) + 1
-		expected_packets_count = not_ignored_devices_count + 1
+		expected_packets_count = not_ignored_devices_count
 
 		def reader_thread() -> List[bytes]:
 			expected_packets = []
@@ -666,11 +666,6 @@ class Jablotron:
 				for number_of_not_ignored_device in not_ignored_devices:
 					packets_to_send.append(self.create_packet_device_info(number_of_not_ignored_device))
 
-				packets_to_send.append(self.create_packet(
-					PACKET_GET_DEVICES_SECTIONS,
-					self.int_to_bytes(1) + self.int_to_bytes(max(not_ignored_devices)),
-				))
-
 				self._send_packets(packets_to_send)
 				time.sleep(estimated_duration)
 
@@ -690,8 +685,6 @@ class Jablotron:
 
 		if len(packets) != expected_packets_count:
 			raise ShouldNotHappen
-
-		devices_sections_packet = None
 
 		for packet in packets:
 			if self._is_device_status_packet(packet):
@@ -714,19 +707,6 @@ class Jablotron:
 					if battery_state is not None:
 						self._devices_data[device_id][DeviceData.BATTERY] = True
 						self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
-			else:
-				devices_sections_packet = packet
-
-		device_number = 0
-		for packet_offset in range(3, len(devices_sections_packet)):
-			sections_packet_binary = self._bytes_to_binary(devices_sections_packet[packet_offset:(packet_offset + 1)])
-
-			for device_offset in (4, 0):
-				device_number += 1
-				device_id = self._get_device_id(device_number)
-
-				if device_id in self._devices_data:
-					self._devices_data[device_id][DeviceData.SECTION] = self.binary_to_int(sections_packet_binary[device_offset:(device_offset + 4)]) + 1
 
 		self._store_devices_data()
 
