@@ -1097,7 +1097,10 @@ class Jablotron:
 		def callback(_) -> None:
 			stream.close()
 
-		async_call_later(self._hass, 0.1, callback)
+		try:
+			async_call_later(self._hass, 0.1, callback)
+		except Exception as ex:
+			pass
 
 	def _open_write_stream(self):
 		return open(self._serial_port, "wb", buffering=0)
