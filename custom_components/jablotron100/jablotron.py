@@ -215,6 +215,7 @@ class Jablotron:
 		self._config_entry_id: str = config_entry_id
 		self._config: Dict[str, Any] = config
 		self._options: Dict[str, Any] = options
+		self._main_thread = threading.current_thread()
 
 		self._central_unit: JablotronCentralUnit | None = None
 		self._device_hass_devices: Dict[str, JablotronHassDevice] = {}
@@ -311,7 +312,7 @@ class Jablotron:
 
 		unique_id = self._get_unique_id()
 		del self._stored_data[unique_id]
-		self._store.async_delay_save(self._data_to_store)
+		self._store_data_to_store_threadsafe()
 
 	def shutdown(self) -> None:
 		self._stream_stop_event.set()
@@ -1094,13 +1095,14 @@ class Jablotron:
 
 		stream.write(packet)
 
-		def callback(_) -> None:
-			stream.close()
+		if self._main_thread == threading.current_thread():
+			async def callback(_) -> None:
+				stream.close()
 
-		try:
 			async_call_later(self._hass, 0.1, callback)
-		except Exception as ex:
-			pass
+		else:
+			time.sleep(0.1)
+			stream.close()
 
 	def _open_write_stream(self):
 		return open(self._serial_port, "wb", buffering=0)
@@ -1769,7 +1771,9 @@ class Jablotron:
 			return
 
 		if entity_id in self.hass_entities:
-			self.hass_entities[entity_id].update_state(state)
+			self._hass.loop.call_soon_threadsafe(
+				lambda: self.hass_entities[entity_id].update_state(state)
+			)
 		else:
 			self.entities_states[entity_id] = state
 
@@ -1861,7 +1865,7 @@ class Jablotron:
 			return
 
 		self._stored_data[unquie_id][STORAGE_STATES_KEY][entity_id] = state
-		self._store.async_delay_save(self._data_to_store)
+		self._store_data_to_store_threadsafe()
 
 	def _remove_stored_entity_state(self, entity_id: str) -> None:
 		unique_id = self._get_unique_id()
@@ -1876,7 +1880,7 @@ class Jablotron:
 			return
 
 		del self._stored_data[unique_id][STORAGE_STATES_KEY][entity_id]
-		self._store.async_delay_save(self._data_to_store)
+		self._store_data_to_store_threadsafe()
 
 	def _store_central_unit_data(self) -> None:
 		unique_id = self._get_unique_id()
@@ -1885,7 +1889,7 @@ class Jablotron:
 			self._stored_data[unique_id] = {}
 
 		self._stored_data[unique_id][STORAGE_CENTRAL_UNIT_KEY] = self._central_unit_data
-		self._store.async_delay_save(self._data_to_store)
+		self._store_data_to_store_threadsafe()
 
 	def _store_devices_data(self) -> None:
 		unique_id = self._get_unique_id()
@@ -1894,7 +1898,12 @@ class Jablotron:
 			self._stored_data[unique_id] = {}
 
 		self._stored_data[unique_id][STORAGE_DEVICES_KEY] = self._devices_data
-		self._store.async_delay_save(self._data_to_store)
+		self._store_data_to_store_threadsafe()
+
+	def _store_data_to_store_threadsafe(self):
+		self._hass.loop.call_soon_threadsafe(
+			lambda: self._store.async_delay_save(self._data_to_store)
+		)
 
 	def _create_device_hass_device(self, device_number: int) -> JablotronHassDevice:
 		device_id = self._get_device_id(device_number)
