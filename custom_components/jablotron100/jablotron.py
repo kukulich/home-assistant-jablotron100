@@ -319,7 +319,7 @@ class Jablotron:
 		if self._stream_thread_pool_executor is not None:
 			self._stream_thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
-	def substribe_hass_entity_for_updates(self, control_id: str, hass_entity: JablotronEntity) -> None:
+	def subscribe_hass_entity_for_updates(self, control_id: str, hass_entity: JablotronEntity) -> None:
 		self.hass_entities[control_id] = hass_entity
 
 	def modify_alarm_control_panel_section_state(self, section: int, state: StateType, code: str | None) -> None:
@@ -2724,7 +2724,7 @@ class JablotronEntity(Entity):
 		return self._jablotron.last_update_success
 
 	async def async_added_to_hass(self) -> None:
-		self._jablotron.substribe_hass_entity_for_updates(self._control.id, self)
+		self._jablotron.subscribe_hass_entity_for_updates(self._control.id, self)
 
 	async def remove_from_hass(self) -> None:
 		if self.registry_entry:
