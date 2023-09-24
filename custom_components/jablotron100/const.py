@@ -1,7 +1,6 @@
 """Jablotron specific constants."""
 import logging
-from enum import Enum
-from homeassistant.backports.enum import StrEnum
+from enum import Enum, StrEnum
 from typing import Final
 
 LOGGER: Final = logging.getLogger(__package__)
