@@ -526,7 +526,7 @@
 					"log_all_outcoming_packets": "Log alle udgående pakker",
 					"log_sections_packets": "Log sektions pakker",
 					"log_devices_packets": "Log enheds pakker",
-					"log_pg_outputs_packets": "Log programmerbare udganges pakker"
+					"log_pg_outputs_packets": "Log programmerbareudganges pakker"
 				}
 			}
 		}
@@ -535,10 +535,10 @@
 		"device_type": {
 			"options": {
 				"keypad": "Betjeningspanel",
-				"outdoor_siren": "Udendørssiren",
-				"indoor_siren": "Inddørssiren",
+				"outdoor_siren": "Udendørs sirene",
+				"indoor_siren": "Indendørs sirene",
 				"motion_detector": "Bevægelsessensor",
-				"window_opening_detector": "vinduesensor",
+				"window_opening_detector": "Vinduesensor",
 				"door_opening_detector": "Dørsensor",
 				"garage_door_opening_detector": "Garagedørsensor",
 				"glass_break_detector": "Glasbrudssensor",
@@ -548,7 +548,7 @@
 				"thermostat": "Termostat",
 				"thermometer": "Termometer",
 				"lock": "Lås",
-				"tamper": "Tamper",
+				"tamper": "Sabotage",
 				"button": "Knap",
 				"key_fob": "Nøglering",
 				"electricity_meter_with_pulse_output": "Elmåler med pulsudgang",
@@ -609,7 +609,7 @@
 				"name": "Termometer"
 			},
 			"device_state_indoor_siren_button": {
-				"name": "Knap"
+				"name": "Knap Indendørs sirene"
 			},
 			"device_state_button": {
 				"name": "Knap"
@@ -618,10 +618,10 @@
 				"name": "Ventil"
 			},
 			"device_state_custom": {
-				"name": "Custom"
+				"name": "Tilpasset"
 			},
 			"fire": {
-				"name": "Ild"
+				"name": "Brand"
 			},
 			"gsm_signal": {
 				"name": "GSM signal"
@@ -642,7 +642,7 @@
 				"state_attributes": {
 					"event_type": {
 						"state": {
-							"wrong_code": "Wrong code"
+							"wrong_code": "Forkert kode"
 						}
 					}
 				}
