@@ -535,6 +535,7 @@
 		"device_type": {
 			"options": {
 				"keypad": "Keypad",
+				"keypad_with_door_opening_detector": "Keypad with door opening detector",
 				"outdoor_siren": "Outdoor siren",
 				"indoor_siren": "Indoor siren",
 				"motion_detector": "Motion detector",
