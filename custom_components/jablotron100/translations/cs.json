@@ -535,6 +535,7 @@
 		"device_type": {
 			"options": {
 				"keypad": "Klávesnice",
+				"keypad_with_door_opening_detector": "Klávesnice s detektorem otevření dveří",
 				"outdoor_siren": "Venkovní siréna",
 				"indoor_siren": "Vnitřní siréna",
 				"motion_detector": "Detektor pohybu",

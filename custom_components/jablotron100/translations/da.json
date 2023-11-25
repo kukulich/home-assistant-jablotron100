@@ -535,6 +535,7 @@
 		"device_type": {
 			"options": {
 				"keypad": "Betjeningspanel",
+				"keypad_with_door_opening_detector": "Betjeningspanel med Dørsensor",
 				"outdoor_siren": "Udendørs sirene",
 				"indoor_siren": "Indendørs sirene",
 				"motion_detector": "Bevægelsessensor",

@@ -62,6 +62,7 @@ class DeviceNumber(Enum):
 class DeviceType(StrEnum):
 	CENTRAL_UNIT = "central_unit"
 	KEYPAD = "keypad"
+	KEYPAD_WITH_DOOR_OPENING_DETECTOR = "keypad_with_door_opening_detector"
 	SIREN_OUTDOOR = "outdoor_siren"
 	SIREN_INDOOR = "indoor_siren"
 	MOTION_DETECTOR = "motion_detector"

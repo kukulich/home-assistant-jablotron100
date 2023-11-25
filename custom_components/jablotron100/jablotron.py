@@ -125,6 +125,7 @@ DEVICE_TYPE_TO_ENTITY_TYPE: Final = {
 	DeviceType.MOTION_DETECTOR: EntityType.DEVICE_STATE_MOTION,
 	DeviceType.WINDOW_OPENING_DETECTOR: EntityType.DEVICE_STATE_WINDOW,
 	DeviceType.DOOR_OPENING_DETECTOR: EntityType.DEVICE_STATE_DOOR,
+	DeviceType.KEYPAD_WITH_DOOR_OPENING_DETECTOR: EntityType.DEVICE_STATE_DOOR,
 	DeviceType.GARAGE_DOOR_OPENING_DETECTOR: EntityType.DEVICE_STATE_GARAGE_DOOR,
 	DeviceType.GLASS_BREAK_DETECTOR: EntityType.DEVICE_STATE_GLASS,
 	DeviceType.FLOOD_DETECTOR: EntityType.DEVICE_STATE_MOISTURE,
@@ -1312,7 +1313,7 @@ class Jablotron:
 
 		device_type = self._get_device_type(device_number)
 
-		if device_type == DeviceType.KEYPAD:
+		if device_type in (DeviceType.KEYPAD, DeviceType.KEYPAD_WITH_DOOR_OPENING_DETECTOR):
 			self._set_last_active_user_from_device_state_packet(packet, device_number)
 			return
 
