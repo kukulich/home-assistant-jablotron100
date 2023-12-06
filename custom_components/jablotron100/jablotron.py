@@ -1475,9 +1475,14 @@ class Jablotron:
 
 		for info_packet in info_packets:
 			if info_packet.type == DeviceInfoType.SMOKE:
+				temperature = float(Jablotron.bytes_to_int(info_packet.packet[1:2]))
+				# The limit is only an estimate
+				if temperature > 100:
+					temperature = temperature - 128
+
 				self._update_entity_state(
 					self._get_device_temperature_sensor_id(device_number),
-					float(Jablotron.bytes_to_int(info_packet.packet[1:2])),
+					temperature,
 				)
 			elif info_packet.type == DeviceInfoType.INPUT_EXTENDED:
 				# Ignore
