@@ -23,7 +23,7 @@ from .const import (
 )
 from .jablotron import Jablotron, JablotronControl, JablotronEntity
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class JablotronBinarySensorEntityDescription(BinarySensorEntityDescription):
 	icon_func: Callable | None = None
 
