@@ -568,6 +568,83 @@
 			}
 		}
 	},
+	"device": {
+		"keypad": {
+			"name": "Keypad (device {deviceNo})"
+		},
+		"keypad_with_door_opening_detector": {
+			"name": "Keypad with door opening detector (device {deviceNo})"
+		},
+		"outdoor_siren": {
+			"name": "Outdoor siren (device {deviceNo})"
+		},
+		"indoor_siren": {
+			"name": "Indoor siren (device {deviceNo})"
+		},
+		"motion_detector": {
+			"name": "Motion detector (device {deviceNo})"
+		},
+		"window_opening_detector": {
+			"name": "Window opening detector (device {deviceNo})"
+		},
+		"door_opening_detector": {
+			"name": "Door opening detector (device {deviceNo})"
+		},
+		"garage_door_opening_detector": {
+			"name": "Garage door opening detector (device {deviceNo})"
+		},
+		"glass_break_detector": {
+			"name": "Glass break detector (device {deviceNo})"
+		},
+		"smoke_detector": {
+			"name": "Smoke detector (device {deviceNo})"
+		},
+		"flood_detector": {
+			"name": "Flood detector (device {deviceNo})"
+		},
+		"gas_detector": {
+			"name": "Gas detector (device {deviceNo})"
+		},
+		"thermostat": {
+			"name": "Thermostat (device {deviceNo})"
+		},
+		"thermometer": {
+			"name": "Thermometer (device {deviceNo})"
+		},
+		"lock": {
+			"name": "Lock (device {deviceNo})"
+		},
+		"tamper": {
+			"name": "Tamper (device {deviceNo})"
+		},
+		"button": {
+			"name": "Button (device {deviceNo})"
+		},
+		"key_fob": {
+			"name": "Key fob (device {deviceNo})"
+		},
+		"electricity_meter_with_pulse_output": {
+			"name": "Electricity meter with pulse output (device {deviceNo})"
+		},
+		"radio_module": {
+			"name": "Radio module (device {deviceNo})"
+		},
+		"valve": {
+			"name": "Valve (device {deviceNo})"
+		},
+		"custom": {
+			"name": "Custom (device {deviceNo})"
+		},
+		"other": {
+			"name": "Other (device {deviceNo})"
+		},
+		"empty": {
+			"name": "Empty (device {deviceNo})"
+		},
+		"section": {
+			"name": "Section {sectionNo}"
+		}
+	},
 	"entity": {
 		"binary_sensor": {
 			"battery_problem": {

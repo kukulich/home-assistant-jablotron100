@@ -568,6 +568,83 @@
 			}
 		}
 	},
+	"device": {
+		"keypad": {
+			"name": "Klávesnice (periferie {deviceNo})"
+		},
+		"keypad_with_door_opening_detector": {
+			"name": "Klávesnice s detektorem otevření dveří (periferie {deviceNo})"
+		},
+		"outdoor_siren": {
+			"name": "Venkovní siréna (periferie {deviceNo})"
+		},
+		"indoor_siren": {
+			"name": "Vnitřní siréna (periferie {deviceNo})"
+		},
+		"motion_detector": {
+			"name": "Detektor pohybu (periferie {deviceNo})"
+		},
+		"window_opening_detector": {
+			"name": "Detektor otevření okna (periferie {deviceNo})"
+		},
+		"door_opening_detector": {
+			"name": "Detektor otevření dveří (periferie {deviceNo})"
+		},
+		"garage_door_opening_detector": {
+			"name": "Detektor otevření garáže (periferie {deviceNo})"
+		},
+		"glass_break_detector": {
+			"name": "Detektor rozbití skla (periferie {deviceNo})"
+		},
+		"smoke_detector": {
+			"name": "Kouřový detektor (periferie {deviceNo})"
+		},
+		"flood_detector": {
+			"name": "Záplavový detektor (periferie {deviceNo})"
+		},
+		"gas_detector": {
+			"name": "Detektor plynu (periferie {deviceNo})"
+		},
+		"thermostat": {
+			"name": "Termostat (periferie {deviceNo})"
+		},
+		"thermometer": {
+			"name": "Teploměr (periferie {deviceNo})"
+		},
+		"lock": {
+			"name": "Zámek (periferie {deviceNo})"
+		},
+		"tamper": {
+			"name": "Tamper (periferie {deviceNo})"
+		},
+		"button": {
+			"name": "Tlačítko (periferie {deviceNo})"
+		},
+		"key_fob": {
+			"name": "Dálkový ovladač (periferie {deviceNo})"
+		},
+		"electricity_meter_with_pulse_output": {
+			"name": "Elektroměr s pulsním výstupem (periferie {deviceNo})"
+		},
+		"radio_module": {
+			"name": "Rádiový modul (periferie {deviceNo})"
+		},
+		"valve": {
+			"name": "Ventil (periferie {deviceNo})"
+		},
+		"custom": {
+			"name": "Vlastní (periferie {deviceNo})"
+		},
+		"other": {
+			"name": "Ostatní (periferie {deviceNo})"
+		},
+		"empty": {
+			"name": "Prázdné (periferie {deviceNo})"
+		},
+		"section": {
+			"name": "Sekce {sectionNo}"
+		}
+	},
 	"entity": {
 		"binary_sensor": {
 			"battery_problem": {

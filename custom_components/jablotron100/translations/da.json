@@ -568,6 +568,83 @@
 			}
 		}
 	},
+	"device": {
+		"keypad": {
+			"name": "Betjeningspanel (enhed {deviceNo})"
+		},
+		"keypad_with_door_opening_detector": {
+			"name": "Betjeningspanel med Dørsensor (enhed {deviceNo})"
+		},
+		"outdoor_siren": {
+			"name": "Udendørs sirene (enhed {deviceNo})"
+		},
+		"indoor_siren": {
+			"name": "Indendørs sirene (enhed {deviceNo})"
+		},
+		"motion_detector": {
+			"name": "Bevægelsessensor (enhed {deviceNo})"
+		},
+		"window_opening_detector": {
+			"name": "Vinduesensor (enhed {deviceNo})"
+		},
+		"door_opening_detector": {
+			"name": "Dørsensor (enhed {deviceNo})"
+		},
+		"garage_door_opening_detector": {
+			"name": "Garagedørsensor (enhed {deviceNo})"
+		},
+		"glass_break_detector": {
+			"name": "Glasbrudssensor (enhed {deviceNo})"
+		},
+		"smoke_detector": {
+			"name": "Røgsensor (enhed {deviceNo})"
+		},
+		"flood_detector": {
+			"name": "Gulvsensor (enhed {deviceNo})"
+		},
+		"gas_detector": {
+			"name": "Gassensor (enhed {deviceNo})"
+		},
+		"thermostat": {
+			"name": "Termostat (enhed {deviceNo})"
+		},
+		"thermometer": {
+			"name": "Termometer (enhed {deviceNo})"
+		},
+		"lock": {
+			"name": "Lås (enhed {deviceNo})"
+		},
+		"tamper": {
+			"name": "Sabotage (enhed {deviceNo})"
+		},
+		"button": {
+			"name": "Knap (enhed {deviceNo})"
+		},
+		"key_fob": {
+			"name": "Nøglering (enhed {deviceNo})"
+		},
+		"electricity_meter_with_pulse_output": {
+			"name": "Elmåler med pulsudgang (enhed {deviceNo})"
+		},
+		"radio_module": {
+			"name": "Radio modul (enhed {deviceNo})"
+		},
+		"valve": {
+			"name": "Ventil (enhed {deviceNo})"
+		},
+		"custom": {
+			"name": "Tilpasset (enhed {deviceNo})"
+		},
+		"other": {
+			"name": "Anden (enhed {deviceNo})"
+		},
+		"empty": {
+			"name": "Tom (enhed {deviceNo})"
+		},
+		"section": {
+			"name": "Sektion {sectionNo}"
+		}
+	},
 	"entity": {
 		"binary_sensor": {
 			"battery_problem": {

@@ -109,7 +109,7 @@ from .const import (
 	UI_CONTROL_MODIFY_SECTION,
 	UI_CONTROL_TOGGLE_PG_OUTPUT,
 )
-from typing import Any, Dict, Final, List
+from typing import Any, Dict, Final, List, Mapping
 from .errors import (
 	ServiceUnavailable,
 	ShouldNotHappen,
@@ -171,9 +171,11 @@ class JablotronCentralUnit:
 
 class JablotronHassDevice:
 
-	def __init__(self, device_id: str, device_name: str, battery_level: int | None = None) -> None:
+	def __init__(self, device_id: str, device_name: str, translation_key: str, translation_placeholders: Mapping[str, str], battery_level: int | None = None) -> None:
 		self.id: str = device_id
 		self.name: str = device_name
+		self.translation_key = translation_key
+		self.translation_placeholders = translation_placeholders
 		self.battery_level: int | None = battery_level
 
 
@@ -1921,7 +1923,9 @@ class Jablotron:
 
 		return JablotronHassDevice(
 			"device_{}".format(device_number),
-			"{} (device {})".format(device_type.get_name(), device_number),
+			device_type.get_name() + " (device {deviceNo})",
+			device_type,
+			{"deviceNo": device_number},
 			battery_level,
 		)
 
@@ -2384,7 +2388,9 @@ class Jablotron:
 	def _create_section_hass_device(section: int) -> JablotronHassDevice:
 		return JablotronHassDevice(
 			"section_{}".format(section),
-			"Section {}".format(section),
+			"Section {sectionNo}",
+			"section",
+			{"sectionNo": section},
 		)
 
 	@staticmethod
@@ -2713,6 +2719,8 @@ class JablotronEntity(Entity):
 				manufacturer="Jablotron",
 				identifiers={(DOMAIN, self._control.hass_device.id)},
 				name=self._control.hass_device.name,
+				translation_key=self._control.hass_device.translation_key,
+				translation_placeholders=self._control.hass_device.translation_placeholders,
 				via_device=(DOMAIN, self._control.central_unit.unique_id),
 			)
 
