@@ -39,8 +39,19 @@ class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 
 	_control: JablotronProgrammableOutput
 
-	_attr_name = None
 	_attr_device_class = SwitchDeviceClass.SWITCH
+	_attr_translation_key = "pg_output"
+
+	def __init__(
+		self,
+		jablotron: Jablotron,
+		control: JablotronProgrammableOutput,
+	) -> None:
+		super().__init__(jablotron, control)
+
+		self._attr_translation_placeholders = {
+			"pgOutputNo": control.pg_output_number,
+		}
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()

@@ -769,6 +769,11 @@
 			"temperature": {
 				"name": "Temperatur"
 			}
+		},
+		"switch": {
+			"pg_output": {
+				"name": "PG output {pgOutputNo}"
+			}
 		}
 	},
 	"services": {

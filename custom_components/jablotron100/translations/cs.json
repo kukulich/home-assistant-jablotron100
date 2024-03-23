@@ -8,7 +8,7 @@
 					"serial_port": "Sériový port",
 					"password": "Kód",
 					"number_of_devices": "Počet periferií",
-					"number_of_pg_outputs": "Počet programovatelných výstupů PG"
+					"number_of_pg_outputs": "Počet programovatelných výstupů"
 				}
 			},
 			"devices": {
@@ -768,6 +768,11 @@
 			},
 			"temperature": {
 				"name": "Teplota"
+			}
+		},
+		"switch": {
+			"pg_output": {
+				"name": "Programovatelný výstup {pgOutputNo}"
 			}
 		}
 	},
