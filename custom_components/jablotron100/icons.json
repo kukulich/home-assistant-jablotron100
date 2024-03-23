@@ -1,4 +1,57 @@
 {
+	"entity": {
+		"binary_sensor": {
+			"device_state_glass": {
+				"default": "mdi:square-outline",
+				"state": {
+					"on": "mdi:image-broken-variant",
+					"off": "mdi:square-outline"
+				}
+			},
+			"device_state_thermostat": {
+				"default": "mdi:thermometer",
+				"state": {
+					"on": "mdi:thermometer",
+					"off": "mdi:thermometer-off"
+				}
+			},
+			"device_state_indoor_siren_button": {
+				"default": "mdi:circle-box-outline",
+				"state": {
+					"on": "mdi:gesture-tap-box",
+					"off": "mdi:circle-box-outline"
+				}
+			},
+			"device_state_button": {
+				"default": "mdi:circle-double",
+				"state": {
+					"on": "mdi:gesture-double-tap",
+					"off": "mdi:circle-double"
+				}
+			},
+			"device_state_valve": {
+				"default": "mdi:valve-closed",
+				"state": {
+					"on": "mdi:valve-open",
+					"off": "mdi:valve-closed"
+				}
+			},
+			"fire": {
+				"default": "mdi:fire",
+				"state": {
+					"on": "mdi:fire",
+					"off": "mdi:fire-off"
+				}
+			},
+			"gsm_signal": {
+				"default": "mdi:signal",
+				"state": {
+					"on": "mdi:signal",
+					"off": "mdi:signal-off"
+				}
+			}
+		}
+	},
 	"services": {
 		"reset_problem": "mdi:reload"
 	}
