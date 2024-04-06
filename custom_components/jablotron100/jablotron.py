@@ -142,11 +142,13 @@ DEVICE_TYPE_TO_ENTITY_TYPE: Final = {
 	DeviceType.CUSTOM: EntityType.DEVICE_STATE_CUSTOM,
 }
 
+
 class ParsedDeviceInfoPacket:
 
 	def __init__(self, packet_type: DeviceInfoType, packet: bytes) -> None:
 		self.type: DeviceInfoType = packet_type
 		self.packet: bytes = packet
+
 
 class JablotronSectionState:
 
@@ -831,7 +833,8 @@ class Jablotron:
 			None,
 			EntityType.EVENT_LOGIN,
 			"login",
-			STATE_ON, # Fake state so the entity is available
+			# Fake state so the entity is available
+			STATE_ON,
 		)
 
 		self._add_entity(

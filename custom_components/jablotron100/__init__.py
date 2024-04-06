@@ -21,7 +21,8 @@ PLATFORMS: Final = [
 	Platform.EVENT,
 	Platform.SENSOR,
 	Platform.SWITCH
-];
+]
+
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
 	hass.data.setdefault(DOMAIN, {})

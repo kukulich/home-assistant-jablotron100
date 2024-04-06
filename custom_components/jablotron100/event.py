@@ -26,6 +26,7 @@ EVENT_TYPES: Dict[EntityType, EventEntityDescription] = {
 	),
 }
 
+
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
@@ -46,6 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, asyn
 		async_dispatcher_connect(hass, jablotron_instance.signal_entities_added(), add_entities)
 	)
 
+
 class JablotronEventEntity(JablotronEntity, EventEntity):
 
 	def __init__(
@@ -59,5 +61,5 @@ class JablotronEventEntity(JablotronEntity, EventEntity):
 		super().__init__(jablotron, control)
 
 	def trigger_event(self, event: EventLoginType) -> None:
-	    self._trigger_event(event.value)
-	    self.async_write_ha_state()
+		self._trigger_event(event.value)
+		self.async_write_ha_state()

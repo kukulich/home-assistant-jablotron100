@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from .const import CONF_DEVICES, DOMAIN, DATA_JABLOTRON
 from .jablotron import Jablotron
 
+
 async def async_get_config_entry_diagnostics(
 	hass: HomeAssistant, config_entry: ConfigEntry
 ) -> dict:
