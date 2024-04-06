@@ -246,38 +246,18 @@
 					"device_229": "Periferie 229",
 					"device_230": "Periferie 230"
 				}
-			}
-		},
-		"error": {
-			"service_unavailable": "Jablotron není dostupný",
-			"model_not_detected": "Typ ústředny Jablotron nebyl rozpoznán",
-			"model_not_supported": "Typ ústředny Jablotron není podporován"
-		},
-		"abort": {
-			"already_configured": "Jablotron je již nakonfigurován"
-		}
-	},
-	"options": {
-		"step": {
-			"init": {
-				"menu_options": {
-					"settings": "Základní nastavení",
-					"devices": "Periferie",
-					"options": "Možnosti",
-					"debug": "Ladění"
-				}
 			},
-			"settings": {
-				"title": "Základní nastavení",
+			"reconfigure_settings": {
+				"title": "Jablotron 100",
 				"data": {
 					"serial_port": "Sériový port",
 					"password": "Kód",
 					"number_of_devices": "Počet periferií",
-					"number_of_pg_outputs": "Počet programovatelných výstupů PG"
+					"number_of_pg_outputs": "Počet programovatelných výstupů"
 				}
 			},
-			"devices": {
-				"title": "Periferie",
+			"reconfigure_devices": {
+				"title": "Jablotron 100 / Periferie",
 				"data": {
 					"device_001": "Periferie 1",
 					"device_002": "Periferie 2",
@@ -509,6 +489,25 @@
 					"device_228": "Periferie 228",
 					"device_229": "Periferie 229",
 					"device_230": "Periferie 230"
+				}
+			}
+		},
+		"error": {
+			"service_unavailable": "Jablotron není dostupný",
+			"model_not_detected": "Typ ústředny Jablotron nebyl rozpoznán",
+			"model_not_supported": "Typ ústředny Jablotron není podporován"
+		},
+		"abort": {
+			"already_configured": "Jablotron je již nastaven",
+			"reconfigure_successful": "Jablotron je úspěšně přenastaven"
+		}
+	},
+	"options": {
+		"step": {
+			"init": {
+				"menu_options": {
+					"options": "Možnosti",
+					"debug": "Ladění"
 				}
 			},
 			"options": {

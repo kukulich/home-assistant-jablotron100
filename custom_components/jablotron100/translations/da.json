@@ -246,29 +246,9 @@
 					"device_229": "Enhed 229",
 					"device_230": "Enhed 230"
 				}
-			}
-		},
-		"error": {
-			"service_unavailable": "Jablotron er ikke tilgænglig",
-			"model_not_detected": "Jablotron model ikke fundet",
-			"model_not_supported": "Jablotron model understøttes ikke"
-		},
-		"abort": {
-			"already_configured": "Jablotron er allerede konfigureret"
-		}
-	},
-	"options": {
-		"step": {
-			"init": {
-				"menu_options": {
-					"settings": "Grundindstillinger",
-					"devices": "Enheder",
-					"options": "Indstillinger",
-					"debug": "Fejlsøgning"
-				}
 			},
-			"settings": {
-				"title": "Grundindstillinger",
+			"reconfigure_settings": {
+				"title": "Jablotron 100",
 				"data": {
 					"serial_port": "Serielport",
 					"password": "Kode",
@@ -276,8 +256,8 @@
 					"number_of_pg_outputs": "Antal programmerbare udgange"
 				}
 			},
-			"devices": {
-				"title": "Enheder",
+			"reconfigure_devices": {
+				"title": "Jablotron 100 / Enheder",
 				"data": {
 					"device_001": "Enhed 1",
 					"device_002": "Enhed 2",
@@ -509,6 +489,25 @@
 					"device_228": "Enhed 228",
 					"device_229": "Enhed 229",
 					"device_230": "Enhed 230"
+				}
+			}
+		},
+		"error": {
+			"service_unavailable": "Jablotron er ikke tilgænglig",
+			"model_not_detected": "Jablotron model ikke fundet",
+			"model_not_supported": "Jablotron model understøttes ikke"
+		},
+		"abort": {
+			"already_configured": "Jablotron er allerede konfigureret",
+			"reconfigure_successful": "Jablotron successfully reconfigured"
+		}
+	},
+	"options": {
+		"step": {
+			"init": {
+				"menu_options": {
+					"options": "Indstillinger",
+					"debug": "Fejlsøgning"
 				}
 			},
 			"options": {

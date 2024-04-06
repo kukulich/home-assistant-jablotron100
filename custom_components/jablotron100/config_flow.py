@@ -51,6 +51,7 @@ from .errors import (
 )
 from .jablotron import Jablotron
 
+
 def check_serial_port(serial_port: str) -> None:
 	stop_event = threading.Event()
 	thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
@@ -120,9 +121,10 @@ def check_serial_port(serial_port: str) -> None:
 		stop_event.set()
 		thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
+
 def get_devices_fields(number_of_devices: int, default_values: List | None = None) -> OrderedDict:
 	if default_values is None:
-		default_values = [ DeviceType.EMPTY ] * number_of_devices
+		default_values = [DeviceType.EMPTY] * number_of_devices
 
 	device_types = []
 	for device_type in DeviceType:
@@ -149,11 +151,13 @@ def get_devices_fields(number_of_devices: int, default_values: List | None = Non
 
 	return fields
 
+
 def create_range_validation(minimum: int, maximum: int):
 	return vol.All(vol.Coerce(int), vol.Range(min=minimum, max=maximum))
 
 
 class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
+	_config_entry: ConfigEntry | None
 	_config: Dict[str, Any] | None = None
 
 	@staticmethod
@@ -258,32 +262,17 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 			errors=errors,
 		)
 
-
-class JablotronOptionsFlow(OptionsFlow):
-	_config: Dict[str, Any]
-	_options: Dict[str, Any]
-
-	def __init__(self, config_entry: ConfigEntry) -> None:
-		self._config_entry: ConfigEntry = config_entry
-		self._config = dict(self._config_entry.data)
-		self._options = dict(self._config_entry.options)
-
-	async def async_step_init(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
-
-		menu_options = ["settings"]
-
-		if self._config[CONF_NUMBER_OF_DEVICES] > 0:
-			menu_options.append("devices")
-
-		menu_options.append("options")
-		menu_options.append("debug")
-
-		return self.async_show_menu(
-			step_id="init",
-			menu_options=menu_options,
+	async def async_step_reconfigure(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
+		self._config_entry = self.hass.config_entries.async_get_entry(
+			self.context["entry_id"]
 		)
 
-	async def async_step_settings(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
+		self._config = dict(self._config_entry.data)
+
+		return await self.async_step_reconfigure_settings()
+
+	async def async_step_reconfigure_settings(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
+
 		if user_input is not None:
 			if CONF_UNIQUE_ID not in self._config:
 				self._config[CONF_UNIQUE_ID] = self._config[CONF_SERIAL_PORT]
@@ -292,15 +281,13 @@ class JablotronOptionsFlow(OptionsFlow):
 			if user_input[CONF_PASSWORD] != "":
 				self._config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
 
-			previous_number_of_devices = self._config[CONF_NUMBER_OF_DEVICES]
-
 			self._config[CONF_NUMBER_OF_DEVICES] = user_input[CONF_NUMBER_OF_DEVICES]
 			self._config[CONF_NUMBER_OF_PG_OUTPUTS] = user_input[CONF_NUMBER_OF_PG_OUTPUTS]
 
-			if user_input[CONF_NUMBER_OF_DEVICES] > previous_number_of_devices:
-				return await self.async_step_devices()
+			if user_input[CONF_NUMBER_OF_DEVICES] > 0:
+				return await self.async_step_reconfigure_devices()
 
-			return self._save()
+			return self._finish_reconfigure()
 
 		fields = {
 			vol.Required(CONF_SERIAL_PORT, default=self._config[CONF_SERIAL_PORT]): str,
@@ -326,12 +313,11 @@ class JablotronOptionsFlow(OptionsFlow):
 			fields[vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=configured_number_of_pg_outputs)] = number_of_pg_outputs_validation
 
 		return self.async_show_form(
-			step_id="settings",
+			step_id="reconfigure_settings",
 			data_schema=vol.Schema(fields),
 		)
 
-	async def async_step_devices(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
-
+	async def async_step_reconfigure_devices(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
 		if user_input is not None:
 			devices = []
 			for device_number in sorted(user_input):
@@ -339,13 +325,40 @@ class JablotronOptionsFlow(OptionsFlow):
 
 			self._config[CONF_DEVICES] = devices
 
-			return self._save()
+			return self._finish_reconfigure()
 
 		fields = get_devices_fields(self._config[CONF_NUMBER_OF_DEVICES], self._config[CONF_DEVICES])
 
 		return self.async_show_form(
-			step_id="devices",
+			step_id="reconfigure_devices",
 			data_schema=vol.Schema(fields),
+		)
+
+	def _finish_reconfigure(self) -> ConfigFlowResult:
+		assert self._config_entry
+
+		return self.async_update_reload_and_abort(
+			self._config_entry,
+			title=NAME,
+			data={
+				**self._config_entry.data,
+				**self._config,
+			},
+			reason="reconfigure_successful",
+		)
+
+
+class JablotronOptionsFlow(OptionsFlow):
+	_options: Dict[str, Any]
+
+	def __init__(self, config_entry: ConfigEntry) -> None:
+		self._config_entry: ConfigEntry = config_entry
+		self._options = dict(self._config_entry.options)
+
+	async def async_step_init(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
+		return self.async_show_menu(
+			step_id="init",
+			menu_options=["options", "debug"],
 		)
 
 	async def async_step_options(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -436,11 +449,4 @@ class JablotronOptionsFlow(OptionsFlow):
 		)
 
 	def _save(self) -> ConfigFlowResult:
-		self.hass.config_entries.async_update_entry(
-			self._config_entry, data={
-				**self._config_entry.data,
-				**self._config,
-			}
-		)
-
 		return self.async_create_entry(title=NAME, data=self._options)

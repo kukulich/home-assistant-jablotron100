@@ -246,29 +246,9 @@
 					"device_229": "Dispositivo 229",
 					"device_230": "Dispositivo 230"
 				}
-			}
-		},
-		"error": {
-			"service_unavailable": "Jablotron non è disponibile",
-			"model_not_detected": "Modello Jablotron non rilevato",
-			"model_not_supported": "Modello Jablotron non supportato"
-		},
-		"abort": {
-			"already_configured": "Jablotron è già configurato"
-		}
-	},
-	"options": {
-		"step": {
-			"init": {
-				"menu_options": {
-					"settings": "Impostazioni di base",
-					"devices": "Dispositivi",
-					"options": "Opzioni",
-					"debug": "Debugging"
-				}
 			},
-			"settings": {
-				"title": "Impostazioni di base",
+			"reconfigure_settings": {
+				"title": "Jablotron 100",
 				"data": {
 					"serial_port": "Porta seriale",
 					"password": "Codice",
@@ -276,8 +256,8 @@
 					"number_of_pg_outputs": "Numero di uscite programmabili PG"
 				}
 			},
-			"devices": {
-				"title": "Dispositivi",
+			"reconfigure_devices": {
+				"title": "Jablotron 100 / Dispositivi",
 				"data": {
 					"device_001": "Dispositivo 1",
 					"device_002": "Dispositivo 2",
@@ -509,6 +489,25 @@
 					"device_228": "Dispositivo 228",
 					"device_229": "Dispositivo 229",
 					"device_230": "Dispositivo 230"
+				}
+			}
+		},
+		"error": {
+			"service_unavailable": "Jablotron non è disponibile",
+			"model_not_detected": "Modello Jablotron non rilevato",
+			"model_not_supported": "Modello Jablotron non supportato"
+		},
+		"abort": {
+			"already_configured": "Jablotron è già configurato",
+			"reconfigure_successful": "Jablotron successfully reconfigured"
+		}
+	},
+	"options": {
+		"step": {
+			"init": {
+				"menu_options": {
+					"options": "Opzioni",
+					"debug": "Debugging"
 				}
 			},
 			"options": {
