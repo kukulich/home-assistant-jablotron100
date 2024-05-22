@@ -967,6 +967,14 @@ class Jablotron:
 
 		self._hass.bus.fire(EVENT_WRONG_CODE)
 
+	def _set_available(self) -> None:
+		self.last_update_success = True
+		self._update_all_hass_entities()
+
+	def _set_unavailable(self) -> None:
+		self.last_update_success = False
+		self._update_all_hass_entities()
+
 	def _read_packets(self) -> None:
 		stream = self._open_read_stream()
 		last_restarted_at_hour = datetime.datetime.now().hour
@@ -990,13 +998,11 @@ class Jablotron:
 					self._stream_data_updating_event.set()
 
 					if not raw_packet:
-						self.last_update_success = False
-						self._update_all_hass_entities()
+						self._set_unavailable()
 						break
 
 					if self.last_update_success is False:
-						self.last_update_success = True
-						self._update_all_hass_entities()
+						self._set_available()
 
 					packets = self.get_packets_from_packet(raw_packet)
 
@@ -1038,8 +1044,7 @@ class Jablotron:
 
 			except Exception as ex:
 				LOGGER.exception("Read error: %s", ex)
-				self.last_update_success = False
-				self._update_all_hass_entities()
+				self._set_unavailable()
 
 			time.sleep(0.5)
 
@@ -1070,6 +1075,7 @@ class Jablotron:
 
 				except Exception as ex:
 					LOGGER.exception("Write error: %s", ex)
+					self._set_unavailable()
 
 				counter += 1
 			else:
