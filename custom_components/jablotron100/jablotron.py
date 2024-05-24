@@ -2766,7 +2766,7 @@ class JablotronEntity(Entity):
 
 	def refresh_state(self) -> None:
 		self._update_attributes()
-		self.async_write_ha_state()
+		self.schedule_update_ha_state()
 
 	def update_state(self, state: StateType) -> None:
 		self._jablotron.entities_states[self._control.id] = state
