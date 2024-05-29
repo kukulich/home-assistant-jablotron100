@@ -71,6 +71,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 			return
 
 		code = JablotronAlarmControlPanelEntity._clean_code(code)
+		code = self.code_or_default_code(code)
 
 		if code is None and self._code_required_for_disarm:
 			return
@@ -82,6 +83,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 			return
 
 		code = JablotronAlarmControlPanelEntity._clean_code(code)
+		code = self.code_or_default_code(code)
 
 		if code is None and self._attr_code_arm_required:
 			return
@@ -105,6 +107,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 			return
 
 		code = JablotronAlarmControlPanelEntity._clean_code(code)
+		code = self.code_or_default_code(code)
 
 		if code is None and self._attr_code_arm_required:
 			return
