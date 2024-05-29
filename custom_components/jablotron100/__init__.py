@@ -4,7 +4,6 @@ from homeassistant.const import Platform
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from typing import Final
 
 from .const import (
@@ -69,6 +68,4 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 async def options_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
 	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
 
-	await jablotron_instance.update_config_and_options(config_entry.data, config_entry.options)
-
-	async_dispatcher_send(hass, jablotron_instance.signal_entities_added())
+	await jablotron_instance.update_options(config_entry.options)

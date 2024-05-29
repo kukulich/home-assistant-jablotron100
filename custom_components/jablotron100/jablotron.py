@@ -254,12 +254,8 @@ class Jablotron:
 	def signal_entities_added(self) -> str:
 		return "{}_{}_entities_added".format(DOMAIN, self._config_entry_id)
 
-	async def update_config_and_options(self, config: Dict[str, Any], options: Dict[str, Any]) -> None:
-		self._config = config
+	async def update_options(self, options: Dict[str, Any]) -> None:
 		self._options = options
-
-		await self._detect_and_create_devices_and_sections_and_pg_outputs()
-
 		self._update_all_hass_entities()
 
 	def is_code_required_for_disarm(self) -> bool:
