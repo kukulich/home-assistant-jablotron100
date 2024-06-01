@@ -4,7 +4,6 @@ from homeassistant.components.binary_sensor import (
 	BinarySensorEntityDescription,
 	BinarySensorEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback, HomeAssistant, ServiceCall
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
@@ -12,13 +11,9 @@ from homeassistant.helpers.entity_platform import async_get_current_platform, Ad
 from homeassistant.const import (
 	STATE_ON,
 )
-
 from typing import Dict
-from .const import (
-	DATA_JABLOTRON,
-	DOMAIN,
-	EntityType,
-)
+from . import JablotronConfigEntry
+from .const import EntityType
 from .jablotron import Jablotron, JablotronControl, JablotronEntity
 
 BINARY_SENSOR_TYPES: Dict[EntityType, BinarySensorEntityDescription] = {
@@ -110,8 +105,8 @@ BINARY_SENSOR_TYPES: Dict[EntityType, BinarySensorEntityDescription] = {
 }
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
+async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+	jablotron_instance: Jablotron = config_entry.runtime_data
 
 	@callback
 	def add_entities() -> None:

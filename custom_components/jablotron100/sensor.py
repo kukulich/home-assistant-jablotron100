@@ -10,17 +10,13 @@ from homeassistant.const import (
 	UnitOfElectricPotential,
 	UnitOfTemperature,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback, HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from typing import Dict
-from .const import (
-	DATA_JABLOTRON,
-	DOMAIN,
-	EntityType,
-)
+from . import JablotronConfigEntry
+from .const import EntityType
 from .jablotron import (
 	Jablotron,
 	JablotronControl,
@@ -102,8 +98,9 @@ SENSOR_TYPES: Dict[EntityType, SensorEntityDescription] = {
 	),
 }
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-	jablotron_instance: Jablotron = hass.data[DOMAIN][config_entry.entry_id][DATA_JABLOTRON]
+
+async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+	jablotron_instance: Jablotron = config_entry.runtime_data
 
 	@callback
 	def add_entities() -> None:

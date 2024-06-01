@@ -30,9 +30,6 @@ CONF_LOG_DEVICES_PACKETS: Final = "log_devices_packets"
 
 AUTODETECT_SERIAL_PORT: Final = "auto"
 
-DATA_JABLOTRON: Final = "jablotron"
-DATA_OPTIONS_UPDATE_UNSUBSCRIBER: Final = "options_update_unsubscriber"
-
 DEFAULT_CONF_REQUIRE_CODE_TO_ARM: Final = False
 DEFAULT_CONF_REQUIRE_CODE_TO_DISARM: Final = True
 DEFAULT_CONF_ENABLE_DEBUGGING: Final = False
