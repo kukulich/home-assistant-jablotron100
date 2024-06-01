@@ -34,11 +34,13 @@ DEFAULT_CONF_REQUIRE_CODE_TO_ARM: Final = False
 DEFAULT_CONF_REQUIRE_CODE_TO_DISARM: Final = True
 DEFAULT_CONF_ENABLE_DEBUGGING: Final = False
 
+
 class CentralUnitData(StrEnum):
 	BATTERY = "battery"
 	BUSES = "buses"
 	BATTERY_LEVEL = "battery_level"
 	LAN_IP = "lan_ip"
+
 
 class DeviceData(StrEnum):
 	BATTERY = "battery"
@@ -47,14 +49,17 @@ class DeviceData(StrEnum):
 	SECTION = "section"
 	SIGNAL_STRENGTH = "signal_strength"
 
+
 class DeviceConnection(StrEnum):
 	WIRED = "wired"
 	WIRELESS = "wireless"
+
 
 class DeviceNumber(Enum):
 	CENTRAL_UNIT = 0
 	MOBILE_APPLICATION = 250
 	USB = 254
+
 
 class DeviceType(StrEnum):
 	CENTRAL_UNIT = "central_unit"
@@ -86,6 +91,7 @@ class DeviceType(StrEnum):
 	def get_name(self) -> str:
 		name = self._value_.replace("_", " ")
 		return name[0:1].upper() + name[1:]
+
 
 class EntityType(StrEnum):
 	ALARM_CONTROL_PANEL = "alarm_control_panel"
@@ -124,13 +130,16 @@ class EntityType(StrEnum):
 	SIGNAL_STRENGTH = "signal_strength"
 	TEMPERATURE = "temperature"
 
+
 class EventLoginType(StrEnum):
 	WRONG_CODE = "wrong_code"
+
 
 class PartiallyArmingMode(StrEnum):
 	NOT_SUPPORTED = "not_supported"
 	NIGHT_MODE = "night_mode"
 	HOME_MODE = "home_mode"
+
 
 CODE_MIN_LENGTH: Final = 4
 CODE_MAX_LENGTH: Final = 8
@@ -178,12 +187,14 @@ EMPTY_PACKET: Final = b"\x00"
 # In minutes
 TIMEOUT_FOR_DEVICE_STATE_PACKETS: Final = 5
 
+
 class SystemInfo(Enum):
 	MODEL = 2
 	HARDWARE_VERSION = 8
 	FIRMWARE_VERSION = 9
 	REGISTRATION_CODE = 10
 	INSTALLATION_NAME = 11
+
 
 class SectionPrimaryState(Enum):
 	DISARMED = 1
@@ -193,6 +204,7 @@ class SectionPrimaryState(Enum):
 	SERVICE = 5
 	BLOCKED = 6
 	OFF = 7
+
 
 DEVICE_INFO_SUBPACKET_WIRELESS: Final = b"\x01"
 DEVICE_INFO_SUBPACKET_PERIODIC: Final = b"\x9c"
@@ -205,6 +217,7 @@ DEVICE_INFO_KNOWN_SUBPACKETS: Final = (
 DEVICE_INFO_UNKNOWN_SUBPACKETS: Final = (
 	b"\x05",
 )
+
 
 class DeviceInfoType(Enum):
 	SMOKE = 3
@@ -222,11 +235,13 @@ class DeviceInfoType(Enum):
 	def is_unknown(self) -> bool:
 		return self in (self.UNKNOWN_1, self.UNKNOWN_2, self.UNKNOWN_GSM)
 
+
 class DeviceFault(Enum):
 	BATTERY: Final = 0
 	POWER_SUPPLY: Final = 1
 	SABOTAGE: Final = 2
 	UNKNOWN: Final = 3
+
 
 BATTERY_LEVEL_NO_CHANGE_FROM_PREVIOUS_STATE: Final = b"\x0b"
 BATTERY_LEVEL_EXTERNAL_POWER_SUPPLY: Final = b"\x0c"
