@@ -55,9 +55,9 @@ class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 		self._attr_is_on = self._get_state() == STATE_ON
 
 	async def async_turn_on(self, **kwargs) -> None:
-		self._jablotron.toggle_pg_output(self._control.pg_output_number, STATE_ON)
+		await self._jablotron.toggle_pg_output(self._control.pg_output_number, STATE_ON)
 		self.update_state(STATE_ON)
 
 	async def async_turn_off(self, **kwargs) -> None:
-		self._jablotron.toggle_pg_output(self._control.pg_output_number, STATE_OFF)
+		await self._jablotron.toggle_pg_output(self._control.pg_output_number, STATE_OFF)
 		self.update_state(STATE_OFF)

@@ -76,7 +76,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._code_required_for_disarm:
 			return
 
-		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_DISARMED, code)
+		await self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_DISARMED, code)
 
 	async def async_alarm_arm_away(self, code: str | None = None) -> None:
 		if self._get_state() == STATE_ALARM_ARMED_AWAY:
@@ -88,7 +88,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._attr_code_arm_required:
 			return
 
-		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
+		await self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
 	async def async_alarm_arm_home(self, code: str | None = None) -> None:
 		await self._arm_partially(STATE_ALARM_ARMED_HOME, code)
@@ -112,7 +112,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._attr_code_arm_required:
 			return
 
-		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, state, code)
+		await self._jablotron.modify_alarm_control_panel_section_state(self._control.section, state, code)
 
 	def _detect_supported_features(self) -> AlarmControlPanelEntityFeature:
 		if self._partially_arming_mode == PartiallyArmingMode.NOT_SUPPORTED:

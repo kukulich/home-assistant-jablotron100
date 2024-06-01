@@ -320,7 +320,10 @@ class Jablotron:
 	def subscribe_hass_entity_for_updates(self, control_id: str, hass_entity: JablotronEntity) -> None:
 		self.hass_entities[control_id] = hass_entity
 
-	def modify_alarm_control_panel_section_state(self, section: int, state: StateType, code: str | None) -> None:
+	async def modify_alarm_control_panel_section_state(self, section: int, state: StateType, code: str | None) -> None:
+		await self._hass.async_add_executor_job(self.sync_modify_alarm_control_panel_section_state, section, state, code)
+
+	def sync_modify_alarm_control_panel_section_state(self, section: int, state: StateType, code: str | None) -> None:
 		if code is None:
 			code = self._config[CONF_PASSWORD]
 
@@ -368,7 +371,10 @@ class Jablotron:
 		else:
 			after_login_callback(None)
 
-	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
+	async def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
+		await self._hass.async_add_executor_job(self.sync_toggle_pg_output, pg_output_number, state)
+
+	def sync_toggle_pg_output(self, pg_output_number: int, state: str) -> None:
 		pg_output_number_packet = self.int_to_bytes(pg_output_number - 1)
 		state_packet = PG_OUTPUT_TURN_ON if state == STATE_ON else PG_OUTPUT_TURN_OFF
 
