@@ -59,4 +59,4 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: JablotronConfigE
 
 
 async def options_update_listener(hass: HomeAssistant, config_entry: JablotronConfigEntry) -> None:
-	await config_entry.runtime_data.update_options(config_entry.options)
+	await hass.config_entries.async_reload(config_entry.entry_id)
