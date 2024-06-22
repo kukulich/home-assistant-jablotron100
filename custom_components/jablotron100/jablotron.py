@@ -1156,6 +1156,9 @@ class Jablotron:
 		return self._devices_data[device_id][DeviceData.CONNECTION] == DeviceConnection.WIRELESS
 
 	def is_device_with_battery(self, number: int) -> bool:
+		if number == DeviceNumber.CENTRAL_UNIT.value:
+			return self.is_central_unit_with_battery()
+
 		device_id = self._get_device_id(number)
 
 		if device_id not in self._devices_data:
@@ -1299,9 +1302,17 @@ class Jablotron:
 
 	def _parse_device_state_packet(self, packet: bytes) -> None:
 		device_number = self._parse_device_number_from_device_state_packet(packet)
+		device_state = self._convert_jablotron_device_state_to_state(packet, device_number)
 
 		if device_number == DeviceNumber.CENTRAL_UNIT.value:
-			self._log_debug_with_packet("State packet of central unit", packet)
+			is_fault = self._process_possible_fault_in_device_state_packet(device_number, device_state, packet)
+
+			if is_fault:
+				# Nothing - already processed
+				pass
+			else:
+				self._log_debug_with_packet("State packet of central unit", packet)
+
 			return
 
 		if device_number in (DeviceNumber.MOBILE_APPLICATION.value, DeviceNumber.USB.value):
@@ -1330,8 +1341,6 @@ class Jablotron:
 			self._log_debug_with_packet("State packet of {}".format(device_type.get_name().lower()), packet)
 			return
 
-		device_state = self._convert_jablotron_device_state_to_state(packet, device_number)
-
 		if device_state is None:
 			self._log_error_with_packet("Unknown state packet", packet)
 			return
@@ -1340,24 +1349,11 @@ class Jablotron:
 		is_heartbeat = self.binary_to_int(packet_state_binary[4:]) == 15
 
 		if not is_heartbeat:
-			is_fault = self.binary_to_int(packet_state_binary[4:6]) == 1
-			fault = DeviceFault(self.binary_to_int(packet_state_binary[6:]))
-
-			if is_fault and fault == DeviceFault.BATTERY and not self.is_device_with_battery(device_number):
-				# It's active state when device does not have battery
-				is_fault = False
+			is_fault = self._process_possible_fault_in_device_state_packet(device_number, device_state, packet)
 
 			if is_fault:
-				if fault == DeviceFault.BATTERY:
-					self._update_entity_state(
-						self._get_device_battery_problem_sensor_id(device_number),
-						device_state,
-					)
-				else:
-					self._update_entity_state(
-						self._get_device_problem_sensor_id(device_number),
-						device_state,
-					)
+				# Nothing - already processed
+				pass
 			elif self._is_device_with_state(device_number):
 				self._update_entity_state(
 					self._get_device_state_sensor_id(device_number),
@@ -1374,6 +1370,38 @@ class Jablotron:
 				self._get_device_signal_strength_sensor_id(device_number),
 				device_signal_strength,
 			)
+
+	def _process_possible_fault_in_device_state_packet(self, device_number: int, device_state: str | None, packet: bytes) -> bool:
+		packet_state_binary = self._bytes_to_binary(packet[2:3])
+
+		is_fault = self.binary_to_int(packet_state_binary[4:6]) == 1
+
+		if not is_fault:
+			return False
+
+		fault = DeviceFault(self.binary_to_int(packet_state_binary[6:]))
+
+		if fault == DeviceFault.BATTERY:
+			if self.is_device_with_battery(device_number):
+				self._update_entity_state(
+					self._get_device_battery_problem_sensor_id(device_number),
+					device_state,
+				)
+				return True
+			else:
+				# It's active state when device does not have battery
+				return False
+
+		if device_number == DeviceNumber.CENTRAL_UNIT.value:
+			# Central unit does not have problem sensor
+			return False
+
+		self._update_entity_state(
+			self._get_device_problem_sensor_id(device_number),
+			device_state,
+		)
+
+		return True
 
 	def _parse_device_info_packet(self, packet: bytes) -> None:
 		lan_connection_number = self._get_central_unit_lan_connection_device_number()
