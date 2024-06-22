@@ -2371,7 +2371,9 @@ class Jablotron:
 		else:
 			battery_level = None
 
-		battery_ok = True if packet_binary[3:4] == "0" else False
+		# 2:3 empty battery
+		# 3:4 problem of battery
+		battery_ok = True if packet_binary[2:3] == "0" and packet_binary[3:4] == "0" else False
 
 		return JablotronBatteryState(battery_ok, battery_level)
 
