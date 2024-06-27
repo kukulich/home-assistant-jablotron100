@@ -278,7 +278,7 @@ class Jablotron:
 		await self._load_stored_data()
 
 		if self._config[CONF_SERIAL_PORT] == AUTODETECT_SERIAL_PORT:
-			self._serial_port = self.detect_serial_port()
+			self._serial_port = await self._detect_serial_port()
 			if self._serial_port is None:
 				raise ServiceUnavailable("No serial port found")
 		else:
@@ -2721,7 +2721,16 @@ class Jablotron:
 
 	@staticmethod
 	def detect_serial_port() -> str | None:
-		for possible_path in os.listdir(HIDRAW_PATH):
+		return Jablotron._check_possible_paths_for_serial_port(os.listdir(HIDRAW_PATH))
+
+	async def _detect_serial_port(self) -> str | None:
+		possible_paths = await self._hass.async_add_executor_job(os.listdir, HIDRAW_PATH)
+
+		return Jablotron._check_possible_paths_for_serial_port(possible_paths)
+
+	@staticmethod
+	def _check_possible_paths_for_serial_port(possible_paths: list[str]) -> str:
+		for possible_path in possible_paths:
 			possible_realpath = os.path.realpath("{}/{}".format(HIDRAW_PATH, possible_path))
 			if "16D6:0008" in possible_realpath:
 				serial_port = "/dev/{}".format(possible_path)
