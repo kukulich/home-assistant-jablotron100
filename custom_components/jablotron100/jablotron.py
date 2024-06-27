@@ -20,7 +20,7 @@ from homeassistant.const import (
 	STATE_ON,
 )
 from homeassistant.helpers import storage
-from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.dispatcher import async_dispatcher_send, dispatcher_send
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
@@ -618,6 +618,12 @@ class Jablotron:
 
 			self._set_entity_initial_state(pg_output_id, STATE_OFF)
 
+	def _send_signal_entities_added(self) -> None:
+		if self._main_thread == threading.current_thread():
+			async_dispatcher_send(self._hass, self.signal_entities_added())
+		else:
+			dispatcher_send(self._hass, self.signal_entities_added())
+
 	def _detect_devices(self) -> None:
 		not_ignored_devices = self._get_not_ignored_devices()
 		not_ignored_devices_count = len(not_ignored_devices)
@@ -1199,7 +1205,7 @@ class Jablotron:
 				return
 
 			if self._create_section(section, section_state):
-				async_dispatcher_send(self._hass, self.signal_entities_added())
+				self._send_signal_entities_added()
 
 			self._update_entity_state(
 				self._get_section_alarm_id(section),
@@ -1979,7 +1985,7 @@ class Jablotron:
 			lan_connection_ip_id,
 		)
 
-		async_dispatcher_send(self._hass, self.signal_entities_added())
+		self._send_signal_entities_added()
 
 	def _add_bus_to_central_unit(self, bus_number: int) -> None:
 		if bus_number in self._central_unit_data[CentralUnitData.BUSES]:
@@ -1990,7 +1996,7 @@ class Jablotron:
 
 		self._add_central_unit_bus_entities(bus_number)
 
-		async_dispatcher_send(self._hass, self.signal_entities_added())
+		self._send_signal_entities_added()
 
 	def _add_battery_to_central_unit(self, battery_state: JablotronBatteryState) -> None:
 		self._central_unit_data[CentralUnitData.BATTERY] = True
@@ -2001,7 +2007,7 @@ class Jablotron:
 		self._add_battery_entities(DeviceNumber.CENTRAL_UNIT.value, battery_state)
 		self._add_battery_voltage_entities(DeviceNumber.CENTRAL_UNIT.value)
 
-		async_dispatcher_send(self._hass, self.signal_entities_added())
+		self._send_signal_entities_added()
 
 	def _add_battery_to_device(self, device_number: int, battery_state: JablotronBatteryState) -> None:
 		device_id = self._get_device_id(device_number)
@@ -2016,7 +2022,7 @@ class Jablotron:
 		if device_type in (DeviceType.SIREN_OUTDOOR, DeviceType.SIREN_INDOOR):
 			self._add_battery_voltage_entities(device_number)
 
-		async_dispatcher_send(self._hass, self.signal_entities_added())
+		self._send_signal_entities_added()
 
 	def _add_battery_entities(self, device_number: int, battery_state: JablotronBatteryState) -> None:
 		device_id = self._get_device_id(device_number)
@@ -2085,7 +2091,7 @@ class Jablotron:
 			pulse_sensor_id,
 		)
 
-		async_dispatcher_send(self._hass, self.signal_entities_added())
+		self._send_signal_entities_added()
 
 	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, initial_state: StateType = None, entity_name: str | None = None) -> None:
 		if entity_id in self.entities[entity_type]:
