@@ -713,6 +713,11 @@
 				"name": "Problem"
 			}
 		},
+		"button": {
+			"day_night_mode": {
+				"name": "Day/Night mode"
+			}
+		},
 		"event": {
 			"login": {
 				"name": "Login",

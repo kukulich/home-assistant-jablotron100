@@ -41,6 +41,7 @@ from .const import (
 	COMMAND_ENABLE_DEVICE_STATE_PACKETS,
 	COMMAND_GET_DEVICE_STATUS,
 	COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES,
+	COMMAND_TOGGLE_DAY_NIGHT_MODE,
 	COMMAND_HEARTBEAT,
 	COMMAND_RESPONSE_DEVICE_STATUS,
 	CONF_DEVICES,
@@ -379,6 +380,11 @@ class Jablotron:
 		state_packet = PG_OUTPUT_TURN_ON if state == STATE_ON else PG_OUTPUT_TURN_OFF
 
 		packet = self.create_packet_ui_control(UI_CONTROL_TOGGLE_PG_OUTPUT, pg_output_number_packet + state_packet)
+
+		self._send_packet(packet)
+
+	def toggle_day_night_mode(self) -> None:
+		packet = self.create_packet_command(COMMAND_TOGGLE_DAY_NIGHT_MODE, b"\x03")
 
 		self._send_packet(packet)
 
@@ -907,6 +913,13 @@ class Jablotron:
 				EntityType.GSM_SIGNAL_STRENGTH,
 				self._get_gsm_signal_strength_sensor_id(),
 				100,
+			)
+
+		if self._is_central_unit_103_or_similar():
+			self._add_entity(
+				None,
+				EntityType.DAY_NIGHT_MODE,
+				"day_night_mode",
 			)
 
 	def _force_devices_status_update(self) -> None:
@@ -2791,9 +2804,6 @@ class JablotronEntity(Entity):
 	@property
 	def available(self) -> bool:
 		if self._jablotron.in_service_mode is True:
-			return False
-
-		if self._get_state() is None:
 			return False
 
 		return self._jablotron.last_update_success

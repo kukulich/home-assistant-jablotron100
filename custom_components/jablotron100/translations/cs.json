@@ -713,6 +713,11 @@
 				"name": "Problém"
 			}
 		},
+		"button": {
+			"day_night_mode": {
+				"name": "Režim den/noc"
+			}
+		},
 		"event": {
 			"login": {
 				"name": "Přihlášení",

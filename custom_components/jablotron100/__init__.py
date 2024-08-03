@@ -17,6 +17,7 @@ type JablotronConfigEntry = ConfigEntry[Jablotron]
 
 PLATFORMS: Final = [
 	Platform.ALARM_CONTROL_PANEL,
+	Platform.BUTTON,
 	Platform.BINARY_SENSOR,
 	Platform.EVENT,
 	Platform.SENSOR,

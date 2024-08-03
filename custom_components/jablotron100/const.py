@@ -101,6 +101,7 @@ class EntityType(StrEnum):
 	BATTERY_STANDBY_VOLTAGE = "battery_standby_voltage"
 	BUS_DEVICES_CURRENT = "bus_devices_current"
 	BUS_VOLTAGE = "bus_voltage"
+	DAY_NIGHT_MODE = "day_night_mode"
 	DEVICE_STATE_MOTION = "device_state_motion"
 	DEVICE_STATE_WINDOW = "device_state_window"
 	DEVICE_STATE_DOOR = "device_state_door"
@@ -170,6 +171,7 @@ COMMAND_HEARTBEAT: Final = b"\x02"
 COMMAND_GET_DEVICE_STATUS: Final = b"\x0a"
 COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES: Final = b"\x0e"
 COMMAND_ENABLE_DEVICE_STATE_PACKETS: Final = b"\x13"
+COMMAND_TOGGLE_DAY_NIGHT_MODE: Final = b"\x27"
 
 COMMAND_RESPONSE_DEVICE_STATUS: Final = b"\x8a"
 
