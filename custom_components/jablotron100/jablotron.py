@@ -2735,7 +2735,7 @@ class Jablotron:
 		return Jablotron._check_possible_paths_for_serial_port(possible_paths)
 
 	@staticmethod
-	def _check_possible_paths_for_serial_port(possible_paths: list[str]) -> str:
+	def _check_possible_paths_for_serial_port(possible_paths: list[str]) -> str | None:
 		for possible_path in possible_paths:
 			possible_realpath = os.path.realpath("{}/{}".format(HIDRAW_PATH, possible_path))
 			if "16D6:0008" in possible_realpath:
