@@ -41,8 +41,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEn
 		identifiers={(DOMAIN, central_unit.unique_id)},
 		name="Jablotron 100",
 		model=central_unit.model,
-		model_id=central_unit.hardware_version,
 		manufacturer="Jablotron",
+		hw_version=central_unit.hardware_version,
 		sw_version=central_unit.firmware_version,
 	)
 
