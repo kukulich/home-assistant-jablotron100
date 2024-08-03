@@ -66,7 +66,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._attr_changed_by = self._changed_by
 		self._attr_code_format = self._detect_code_format()
 
-	async def async_alarm_disarm(self, code: str | None = None) -> None:
+	def alarm_disarm(self, code: str | None = None) -> None:
 		if self._get_state() == STATE_ALARM_DISARMED:
 			return
 
@@ -76,9 +76,9 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._code_required_for_disarm:
 			return
 
-		await self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_DISARMED, code)
+		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_DISARMED, code)
 
-	async def async_alarm_arm_away(self, code: str | None = None) -> None:
+	def alarm_arm_away(self, code: str | None = None) -> None:
 		if self._get_state() == STATE_ALARM_ARMED_AWAY:
 			return
 
@@ -88,13 +88,13 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._attr_code_arm_required:
 			return
 
-		await self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
+		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
 
-	async def async_alarm_arm_home(self, code: str | None = None) -> None:
-		await self._arm_partially(STATE_ALARM_ARMED_HOME, code)
+	def alarm_arm_home(self, code: str | None = None) -> None:
+		self._arm_partially(STATE_ALARM_ARMED_HOME, code)
 
-	async def async_alarm_arm_night(self, code: str | None = None) -> None:
-		await self._arm_partially(STATE_ALARM_ARMED_NIGHT, code)
+	def alarm_arm_night(self, code: str | None = None) -> None:
+		self._arm_partially(STATE_ALARM_ARMED_NIGHT, code)
 
 	def update_state(self, state: StateType) -> None:
 		if self._get_state() != state:
@@ -102,7 +102,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 		super().update_state(state)
 
-	async def _arm_partially(self, state: StateType, code: str | None = None) -> None:
+	def _arm_partially(self, state: StateType, code: str | None = None) -> None:
 		if self._get_state() in (STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_ARMED_NIGHT):
 			return
 
@@ -112,7 +112,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._attr_code_arm_required:
 			return
 
-		await self._jablotron.modify_alarm_control_panel_section_state(self._control.section, state, code)
+		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, state, code)
 
 	def _detect_supported_features(self) -> AlarmControlPanelEntityFeature:
 		if self._partially_arming_mode == PartiallyArmingMode.NOT_SUPPORTED:
