@@ -305,7 +305,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 			fields[vol.Optional(CONF_NUMBER_OF_DEVICES, default=self._config[CONF_NUMBER_OF_DEVICES])] = number_of_devices_validation
 
 		configured_number_of_pg_outputs = self._config[CONF_NUMBER_OF_PG_OUTPUTS] if CONF_NUMBER_OF_PG_OUTPUTS in self._config else 0
-		number_of_pg_outputs_validation = create_range_validation(configured_number_of_pg_outputs, MAX_PG_OUTPUTS)
+		number_of_pg_outputs_validation = create_range_validation(0, MAX_PG_OUTPUTS)
 
 		if configured_number_of_pg_outputs > 0:
 			fields[vol.Required(CONF_NUMBER_OF_PG_OUTPUTS, default=configured_number_of_pg_outputs)] = number_of_pg_outputs_validation
