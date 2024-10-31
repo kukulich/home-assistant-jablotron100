@@ -340,10 +340,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 		return self.async_update_reload_and_abort(
 			self._config_entry,
 			title=NAME,
-			data={
-				**self._config_entry.data,
-				**self._config,
-			},
+			data_updates=self._config,
 			reason="reconfigure_successful",
 		)
 
