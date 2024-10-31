@@ -1,13 +1,8 @@
 from __future__ import annotations
-from homeassistant.const import (
-	STATE_ALARM_DISARMED,
-	STATE_ALARM_ARMED_AWAY,
-	STATE_ALARM_ARMED_HOME,
-	STATE_ALARM_ARMED_NIGHT,
-)
 from homeassistant.components.alarm_control_panel import (
 	AlarmControlPanelEntity,
 	AlarmControlPanelEntityFeature,
+	AlarmControlPanelState,
 	CodeFormat,
 )
 from homeassistant.core import callback, HomeAssistant
@@ -62,12 +57,12 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 		self._attr_code_arm_required = self._jablotron.is_code_required_for_arm()
 		self._attr_supported_features = self._detect_supported_features()
-		self._attr_state = self._get_state()
+		self._attr_alarm_state = self._get_state()
 		self._attr_changed_by = self._changed_by
 		self._attr_code_format = self._detect_code_format()
 
 	def alarm_disarm(self, code: str | None = None) -> None:
-		if self._get_state() == STATE_ALARM_DISARMED:
+		if self._get_state() == AlarmControlPanelState.DISARMED:
 			return
 
 		code = JablotronAlarmControlPanelEntity._clean_code(code)
@@ -76,10 +71,10 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._code_required_for_disarm:
 			return
 
-		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_DISARMED, code)
+		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, AlarmControlPanelState.DISARMED, code)
 
 	def alarm_arm_away(self, code: str | None = None) -> None:
-		if self._get_state() == STATE_ALARM_ARMED_AWAY:
+		if self._get_state() == AlarmControlPanelState.ARMED_AWAY:
 			return
 
 		code = JablotronAlarmControlPanelEntity._clean_code(code)
@@ -88,13 +83,13 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		if code is None and self._attr_code_arm_required:
 			return
 
-		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, STATE_ALARM_ARMED_AWAY, code)
+		self._jablotron.modify_alarm_control_panel_section_state(self._control.section, AlarmControlPanelState.ARMED_AWAY, code)
 
 	def alarm_arm_home(self, code: str | None = None) -> None:
-		self._arm_partially(STATE_ALARM_ARMED_HOME, code)
+		self._arm_partially(AlarmControlPanelState.ARMED_HOME, code)
 
 	def alarm_arm_night(self, code: str | None = None) -> None:
-		self._arm_partially(STATE_ALARM_ARMED_NIGHT, code)
+		self._arm_partially(AlarmControlPanelState.ARMED_NIGHT, code)
 
 	def update_state(self, state: StateType) -> None:
 		if self._get_state() != state:
@@ -102,8 +97,8 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 		super().update_state(state)
 
-	def _arm_partially(self, state: StateType, code: str | None = None) -> None:
-		if self._get_state() in (STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_ARMED_NIGHT):
+	def _arm_partially(self, state: AlarmControlPanelState, code: str | None = None) -> None:
+		if self._get_state() in (AlarmControlPanelState.ARMED_AWAY, AlarmControlPanelState.ARMED_HOME, AlarmControlPanelState.ARMED_NIGHT):
 			return
 
 		code = JablotronAlarmControlPanelEntity._clean_code(code)
@@ -124,7 +119,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		return AlarmControlPanelEntityFeature.ARM_AWAY | AlarmControlPanelEntityFeature.ARM_NIGHT
 
 	def _detect_code_format(self) -> CodeFormat | None:
-		if self._get_state() == STATE_ALARM_DISARMED:
+		if self._get_state() == AlarmControlPanelState.DISARMED:
 			code_required = self._attr_code_arm_required
 		else:
 			code_required = self._code_required_for_disarm

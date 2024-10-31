@@ -9,16 +9,10 @@ from homeassistant.const import (
 	ATTR_BATTERY_LEVEL,
 	CONF_PASSWORD,
 	EVENT_HOMEASSISTANT_STOP,
-	STATE_ALARM_DISARMED,
-	STATE_ALARM_ARMED_AWAY,
-	STATE_ALARM_ARMED_HOME,
-	STATE_ALARM_ARMED_NIGHT,
-	STATE_ALARM_ARMING,
-	STATE_ALARM_PENDING,
-	STATE_ALARM_TRIGGERED,
 	STATE_OFF,
 	STATE_ON,
 )
+from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 from homeassistant.helpers import storage
 from homeassistant.helpers.dispatcher import async_dispatcher_send, dispatcher_send
 from homeassistant.helpers.entity import DeviceInfo, Entity
@@ -229,7 +223,7 @@ class Jablotron:
 		for entity_type in EntityType.__members__.values():
 			self.entities[entity_type] = {}
 
-		self.entities_states: Dict[str, StateType] = {}
+		self.entities_states: Dict[str, StateType | AlarmControlPanelState] = {}
 		self.hass_entities: Dict[str, JablotronEntity] = {}
 
 		self._serial_port: str | None = None
@@ -320,7 +314,7 @@ class Jablotron:
 	def subscribe_hass_entity_for_updates(self, control_id: str, hass_entity: JablotronEntity) -> None:
 		self.hass_entities[control_id] = hass_entity
 
-	def modify_alarm_control_panel_section_state(self, section: int, state: StateType, code: str | None) -> None:
+	def modify_alarm_control_panel_section_state(self, section: int, state: AlarmControlPanelState, code: str | None) -> None:
 		if code is None:
 			code = self._config[CONF_PASSWORD]
 
@@ -331,10 +325,10 @@ class Jablotron:
 			return
 
 		int_packets = {
-			STATE_ALARM_DISARMED: 143,
-			STATE_ALARM_ARMED_AWAY: 159,
-			STATE_ALARM_ARMED_HOME: 175,
-			STATE_ALARM_ARMED_NIGHT: 175,
+			AlarmControlPanelState.DISARMED: 143,
+			AlarmControlPanelState.ARMED_AWAY: 159,
+			AlarmControlPanelState.ARMED_HOME: 175,
+			AlarmControlPanelState.ARMED_NIGHT: 175,
 		}
 
 		# Reset
@@ -1123,8 +1117,8 @@ class Jablotron:
 	def _is_alarm_active(self) -> bool:
 		for section_alarm_id in self.entities[EntityType.ALARM_CONTROL_PANEL]:
 			if (
-				self.entities_states[section_alarm_id] == STATE_ALARM_TRIGGERED
-				or self.entities_states[section_alarm_id] == STATE_ALARM_PENDING
+				self.entities_states[section_alarm_id] == AlarmControlPanelState.TRIGGERED
+				or self.entities_states[section_alarm_id] == AlarmControlPanelState.PENDING
 			):
 				return True
 
@@ -1799,14 +1793,14 @@ class Jablotron:
 
 		return not_ignored_devices
 
-	def _set_entity_initial_state(self, entity_id: str, initial_state: StateType):
+	def _set_entity_initial_state(self, entity_id: str, initial_state: StateType | AlarmControlPanelState) -> None:
 		if entity_id in self.entities_states:
 			# Loaded from stored data
 			return
 
 		self._update_entity_state(entity_id, initial_state, store_state=False)
 
-	def _update_entity_state(self, entity_id: str, state: StateType, store_state: bool = True) -> None:
+	def _update_entity_state(self, entity_id: str, state: StateType | AlarmControlPanelState, store_state: bool = True) -> None:
 		if store_state is True:
 			self._store_state(entity_id, state)
 
@@ -1892,7 +1886,7 @@ class Jablotron:
 
 		return False
 
-	def _store_state(self, entity_id: str, state: StateType) -> None:
+	def _store_state(self, entity_id: str, state: StateType | AlarmControlPanelState) -> None:
 		unquie_id = self._get_unique_id()
 
 		if unquie_id not in self._stored_data:
@@ -2087,7 +2081,7 @@ class Jablotron:
 
 		self._send_signal_entities_added()
 
-	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, initial_state: StateType = None, entity_name: str | None = None) -> None:
+	def _add_entity(self, hass_device: JablotronHassDevice | None, entity_type: EntityType, entity_id: str, initial_state: StateType | AlarmControlPanelState = None, entity_name: str | None = None) -> None:
 		if entity_id in self.entities[entity_type]:
 			return
 
@@ -2547,26 +2541,26 @@ class Jablotron:
 		return "PG output {}".format(pg_output_number)
 
 	@staticmethod
-	def _convert_jablotron_section_state_to_alarm_state(state: JablotronSectionState, partially_arming_mode: PartiallyArmingMode) -> StateType:
+	def _convert_jablotron_section_state_to_alarm_state(state: JablotronSectionState, partially_arming_mode: PartiallyArmingMode) -> AlarmControlPanelState | None:
 		if state.state in (SectionPrimaryState.SERVICE, SectionPrimaryState.BLOCKED):
 			return None
 
 		if state.triggered:
-			return STATE_ALARM_TRIGGERED
+			return AlarmControlPanelState.TRIGGERED
 
 		if state.pending:
-			return STATE_ALARM_PENDING
+			return AlarmControlPanelState.PENDING
 
 		if state.arming:
-			return STATE_ALARM_ARMING
+			return AlarmControlPanelState.ARMING
 
 		if state.state == SectionPrimaryState.ARMED_FULL:
-			return STATE_ALARM_ARMED_AWAY
+			return AlarmControlPanelState.ARMED_AWAY
 
 		if state.state == SectionPrimaryState.ARMED_PARTIALLY:
-			return STATE_ALARM_ARMED_HOME if partially_arming_mode == PartiallyArmingMode.HOME_MODE else STATE_ALARM_ARMED_NIGHT
+			return AlarmControlPanelState.ARMED_HOME if partially_arming_mode == PartiallyArmingMode.HOME_MODE else AlarmControlPanelState.ARMED_NIGHT
 
-		return STATE_ALARM_DISARMED
+		return AlarmControlPanelState.DISARMED
 
 	@staticmethod
 	def _convert_jablotron_section_state_to_problem_sensor_state(state: JablotronSectionState) -> StateType:
@@ -2805,9 +2799,9 @@ class JablotronEntity(Entity):
 		self._update_attributes()
 		self.schedule_update_ha_state()
 
-	def update_state(self, state: StateType) -> None:
+	def update_state(self, state: StateType | AlarmControlPanelState) -> None:
 		self._jablotron.entities_states[self._control.id] = state
 		self.refresh_state()
 
-	def _get_state(self) -> StateType:
+	def _get_state(self) -> StateType | AlarmControlPanelState:
 		return self._jablotron.entities_states[self._control.id]
