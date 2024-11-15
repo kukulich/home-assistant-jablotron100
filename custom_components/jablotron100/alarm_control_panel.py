@@ -93,7 +93,7 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 
 	def update_state(self, state: StateType) -> None:
 		if self._get_state() != state:
-			self._changed_by = "User {}".format(self._jablotron.last_active_user())
+			self._changed_by = self._jablotron.last_authorized_user_or_device()
 
 		super().update_state(state)
 

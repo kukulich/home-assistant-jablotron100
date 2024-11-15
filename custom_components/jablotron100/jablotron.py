@@ -242,7 +242,7 @@ class Jablotron:
 		self.last_update_success: bool = False
 		self.in_service_mode = False
 
-		self._last_active_user: int | None = None
+		self._last_authorized_user_or_device: str | None = None
 		self._successful_login: bool = True
 
 	def signal_entities_added(self) -> str:
@@ -260,8 +260,8 @@ class Jablotron:
 	def code_contains_asterisk(self) -> bool:
 		return self._config[CONF_PASSWORD].find("*") != -1
 
-	def last_active_user(self) -> int | None:
-		return self._last_active_user
+	def last_authorized_user_or_device(self) -> int | None:
+		return self._last_authorized_user_or_device
 
 	async def initialize(self) -> None:
 		def shutdown_event(_):
@@ -1029,7 +1029,7 @@ class Jablotron:
 
 						elif self._is_login_error_packet(packet):
 							self._successful_login = False
-							self._last_active_user = None
+							self._last_authorized_user_or_device = None
 							self._login_error()
 
 					break
@@ -1310,7 +1310,7 @@ class Jablotron:
 			return
 
 		if device_number in (DeviceNumber.MOBILE_APPLICATION.value, DeviceNumber.USB.value):
-			self._set_last_active_user_from_device_state_packet(packet, device_number)
+			self._set_last_authorized_user_or_device_from_device_state_packet(packet, device_number)
 			return
 
 		if device_number == self._get_central_unit_lan_connection_device_number():
@@ -1328,7 +1328,7 @@ class Jablotron:
 		device_type = self._get_device_type(device_number)
 
 		if device_type in (DeviceType.KEYPAD, DeviceType.KEYPAD_WITH_DOOR_OPENING_DETECTOR):
-			self._set_last_active_user_from_device_state_packet(packet, device_number)
+			self._set_last_authorized_user_or_device_from_device_state_packet(packet, device_number)
 			return
 
 		if self._is_device_ignored(device_number):
@@ -2118,13 +2118,22 @@ class Jablotron:
 
 		return False
 
-	def _set_last_active_user_from_device_state_packet(self, packet: bytes, device_number: int) -> None:
-		offset = 0
+	def _set_last_authorized_user_or_device_from_device_state_packet(self, packet: bytes, device_number: int) -> None:
 		if device_number not in (DeviceNumber.MOBILE_APPLICATION.value, DeviceNumber.USB.value):
-			offset = 1
+			if self._is_central_unit_103_or_similar():
+				info_binary = self._bytes_to_binary(packet[4:5])
+				if info_binary[5:6] == "0":
+					# No autorization and no user
+					self._last_authorized_user_or_device = "Device {}".format(device_number)
+					return
 
-		self._last_active_user = int((self.bytes_to_int(packet[3:4]) - 104 - offset) / 4)
-		LOGGER.debug("Active user: {}".format(self._last_active_user))
+		offset = 104 if self._is_central_unit_101_or_similar() else 44
+		if device_number in (DeviceNumber.MOBILE_APPLICATION.value, DeviceNumber.USB.value):
+			offset = offset - 1
+
+		user_no = int((self.bytes_to_int(packet[3:4]) - offset) / 4)
+		self._last_authorized_user_or_device = "User {}".format(user_no)
+		LOGGER.debug("Authorized user: {}".format(user_no))
 
 	@core.callback
 	def _data_to_store(self) -> dict:
