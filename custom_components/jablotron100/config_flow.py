@@ -1,6 +1,8 @@
 from __future__ import annotations
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import callback
@@ -162,7 +164,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 
 	@staticmethod
 	@callback
-	def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+	def async_get_options_flow(config_entry: ConfigEntry) -> JablotronOptionsFlow:
 		return JablotronOptionsFlow(config_entry)
 
 	async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -349,8 +351,7 @@ class JablotronOptionsFlow(OptionsFlow):
 	_options: Dict[str, Any]
 
 	def __init__(self, config_entry: ConfigEntry) -> None:
-		self._config_entry: ConfigEntry = config_entry
-		self._options = dict(self._config_entry.options)
+		self._options = deepcopy(dict(config_entry.options))
 
 	async def async_step_init(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
 		return self.async_show_menu(
@@ -376,7 +377,7 @@ class JablotronOptionsFlow(OptionsFlow):
 				{
 					vol.Required(
 						CONF_PARTIALLY_ARMING_MODE,
-						default=self._config_entry.options.get(CONF_PARTIALLY_ARMING_MODE, PartiallyArmingMode.NIGHT_MODE.value),
+						default=self._options.get(CONF_PARTIALLY_ARMING_MODE, PartiallyArmingMode.NIGHT_MODE.value),
 					): selector.SelectSelector(
 						selector.SelectSelectorConfig(
 							options=partially_arming_modes,
@@ -386,11 +387,11 @@ class JablotronOptionsFlow(OptionsFlow):
 					),
 					vol.Optional(
 						CONF_REQUIRE_CODE_TO_DISARM,
-						default=self._config_entry.options.get(CONF_REQUIRE_CODE_TO_DISARM, DEFAULT_CONF_REQUIRE_CODE_TO_DISARM),
+						default=self._options.get(CONF_REQUIRE_CODE_TO_DISARM, DEFAULT_CONF_REQUIRE_CODE_TO_DISARM),
 					): bool,
 					vol.Optional(
 						CONF_REQUIRE_CODE_TO_ARM,
-						default=self._config_entry.options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM),
+						default=self._options.get(CONF_REQUIRE_CODE_TO_ARM, DEFAULT_CONF_REQUIRE_CODE_TO_ARM),
 					): bool,
 				}
 			),
@@ -423,23 +424,23 @@ class JablotronOptionsFlow(OptionsFlow):
 				{
 					vol.Optional(
 						CONF_LOG_ALL_INCOMING_PACKETS,
-						default=self._config_entry.options.get(CONF_LOG_ALL_INCOMING_PACKETS, False),
+						default=self._options.get(CONF_LOG_ALL_INCOMING_PACKETS, False),
 					): bool,
 					vol.Optional(
 						CONF_LOG_ALL_OUTCOMING_PACKETS,
-						default=self._config_entry.options.get(CONF_LOG_ALL_OUTCOMING_PACKETS, False),
+						default=self._options.get(CONF_LOG_ALL_OUTCOMING_PACKETS, False),
 					): bool,
 					vol.Optional(
 						CONF_LOG_SECTIONS_PACKETS,
-						default=self._config_entry.options.get(CONF_LOG_SECTIONS_PACKETS, False),
+						default=self._options.get(CONF_LOG_SECTIONS_PACKETS, False),
 					): bool,
 					vol.Optional(
 						CONF_LOG_PG_OUTPUTS_PACKETS,
-						default=self._config_entry.options.get(CONF_LOG_PG_OUTPUTS_PACKETS, False),
+						default=self._options.get(CONF_LOG_PG_OUTPUTS_PACKETS, False),
 					): bool,
 					vol.Optional(
 						CONF_LOG_DEVICES_PACKETS,
-						default=self._config_entry.options.get(CONF_LOG_DEVICES_PACKETS, False),
+						default=self._options.get(CONF_LOG_DEVICES_PACKETS, False),
 					): bool,
 				}
 			),
