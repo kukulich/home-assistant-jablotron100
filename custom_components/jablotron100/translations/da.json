@@ -499,7 +499,7 @@
 		},
 		"abort": {
 			"already_configured": "Jablotron er allerede konfigureret",
-			"reconfigure_successful": "Jablotron successfully reconfigured"
+			"reconfigure_successful": "Jablotron blev genkonfigureret"
 		}
 	},
 	"options": {
@@ -686,7 +686,7 @@
 				"name": "Termometer"
 			},
 			"device_state_indoor_siren_button": {
-				"name": "Knap Indendørs sirene"
+				"name": "Knap indendørssirene"
 			},
 			"device_state_button": {
 				"name": "Knap"
@@ -736,13 +736,13 @@
 				"name": "Batteri load spænding"
 			},
 			"bus_1_devices_loss": {
-				"name": "BUS 1 enheder tab"
+				"name": "BUS 1 enheder tabt"
 			},
 			"bus_2_devices_loss": {
-				"name": "BUS 2 enheder tab"
+				"name": "BUS 2 enheder tabt"
 			},
 			"bus_3_devices_loss": {
-				"name": "BUS 3 enheder tab"
+				"name": "BUS 3 enheder tabt"
 			},
 			"bus_1_voltage": {
 				"name": "BUS 1 spænding"
