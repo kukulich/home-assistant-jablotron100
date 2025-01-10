@@ -2341,7 +2341,7 @@ class Jablotron:
 		return info_packets
 
 	@staticmethod
-	def _parse_device_signal_strength_from_device_info_subpacket(packet: bytes) -> JablotronBatteryState | None:
+	def _parse_device_signal_strength_from_device_info_subpacket(packet: bytes) -> int:
 		return Jablotron.bytes_to_int(packet[2:3]) * SIGNAL_STRENGTH_STEP
 
 	@staticmethod
