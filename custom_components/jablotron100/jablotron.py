@@ -15,6 +15,7 @@ from homeassistant.const import (
 from homeassistant.components.alarm_control_panel import AlarmControlPanelState
 from homeassistant.helpers import storage
 from homeassistant.helpers.dispatcher import async_dispatcher_send, dispatcher_send
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
@@ -732,13 +733,16 @@ class Jablotron:
 		for device_number in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
 			device_problem_sensor_id = self._get_device_problem_sensor_id(device_number)
 
-			if self._is_device_ignored(device_number):
-				# Remove problem sensor if device is ignored now
-				await self._remove_entity(EntityType.PROBLEM, device_problem_sensor_id)
-				continue
-
 			device_id = self._get_device_id(device_number)
 			device_type = self._get_device_type(device_number)
+
+			if self._is_device_ignored(device_number):
+				device_registry = dr.async_get(self._hass)
+				existing_device = device_registry.async_get_device(identifiers={(DOMAIN, device_id)})
+				if existing_device is not None:
+					device_registry.async_remove_device(existing_device.id)
+
+				continue
 
 			if device_id not in self._device_hass_devices:
 				self._device_hass_devices[device_id] = self._create_device_hass_device(device_number)
