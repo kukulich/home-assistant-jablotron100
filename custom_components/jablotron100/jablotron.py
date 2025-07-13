@@ -1783,7 +1783,7 @@ class Jablotron:
 		return None
 
 	def _is_central_unit_101_or_similar(self) -> bool:
-		return self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G")
+		return self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G", "JA-14K")
 
 	def _is_central_unit_103_or_similar(self) -> bool:
 		return self._central_unit.model in ("JA-103K", "JA-103KRY", "JA-107K")
