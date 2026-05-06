@@ -2827,4 +2827,4 @@ class JablotronEntity(Entity):
 		self.refresh_state()
 
 	def _get_state(self) -> StateType | AlarmControlPanelState:
-		return self._jablotron.entities_states[self._control.id]
+		return self._jablotron.entities_states.get(self._control.id)
