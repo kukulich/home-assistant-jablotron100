@@ -55,6 +55,8 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 
 Serial port should be automatically detected. If not, you can detect it manually and set it during integration installation.
 
+The default value `auto` makes the integration probe `/sys/class/hidraw` on every start and pick the device exposing the Jablotron USB vendor/product ID (`16D6:0008`). Prefer `auto` over a fixed `/dev/hidrawN` path — when other USB HID peripherals are connected to the host, the kernel's hidraw numbering can change between reboots.
+
 ```
 $ dmesg | grep usb
 $ dmesg | grep hid
@@ -76,6 +78,11 @@ The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
 2. Copy the folder `custom_components/jablotron100` from the zip to your config directory
 3. Restart Home Assistant
 4. Jablotron integration should be available in the integrations UI
+
+
+### Reconfigure
+
+To change the serial port, code, number of devices or PG outputs without losing your existing configuration, open the integration on the *Devices & Services* page and choose *Reconfigure*. Leave the password field empty to keep the previously stored code. Per-device type assignments are preserved across reconfiguration.
 
 
 ## Check
