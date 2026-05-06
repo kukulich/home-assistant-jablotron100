@@ -274,22 +274,58 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 		return await self.async_step_reconfigure_settings()
 
 	async def async_step_reconfigure_settings(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
+		errors: Dict[str, str] = {}
 
 		if user_input is not None:
-			if CONF_UNIQUE_ID not in self._config:
-				self._config[CONF_UNIQUE_ID] = self._config[CONF_SERIAL_PORT]
-			self._config[CONF_SERIAL_PORT] = user_input[CONF_SERIAL_PORT]
+			previous_serial_port = self._config[CONF_SERIAL_PORT]
+			new_serial_port = user_input[CONF_SERIAL_PORT]
 
-			if user_input[CONF_PASSWORD] != "":
-				self._config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
+			validation_failed = False
 
-			self._config[CONF_NUMBER_OF_DEVICES] = user_input[CONF_NUMBER_OF_DEVICES]
-			self._config[CONF_NUMBER_OF_PG_OUTPUTS] = user_input[CONF_NUMBER_OF_PG_OUTPUTS]
+			# Re-validate the serial port if the user changed it. Without this
+			# check a typo (or a path that no longer points to a Jablotron USB
+			# device) would only surface as a hard failure on the next restart.
+			if new_serial_port != previous_serial_port:
+				try:
+					if new_serial_port == AUTODETECT_SERIAL_PORT:
+						detected_serial_port = await self.hass.async_add_executor_job(
+							Jablotron.detect_serial_port,
+						)
+						if detected_serial_port is None:
+							LOGGER.error("No serial port found")
+							raise ServiceUnavailable
 
-			if user_input[CONF_NUMBER_OF_DEVICES] > 0:
-				return await self.async_step_reconfigure_devices()
+						serial_port_to_check = detected_serial_port
+					else:
+						serial_port_to_check = new_serial_port
 
-			return self._finish_reconfigure()
+					await self.hass.async_add_executor_job(check_serial_port, serial_port_to_check)
+
+				except ModelNotDetected:
+					errors[CONF_SERIAL_PORT] = "model_not_detected"
+					validation_failed = True
+				except ModelNotSupported:
+					errors[CONF_SERIAL_PORT] = "model_not_supported"
+					validation_failed = True
+				except ServiceUnavailable:
+					errors[CONF_SERIAL_PORT] = "service_unavailable"
+					validation_failed = True
+
+			if not validation_failed:
+				if CONF_UNIQUE_ID not in self._config:
+					self._config[CONF_UNIQUE_ID] = self._config[CONF_SERIAL_PORT]
+				self._config[CONF_SERIAL_PORT] = new_serial_port
+
+				if user_input[CONF_PASSWORD] != "":
+					self._config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
+
+				self._config[CONF_NUMBER_OF_DEVICES] = user_input[CONF_NUMBER_OF_DEVICES]
+				self._config[CONF_NUMBER_OF_PG_OUTPUTS] = user_input[CONF_NUMBER_OF_PG_OUTPUTS]
+
+				if user_input[CONF_NUMBER_OF_DEVICES] > 0:
+					return await self.async_step_reconfigure_devices()
+
+				return self._finish_reconfigure()
 
 		fields = {
 			vol.Required(CONF_SERIAL_PORT, default=self._config[CONF_SERIAL_PORT]): str,
@@ -317,6 +353,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 		return self.async_show_form(
 			step_id="reconfigure_settings",
 			data_schema=vol.Schema(fields),
+			errors=errors,
 		)
 
 	async def async_step_reconfigure_devices(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
