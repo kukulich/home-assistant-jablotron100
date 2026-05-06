@@ -3,14 +3,15 @@
 from homeassistant.const import Platform
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, storage
 from typing import Final
 
 from .const import (
+	CONF_SERIAL_PORT,
+	CONF_UNIQUE_ID,
 	DOMAIN,
-	LOGGER,
 )
-from .jablotron import Jablotron
+from .jablotron import Jablotron, STORAGE_VERSION
 
 
 type JablotronConfigEntry = ConfigEntry[Jablotron]
@@ -54,9 +55,26 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEn
 async def async_unload_entry(hass: HomeAssistant, config_entry: JablotronConfigEntry) -> bool:
 	await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
 
-	config_entry.runtime_data.shutdown_and_clean()
+	# Only stop the running instance. Stored data must be preserved so reloads
+	# (e.g. after changing options) do not have to re-detect every device.
+	config_entry.runtime_data.shutdown()
 
 	return True
+
+
+async def async_remove_entry(hass: HomeAssistant, config_entry: JablotronConfigEntry) -> None:
+	"""Remove the integration's persisted data when the user deletes the entry."""
+	unique_id = config_entry.data.get(CONF_UNIQUE_ID, config_entry.data.get(CONF_SERIAL_PORT))
+	if unique_id is None:
+		return
+
+	store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
+	stored_data = await store.async_load()
+	if not stored_data or unique_id not in stored_data:
+		return
+
+	del stored_data[unique_id]
+	await store.async_save(stored_data)
 
 
 async def options_update_listener(hass: HomeAssistant, config_entry: JablotronConfigEntry) -> None:
