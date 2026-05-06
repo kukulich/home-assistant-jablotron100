@@ -279,6 +279,26 @@ class Jablotron:
 		else:
 			self._serial_port = self._config[CONF_SERIAL_PORT]
 
+			# The hidraw device numbering can change across reboots when other USB
+			# HID devices are connected. If the configured path no longer points to
+			# a Jablotron device, transparently fall back to autodetection by USB
+			# vendor/product ID so the user does not have to reconfigure.
+			if not await self._hass.async_add_executor_job(
+				Jablotron._is_jablotron_serial_port, self._serial_port
+			):
+				LOGGER.warning(
+					"Configured serial port %s does not point to a Jablotron device, attempting autodetection",
+					self._serial_port,
+				)
+				detected_serial_port = await self._detect_serial_port()
+				if detected_serial_port is not None:
+					LOGGER.warning(
+						"Using autodetected serial port %s instead of configured %s",
+						detected_serial_port,
+						self._config[CONF_SERIAL_PORT],
+					)
+					self._serial_port = detected_serial_port
+
 		self._detect_central_unit()
 		await self._detect_and_create_devices_and_sections_and_pg_outputs()
 		self._create_central_unit_sensors()
@@ -2755,6 +2775,24 @@ class Jablotron:
 				return serial_port
 
 		return None
+
+	@staticmethod
+	def _is_jablotron_serial_port(serial_port: str) -> bool:
+		"""Return True if the given /dev/hidrawN path resolves to a Jablotron USB device."""
+		try:
+			device_name = os.path.basename(serial_port)
+			if not device_name:
+				return False
+
+			sysfs_path = "{}/{}".format(HIDRAW_PATH, device_name)
+			if not os.path.exists(sysfs_path):
+				return False
+
+			realpath = os.path.realpath(sysfs_path)
+			return "16D6:0008" in realpath
+		except OSError as ex:
+			LOGGER.debug("Failed to verify serial port %s: %s", serial_port, ex)
+			return False
 
 
 class JablotronEntity(Entity):
