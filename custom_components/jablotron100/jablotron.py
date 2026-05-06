@@ -2344,7 +2344,7 @@ class Jablotron:
 				if not info_type.is_unknown():
 					info_packets.append(ParsedDeviceInfoPacket(info_type, info_subpacket[start:end]))
 
-			except Exception:
+			except ValueError:
 				Jablotron._log_error_with_packet(
 					"Unknown device info type {}".format(info_type_int),
 					packet,
