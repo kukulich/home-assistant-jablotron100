@@ -336,25 +336,28 @@ class Jablotron:
 		self._successful_login = True
 
 		def after_modify_callback(_) -> None:
-			self._send_packet(self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
+			# Runs on the event loop; offload the blocking serial I/O.
+			self._hass.async_add_executor_job(
+				self._send_packet,
+				self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
+			)
 
 		def after_login_callback(_) -> None:
+			# Runs on the event loop; offload the blocking serial I/O.
+			packets_to_send: List[bytes] = []
+
 			if self._successful_login is True:
 				modify_packet = self.int_to_bytes(int_packets[state] + section)
-				self._send_packet(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
+				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
 
 			if code != self._config[CONF_PASSWORD]:
-				logout_packets = [self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END)]
-				logout_packets.extend(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
+				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END))
+				packets_to_send.extend(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
 
-				self._send_packets(logout_packets)
+			if packets_to_send:
+				self._hass.async_add_executor_job(self._send_packets, packets_to_send)
 
-			self._hass.loop.call_soon_threadsafe(
-				async_call_later,
-				self._hass,
-				1.0,
-				after_modify_callback,
-			)
+			async_call_later(self._hass, 1.0, after_modify_callback)
 
 		if code != self._config[CONF_PASSWORD]:
 			login_packets = [
@@ -371,7 +374,9 @@ class Jablotron:
 				after_login_callback,
 			)
 		else:
-			after_login_callback(None)
+			# Run the callback on the event loop so it can use async_call_later
+			# and async_add_executor_job safely from any caller thread.
+			self._hass.loop.call_soon_threadsafe(after_login_callback, None)
 
 	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
 		pg_output_number_packet = self.int_to_bytes(pg_output_number - 1)
