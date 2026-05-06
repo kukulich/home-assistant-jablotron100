@@ -278,6 +278,26 @@ class Jablotron:
 		else:
 			self._serial_port = self._config[CONF_SERIAL_PORT]
 
+			# The hidraw device numbering can change across reboots when other USB
+			# HID devices are connected. If the configured path no longer points to
+			# a Jablotron device, transparently fall back to autodetection by USB
+			# vendor/product ID so the user does not have to reconfigure.
+			if not await self._hass.async_add_executor_job(
+				Jablotron._is_jablotron_serial_port, self._serial_port
+			):
+				LOGGER.warning(
+					"Configured serial port %s does not point to a Jablotron device, attempting autodetection",
+					self._serial_port,
+				)
+				detected_serial_port = await self._detect_serial_port()
+				if detected_serial_port is not None:
+					LOGGER.warning(
+						"Using autodetected serial port %s instead of configured %s",
+						detected_serial_port,
+						self._config[CONF_SERIAL_PORT],
+					)
+					self._serial_port = detected_serial_port
+
 		self._detect_central_unit()
 		await self._detect_and_create_devices_and_sections_and_pg_outputs()
 		self._create_central_unit_sensors()
@@ -2753,13 +2773,26 @@ class Jablotron:
 	@staticmethod
 	def _check_possible_paths_for_serial_port(possible_paths: list[str]) -> str | None:
 		for possible_path in possible_paths:
-			possible_realpath = os.path.realpath("{}/{}".format(HIDRAW_PATH, possible_path))
-			if "16D6:0008" in possible_realpath:
-				serial_port = "/dev/{}".format(possible_path)
+			serial_port = "/dev/{}".format(possible_path)
+			if Jablotron._is_jablotron_serial_port(serial_port):
 				LOGGER.debug("Detected serial port: {}".format(serial_port))
 				return serial_port
 
 		return None
+
+	@staticmethod
+	def _is_jablotron_serial_port(serial_port: str) -> bool:
+		device_name = os.path.basename(serial_port)
+		if not device_name:
+			return False
+
+		try:
+			realpath = os.path.realpath("{}/{}".format(HIDRAW_PATH, device_name))
+		except OSError as ex:
+			LOGGER.debug("Failed to verify serial port %s: %s", serial_port, ex)
+			return False
+
+		return "16D6:0008" in realpath
 
 
 class JablotronEntity(Entity):
