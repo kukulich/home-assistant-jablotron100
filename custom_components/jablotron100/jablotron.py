@@ -2145,7 +2145,10 @@ class Jablotron:
 		if device_number in (DeviceNumber.MOBILE_APPLICATION.value, DeviceNumber.USB.value):
 			offset = offset - 1
 
-		user_no = int((self.bytes_to_int(packet[3:4]) - offset) / 4)
+		# Each user occupies 4 consecutive values in the packet byte after the
+		# fixed offset, so // 4 converts the offset-relative position into the
+		# user number.
+		user_no = (self.bytes_to_int(packet[3:4]) - offset) // 4
 		self._last_authorized_user_or_device = "User {}".format(user_no)
 		LOGGER.debug("Authorized user: {}".format(user_no))
 
