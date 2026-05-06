@@ -22,7 +22,6 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers import entity_registry as er
 import math
 import os
-import sys
 import threading
 import time
 from .const import (
@@ -2643,7 +2642,7 @@ class Jablotron:
 
 	@staticmethod
 	def bytes_to_int(packet: bytes) -> int:
-		return int.from_bytes(packet, byteorder=sys.byteorder)
+		return int.from_bytes(packet, byteorder="little")
 
 	@staticmethod
 	def bytes_to_float(packet: bytes) -> float:
@@ -2655,7 +2654,7 @@ class Jablotron:
 
 	@staticmethod
 	def int_to_bytes(number: int) -> bytes:
-		return int.to_bytes(number, 1, byteorder=sys.byteorder)
+		return int.to_bytes(number, 1, byteorder="little")
 
 	@staticmethod
 	def create_packet(packet_type: bytes, data: bytes) -> bytes:
