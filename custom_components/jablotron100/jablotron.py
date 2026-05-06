@@ -955,8 +955,10 @@ class Jablotron:
 				self._create_packet_device_diagnostics_force_info(device_number),
 			])
 
-			while not self._stream_diagnostics_event.wait(0.5):
-				break
+			# Wait up to 2 seconds for the diagnostics response packet.
+			# The previous "while ... wait(0.5): break" pattern always exited
+			# after a single 0.5s wait regardless of whether the event fired.
+			self._stream_diagnostics_event.wait(2.0)
 
 			self._send_packet(self._create_packet_device_diagnostics_end(device_number))
 
