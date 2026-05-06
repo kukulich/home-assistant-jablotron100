@@ -1901,21 +1901,21 @@ class Jablotron:
 		return False
 
 	def _store_state(self, entity_id: str, state: StateType | AlarmControlPanelState) -> None:
-		unquie_id = self._get_unique_id()
+		unique_id = self._get_unique_id()
 
-		if unquie_id not in self._stored_data:
-			self._stored_data[unquie_id] = {}
+		if unique_id not in self._stored_data:
+			self._stored_data[unique_id] = {}
 
-		if STORAGE_STATES_KEY not in self._stored_data[unquie_id]:
-			self._stored_data[unquie_id][STORAGE_STATES_KEY] = {}
+		if STORAGE_STATES_KEY not in self._stored_data[unique_id]:
+			self._stored_data[unique_id][STORAGE_STATES_KEY] = {}
 
 		if (
-			entity_id in self._stored_data[unquie_id][STORAGE_STATES_KEY]
-			and self._stored_data[unquie_id][STORAGE_STATES_KEY][entity_id] == state
+			entity_id in self._stored_data[unique_id][STORAGE_STATES_KEY]
+			and self._stored_data[unique_id][STORAGE_STATES_KEY][entity_id] == state
 		):
 			return
 
-		self._stored_data[unquie_id][STORAGE_STATES_KEY][entity_id] = state
+		self._stored_data[unique_id][STORAGE_STATES_KEY][entity_id] = state
 		self._store_data_to_store_threadsafe()
 
 	def _remove_stored_entity_state(self, entity_id: str) -> None:
