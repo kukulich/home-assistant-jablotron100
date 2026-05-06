@@ -32,8 +32,12 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 
 ### Central unit
 
-- State of LAN connection is reported to Home Assistant for supported central units.
-- Strength of GSM signal is reported for supported central units.
+- Power supply state and overall problem are reported as binary sensors.
+- BUS voltage and BUS devices current are reported per detected BUS.
+- Battery presence, battery level, standby and load voltages are reported when the central unit has a backup battery.
+- LAN connection state and (when available) the LAN IP address are reported for supported central units.
+- GSM signal availability and signal strength are reported for supported central units.
+- A `wrong code` event entity records failed authorisation attempts; the same condition also fires the `jablotron100_wrong_code` event on the bus.
 
 
 ## Before installation
