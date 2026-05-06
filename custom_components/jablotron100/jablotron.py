@@ -302,8 +302,9 @@ class Jablotron:
 		self.shutdown()
 
 		unique_id = self._get_unique_id()
-		del self._stored_data[unique_id]
-		self._store_data_to_store_threadsafe()
+		if self._stored_data is not None and unique_id in self._stored_data:
+			del self._stored_data[unique_id]
+			self._store_data_to_store_threadsafe()
 
 	def shutdown(self) -> None:
 		self._stream_stop_event.set()
