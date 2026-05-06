@@ -81,6 +81,19 @@ The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
 3. Check log - it should be empty when everything works
 4. Does any problem occur? Report [issue](https://github.com/kukulich/home-assistant-jablotron100/issues) or join [Discord](https://discord.gg/bNmaB6n)
 
+
+## Services
+
+### `jablotron100.reset_problem`
+
+Locally turns the selected `problem` binary sensor back to off without waiting for the central unit to clear the underlying condition. Useful for one-shot conditions that you have already acknowledged. Only entities with `device_class: problem` from this integration are accepted.
+
+```yaml
+service: jablotron100.reset_problem
+target:
+  entity_id: binary_sensor.section_1_problem_sensor
+```
+
 Even if everything works for you, you can join the [Discord](https://discord.gg/bNmaB6n).
 We would be happy:
  - If you report model of you Jablotron central unit, so we know that integration works on another model
