@@ -95,6 +95,7 @@ from .const import (
 	STREAM_MAX_WORKERS,
 	STREAM_PACKET_SIZE,
 	STREAM_TIMEOUT,
+	SYSTEM_DEVICE_NUMBER_RESERVED_MIN,
 	SectionPrimaryState,
 	SystemInfo,
 	TIMEOUT_FOR_DEVICE_STATE_PACKETS,
@@ -1363,7 +1364,10 @@ class Jablotron:
 			return
 
 		if device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			self._log_error_with_packet("State packet of unknown device", packet)
+			if device_number >= SYSTEM_DEVICE_NUMBER_RESERVED_MIN:
+				self._log_debug_with_packet("State packet of system device", packet)
+			else:
+				self._log_error_with_packet("State packet of unknown device", packet)
 			return
 
 		device_type = self._get_device_type(device_number)
@@ -1447,7 +1451,10 @@ class Jablotron:
 		if device_number in (lan_connection_number, gsm_device_number):
 			pass
 		elif device_number > self._config[CONF_NUMBER_OF_DEVICES]:
-			self._log_error_with_packet("Info packet of unknown device", packet)
+			if device_number >= SYSTEM_DEVICE_NUMBER_RESERVED_MIN:
+				self._log_debug_with_packet("Info packet of system device", packet)
+			else:
+				self._log_error_with_packet("Info packet of unknown device", packet)
 			return
 
 		subpackets = self._parse_device_info_subpackets_from_device_info_packet(packet)

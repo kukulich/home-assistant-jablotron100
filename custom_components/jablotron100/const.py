@@ -61,6 +61,15 @@ class DeviceNumber(Enum):
 	USB = 254
 
 
+# Device numbers in this range are reserved by the central unit for system /
+# control entities (mobile applications, F-Link, USB connection, ...). They are
+# never assigned to user-installed peripherals on any supported central unit
+# (JA-101K supports up to 50 devices, JA-103K up to 120, JA-107K up to 230),
+# so packets coming from such numbers are not bugs — just system traffic that
+# we may not have explicit handling for yet.
+SYSTEM_DEVICE_NUMBER_RESERVED_MIN: Final = 240
+
+
 class DeviceType(StrEnum):
 	CENTRAL_UNIT = "central_unit"
 	KEYPAD = "keypad"
