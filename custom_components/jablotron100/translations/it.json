@@ -495,7 +495,8 @@
 		"error": {
 			"service_unavailable": "Jablotron non è disponibile",
 			"model_not_detected": "Modello Jablotron non rilevato",
-			"model_not_supported": "Modello Jablotron non supportato"
+			"model_not_supported": "Modello Jablotron non supportato",
+			"serial_port_not_detected": "Nessun dispositivo USB Jablotron rilevato. Assicurati che il dispositivo sia collegato e visibile al sistema operativo."
 		},
 		"abort": {
 			"already_configured": "Jablotron è già configurato",

@@ -495,7 +495,8 @@
 		"error": {
 			"service_unavailable": "Jablotron er ikke tilgjengelig",
 			"model_not_detected": "Jablotron-modellen ble ikke funnet",
-			"model_not_supported": "Jablotron-modellen støttes ikke"
+			"model_not_supported": "Jablotron-modellen støttes ikke",
+			"serial_port_not_detected": "Ingen Jablotron USB-enhet ble funnet. Kontroller at enheten er tilkoblet og synlig for operativsystemet."
 		},
 		"abort": {
 			"already_configured": "Jablotron er allerede konfigurert",

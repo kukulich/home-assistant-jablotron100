@@ -495,7 +495,8 @@
 		"error": {
 			"service_unavailable": "Jablotron ist nicht verfügbar",
 			"model_not_detected": "Der Jablotron Anlagentyp konnte nicht erkannt werden",
-			"model_not_supported": "Der Jablotron Anlagentyp wird nicht unterstützt"
+			"model_not_supported": "Der Jablotron Anlagentyp wird nicht unterstützt",
+			"serial_port_not_detected": "Es wurde kein Jablotron USB-Gerät erkannt. Stellen Sie sicher, dass das Gerät angeschlossen und für das Betriebssystem sichtbar ist."
 		},
 		"abort": {
 			"already_configured": "Die Jablotron Anlage ist bereits konfiguriert",

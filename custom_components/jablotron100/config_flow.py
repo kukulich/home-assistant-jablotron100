@@ -49,6 +49,7 @@ from .const import (
 from .errors import (
 	ModelNotDetected,
 	ModelNotSupported,
+	SerialPortNotDetected,
 	ServiceUnavailable,
 )
 from .jablotron import Jablotron
@@ -183,7 +184,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 
 					if serial_port is None:
 						LOGGER.error("No serial port found")
-						raise ServiceUnavailable
+						raise SerialPortNotDetected
 				else:
 					serial_port = user_input[CONF_SERIAL_PORT]
 
@@ -211,6 +212,9 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 
 			except ModelNotSupported:
 				errors["base"] = "model_not_supported"
+
+			except SerialPortNotDetected:
+				errors["base"] = "serial_port_not_detected"
 
 			except ServiceUnavailable:
 				errors["base"] = "service_unavailable"
@@ -293,7 +297,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 						)
 						if detected_serial_port is None:
 							LOGGER.error("No serial port found")
-							raise ServiceUnavailable
+							raise SerialPortNotDetected
 
 						serial_port_to_check = detected_serial_port
 					else:
@@ -306,6 +310,9 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 					validation_failed = True
 				except ModelNotSupported:
 					errors[CONF_SERIAL_PORT] = "model_not_supported"
+					validation_failed = True
+				except SerialPortNotDetected:
+					errors[CONF_SERIAL_PORT] = "serial_port_not_detected"
 					validation_failed = True
 				except ServiceUnavailable:
 					errors[CONF_SERIAL_PORT] = "service_unavailable"

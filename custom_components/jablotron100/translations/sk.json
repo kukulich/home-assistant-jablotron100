@@ -495,7 +495,8 @@
 		"error": {
 			"service_unavailable": "Jablotron nie je dostupný",
 			"model_not_detected": "Typ ústredne Jablotron nebol rozpoznaný",
-			"model_not_supported": "Typ ústredne Jablotron nie je podporovaný"
+			"model_not_supported": "Typ ústredne Jablotron nie je podporovaný",
+			"serial_port_not_detected": "Žiadne USB zariadenie Jablotron nebolo nájdené. Skontrolujte, či je zariadenie pripojené a viditelné pre operačný systém."
 		},
 		"abort": {
 			"already_configured": "Jablotron je už nakonfigurovaný",

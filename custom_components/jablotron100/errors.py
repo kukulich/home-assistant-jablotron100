@@ -10,6 +10,10 @@ class ServiceUnavailable(JablotronException):
 	"""Service is not available."""
 
 
+class SerialPortNotDetected(JablotronException):
+	"""No Jablotron device was detected on the host."""
+
+
 class ModelNotDetected(JablotronException):
 	"""Model not detected."""
 

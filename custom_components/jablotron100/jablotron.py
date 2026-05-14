@@ -106,9 +106,10 @@ from .const import (
 )
 from typing import Any, Dict, Final, List, Mapping
 from .errors import (
+	InvalidBatteryLevel,
+	SerialPortNotDetected,
 	ServiceUnavailable,
 	ShouldNotHappen,
-	InvalidBatteryLevel,
 )
 
 STORAGE_VERSION: Final = 2
@@ -275,7 +276,7 @@ class Jablotron:
 		if self._config[CONF_SERIAL_PORT] == AUTODETECT_SERIAL_PORT:
 			self._serial_port = await self._detect_serial_port()
 			if self._serial_port is None:
-				raise ServiceUnavailable("No serial port found")
+				raise SerialPortNotDetected("No Jablotron USB device detected")
 		else:
 			self._serial_port = self._config[CONF_SERIAL_PORT]
 
@@ -2775,10 +2776,20 @@ class Jablotron:
 
 	@staticmethod
 	def detect_serial_port() -> str | None:
-		return Jablotron._check_possible_paths_for_serial_port(os.listdir(HIDRAW_PATH))
+		try:
+			possible_paths = os.listdir(HIDRAW_PATH)
+		except OSError as ex:
+			LOGGER.debug("Failed to list %s: %s", HIDRAW_PATH, ex)
+			return None
+
+		return Jablotron._check_possible_paths_for_serial_port(possible_paths)
 
 	async def _detect_serial_port(self) -> str | None:
-		possible_paths = await self._hass.async_add_executor_job(os.listdir, HIDRAW_PATH)
+		try:
+			possible_paths = await self._hass.async_add_executor_job(os.listdir, HIDRAW_PATH)
+		except OSError as ex:
+			LOGGER.debug("Failed to list %s: %s", HIDRAW_PATH, ex)
+			return None
 
 		return Jablotron._check_possible_paths_for_serial_port(possible_paths)
 
