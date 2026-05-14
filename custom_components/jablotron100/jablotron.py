@@ -94,6 +94,8 @@ from .const import (
 	SIGNAL_STRENGTH_STEP,
 	STREAM_MAX_WORKERS,
 	STREAM_PACKET_SIZE,
+	STREAM_REOPEN_DELAY,
+	STREAM_REOPEN_MAX_DELAY,
 	STREAM_TIMEOUT,
 	SYSTEM_DEVICE_NUMBER_RESERVED_MIN,
 	SectionPrimaryState,
@@ -1013,10 +1015,14 @@ class Jablotron:
 	def _read_packets(self) -> None:
 		stream = self._open_read_stream()
 		last_restarted_at_hour = datetime.datetime.now().hour
+		consecutive_errors = 0
 
 		while not self._stream_stop_event.is_set():
 
 			try:
+
+				if stream is None:
+					stream = self._open_read_stream()
 
 				while True:
 
@@ -1077,13 +1083,34 @@ class Jablotron:
 
 					break
 
+				consecutive_errors = 0
+				time.sleep(0.5)
+
 			except Exception as ex:
-				LOGGER.exception("Read error: %s", ex)
+				if consecutive_errors == 0:
+					LOGGER.exception("Read error: %s", ex)
+				else:
+					LOGGER.debug("Read error: %s", ex)
+
 				self._set_unavailable()
 
-			time.sleep(0.5)
+				if stream is not None:
+					try:
+						stream.close()
+					except OSError:
+						pass
+					stream = None
 
-		stream.close()
+				self._redetect_serial_port()
+
+				consecutive_errors += 1
+				time.sleep(min(STREAM_REOPEN_DELAY * consecutive_errors, STREAM_REOPEN_MAX_DELAY))
+
+		if stream is not None:
+			try:
+				stream.close()
+			except OSError:
+				pass
 
 	def _keepalive(self):
 		counter = 0
@@ -1111,6 +1138,7 @@ class Jablotron:
 				except Exception as ex:
 					LOGGER.exception("Write error: %s", ex)
 					self._set_unavailable()
+					self._redetect_serial_port()
 
 				counter += 1
 			else:
@@ -1156,6 +1184,27 @@ class Jablotron:
 
 	def _open_read_stream(self):
 		return open(self._serial_port, "rb", buffering=0)
+
+	def _redetect_serial_port(self) -> None:
+		"""Re-run autodetection if the configured port is AUTODETECT_SERIAL_PORT.
+
+		Useful to recover when the operating system reassigns /dev/hidraw* after
+		a USB reset or when the device disappears and reappears under a different
+		path.
+		"""
+		if self._config[CONF_SERIAL_PORT] != AUTODETECT_SERIAL_PORT:
+			return
+
+		detected_serial_port = Jablotron.detect_serial_port()
+		if detected_serial_port is None or detected_serial_port == self._serial_port:
+			return
+
+		LOGGER.warning(
+			"Serial port changed from %s to %s",
+			self._serial_port,
+			detected_serial_port,
+		)
+		self._serial_port = detected_serial_port
 
 	def _is_alarm_active(self) -> bool:
 		for section_alarm_id in self.entities[EntityType.ALARM_CONTROL_PANEL]:

@@ -156,6 +156,11 @@ CODE_MAX_LENGTH: Final = 10
 STREAM_MAX_WORKERS: Final = 5
 STREAM_TIMEOUT: Final = 10
 STREAM_PACKET_SIZE: Final = 64
+# Initial delay (in seconds) before retrying to reopen the serial port stream
+# after an I/O error. Multiplied by the number of consecutive failures and
+# capped at STREAM_REOPEN_MAX_DELAY to back off when the device is gone.
+STREAM_REOPEN_DELAY: Final = 1
+STREAM_REOPEN_MAX_DELAY: Final = 30
 
 MAX_SECTIONS: Final = 15
 MAX_DEVICES: Final = 230
