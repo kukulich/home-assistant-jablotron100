@@ -11,12 +11,14 @@ from homeassistant.helpers import selector
 import re
 import time
 import threading
-from typing import Any, Dict, List
+from typing import Any, Dict, Final, List
 import voluptuous as vol
 from .const import (
 	AUTODETECT_SERIAL_PORT,
 	CODE_MAX_LENGTH,
 	CODE_MIN_LENGTH,
+	CommonSegmentData,
+	CONF_COMMON_SEGMENTS,
 	CONF_DEVICES,
 	CONF_ENABLE_DEBUGGING,
 	CONF_LOG_ALL_INCOMING_PACKETS,
@@ -38,6 +40,7 @@ from .const import (
 	LOGGER,
 	MAX_DEVICES,
 	MAX_PG_OUTPUTS,
+	MAX_SECTIONS,
 	NAME,
 	PACKET_SYSTEM_INFO,
 	PartiallyArmingMode,
@@ -157,6 +160,22 @@ def get_devices_fields(number_of_devices: int, default_values: List | None = Non
 
 def create_range_validation(minimum: int, maximum: int):
 	return vol.All(vol.Coerce(int), vol.Range(min=minimum, max=maximum))
+
+
+MAX_COMMON_SEGMENT_ROWS: Final = 5
+
+
+def _parse_sections_list(raw: str) -> List[int]:
+	"""Parse a comma/space separated section list. Raises ValueError on bad input."""
+	tokens = [t.strip() for t in re.split(r"[,\s]+", raw) if t.strip()]
+	sections: List[int] = []
+	for token in tokens:
+		value = int(token)
+		if value < 1 or value > MAX_SECTIONS:
+			raise ValueError(token)
+		if value not in sections:
+			sections.append(value)
+	return sections
 
 
 class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -400,7 +419,7 @@ class JablotronOptionsFlow(OptionsFlow):
 	async def async_step_init(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
 		return self.async_show_menu(
 			step_id="init",
-			menu_options=["options", "debug"],
+			menu_options=["options", "common_segments", "debug"],
 		)
 
 	async def async_step_options(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -439,6 +458,84 @@ class JablotronOptionsFlow(OptionsFlow):
 					): bool,
 				}
 			),
+		)
+
+	async def async_step_common_segments(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
+		max_rows = MAX_COMMON_SEGMENT_ROWS
+		errors: Dict[str, str] = {}
+
+		if user_input is not None:
+			parsed: List[Dict[str, Any]] = []
+			any_invalid = False
+
+			for index in range(1, max_rows + 1):
+				name_field = "common_segment_name_{}".format(index)
+				sections_field = "common_segment_sections_{}".format(index)
+
+				name = str(user_input.get(name_field, "") or "").strip()
+				sections_raw = str(user_input.get(sections_field, "") or "").strip()
+
+				if not name and not sections_raw:
+					continue
+
+				if not sections_raw:
+					errors[sections_field] = "common_segments_invalid_sections"
+					any_invalid = True
+					continue
+
+				if not name:
+					errors[name_field] = "common_segments_name_required"
+					any_invalid = True
+					continue
+
+				try:
+					sections = _parse_sections_list(sections_raw)
+				except ValueError:
+					errors[sections_field] = "common_segments_invalid_sections"
+					any_invalid = True
+					continue
+
+				if not sections:
+					errors[sections_field] = "common_segments_invalid_sections"
+					any_invalid = True
+					continue
+
+				parsed.append({
+					CommonSegmentData.NAME.value: name,
+					CommonSegmentData.SECTIONS.value: sections,
+				})
+
+			if not any_invalid:
+				self._options[CONF_COMMON_SEGMENTS] = parsed
+				return self._save()
+
+		defaults: Dict[str, str] = {}
+		if user_input is not None:
+			# Preserve what the user typed on validation error.
+			for index in range(1, max_rows + 1):
+				name_field = "common_segment_name_{}".format(index)
+				sections_field = "common_segment_sections_{}".format(index)
+				defaults[name_field] = str(user_input.get(name_field, "") or "")
+				defaults[sections_field] = str(user_input.get(sections_field, "") or "")
+		else:
+			existing = self._options.get(CONF_COMMON_SEGMENTS, []) or []
+			for index in range(1, max_rows + 1):
+				row = existing[index - 1] if index - 1 < len(existing) else {}
+				name_default = str(row.get(CommonSegmentData.NAME.value, "") or "")
+				sections_value = row.get(CommonSegmentData.SECTIONS.value, []) or []
+				sections_default = ", ".join(str(s) for s in sections_value)
+				defaults["common_segment_name_{}".format(index)] = name_default
+				defaults["common_segment_sections_{}".format(index)] = sections_default
+
+		schema_fields: Dict[Any, Any] = {}
+		for i in range(1, max_rows + 1):
+			schema_fields[vol.Optional("common_segment_name_{}".format(i), default=defaults["common_segment_name_{}".format(i)])] = str
+			schema_fields[vol.Optional("common_segment_sections_{}".format(i), default=defaults["common_segment_sections_{}".format(i)])] = str
+
+		return self.async_show_form(
+			step_id="common_segments",
+			data_schema=vol.Schema(schema_fields),
+			errors=errors,
 		)
 
 	async def async_step_debug(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:

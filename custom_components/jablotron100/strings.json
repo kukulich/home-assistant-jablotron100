@@ -508,6 +508,7 @@
 			"init": {
 				"menu_options": {
 					"options": "Options",
+					"common_segments": "Common segments",
 					"debug": "Debugging"
 				}
 			},
@@ -517,6 +518,22 @@
 					"partially_arming_mode": "Partially arming",
 					"require_code_to_arm": "Require code to arm",
 					"require_code_to_disarm": "Require code to disarm"
+				}
+			},
+			"common_segments": {
+				"title": "Common segments",
+				"description": "Define virtual common segments that arm/disarm multiple sections with a single command. Specify a name and a comma-separated list of section numbers (e.g. \"1, 2, 3\"). Empty rows are ignored.",
+				"data": {
+					"common_segment_name_1": "Name 1",
+					"common_segment_sections_1": "Sections 1",
+					"common_segment_name_2": "Name 2",
+					"common_segment_sections_2": "Sections 2",
+					"common_segment_name_3": "Name 3",
+					"common_segment_sections_3": "Sections 3",
+					"common_segment_name_4": "Name 4",
+					"common_segment_sections_4": "Sections 4",
+					"common_segment_name_5": "Name 5",
+					"common_segment_sections_5": "Sections 5"
 				}
 			},
 			"debug": {
@@ -529,6 +546,10 @@
 					"log_pg_outputs_packets": "Log PG outputs packets"
 				}
 			}
+		},
+		"error": {
+			"common_segments_invalid_sections": "Sections must be a comma-separated list of section numbers (e.g. \"1, 2, 3\").",
+			"common_segments_name_required": "Name is required when sections are provided."
 		}
 	},
 	"selector": {
@@ -643,6 +664,9 @@
 		},
 		"section": {
 			"name": "Section {sectionNo}"
+		},
+		"common_segment": {
+			"name": "{name}"
 		}
 	},
 	"entity": {
