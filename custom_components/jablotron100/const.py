@@ -21,6 +21,12 @@ CONF_REQUIRE_CODE_TO_ARM: Final = "require_code_to_arm"
 CONF_REQUIRE_CODE_TO_DISARM: Final = "require_code_to_disarm"
 CONF_PARTIALLY_ARMING_MODE: Final = "partially_arming_mode"
 CONF_ENABLE_DEBUGGING: Final = "enable_debugging"
+CONF_COMMON_SEGMENTS: Final = "common_segments"
+
+
+class CommonSegmentData(StrEnum):
+	NAME = "name"
+	SECTIONS = "sections"
 
 CONF_LOG_ALL_INCOMING_PACKETS: Final = "log_all_incoming_packets"
 CONF_LOG_ALL_OUTCOMING_PACKETS: Final = "log_all_outcoming_packets"

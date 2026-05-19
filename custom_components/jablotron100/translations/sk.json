@@ -508,6 +508,7 @@
 			"init": {
 				"menu_options": {
 					"options": "Možnosti",
+					"common_segments": "Spoločné segmenty",
 					"debug": "Ladenie"
 				}
 			},
@@ -517,6 +518,22 @@
 					"partially_arming_mode": "Partially arming",
 					"require_code_to_arm": "Vyžadovať kód k zabezpečeniu",
 					"require_code_to_disarm": "Vyžadovať kód k odbezpečeniu"
+				}
+			},
+			"common_segments": {
+				"title": "Spoločné segmenty",
+				"description": "Definujte virtuálne spoločné segmenty, ktoré jedným príkazom zabezpečia alebo odbezpečia viacero sekcií. Zadajte názov a zoznam čísel sekcií oddelených čiarkou (napr. \"1, 2, 3\"). Prázdne riadky sa ignorujú.",
+				"data": {
+					"common_segment_name_1": "Názov 1",
+					"common_segment_sections_1": "Sekcie 1",
+					"common_segment_name_2": "Názov 2",
+					"common_segment_sections_2": "Sekcie 2",
+					"common_segment_name_3": "Názov 3",
+					"common_segment_sections_3": "Sekcie 3",
+					"common_segment_name_4": "Názov 4",
+					"common_segment_sections_4": "Sekcie 4",
+					"common_segment_name_5": "Názov 5",
+					"common_segment_sections_5": "Sekcie 5"
 				}
 			},
 			"debug": {
@@ -529,6 +546,10 @@
 					"log_pg_outputs_packets": "Logovať pakety programovateľných výstupov PG"
 				}
 			}
+		},
+		"error": {
+			"common_segments_invalid_sections": "Sekcie musia byť zoznam čísel sekcií oddelený čiarkou (napr. \"1, 2, 3\").",
+			"common_segments_name_required": "Pri zadaných sekciách je názov povinný."
 		}
 	},
 	"selector": {
@@ -643,6 +664,9 @@
 		},
 		"section": {
 			"name": "Section {sectionNo}"
+		},
+		"common_segment": {
+			"name": "{name}"
 		}
 	},
 	"entity": {

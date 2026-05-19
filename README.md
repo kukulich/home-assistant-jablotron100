@@ -16,6 +16,10 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 - Event `jablotron100_wrong_code` is triggered when wrong code is inserted in Home Assistant.
 - Problem in a section is reported in specific "problem" sensor.
 
+### Common segments
+
+Jablotron 100 supports a "common segment" — a single button that arms or disarms multiple sections at once. You can mirror that behaviour in Home Assistant by defining virtual common segments in the integration options (*Settings → Devices & Services → Jablotron → Configure → Common segments*). Each common segment becomes its own `alarm_control_panel` entity that fans out arm/disarm commands to all listed sections, and reports a derived state (armed only when every constituent section is armed).
+
 ### Devices
 
 - Devices with two states (on/off, active/inactive, open/closed etc.) are supported.

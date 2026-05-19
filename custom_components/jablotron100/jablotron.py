@@ -33,10 +33,12 @@ from .const import (
 	CentralUnitData,
 	CODE_MIN_LENGTH,
 	COMMAND_ENABLE_DEVICE_STATE_PACKETS,
+	CommonSegmentData,
 	COMMAND_GET_DEVICE_STATUS,
 	COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES,
 	COMMAND_HEARTBEAT,
 	COMMAND_RESPONSE_DEVICE_STATUS,
+	CONF_COMMON_SEGMENTS,
 	CONF_DEVICES,
 	CONF_ENABLE_DEBUGGING,
 	CONF_LOG_ALL_INCOMING_PACKETS,
@@ -194,6 +196,14 @@ class JablotronAlarmControlPanel(JablotronControl):
 		super().__init__(central_unit, hass_device, panel_id)
 
 
+class JablotronCommonSegment(JablotronControl):
+
+	def __init__(self, central_unit: JablotronCentralUnit, hass_device: JablotronHassDevice, panel_id: str, name: str, sections: List[int]) -> None:
+		self.sections: List[int] = sections
+
+		super().__init__(central_unit, hass_device, panel_id, name)
+
+
 class JablotronProgrammableOutput(JablotronControl):
 
 	def __init__(self, central_unit: JablotronCentralUnit, pg_output_id: str, pg_output_name: str, pg_output_number: int) -> None:
@@ -316,6 +326,7 @@ class Jablotron:
 		await self._create_devices()
 		# We need to detect devices first
 		self._detect_sections_and_pg_outputs()
+		self._create_common_segments()
 
 	def central_unit(self) -> JablotronCentralUnit:
 		return self._central_unit
@@ -338,6 +349,25 @@ class Jablotron:
 		self.hass_entities[control_id] = hass_entity
 
 	def modify_alarm_control_panel_section_state(self, section: int, state: AlarmControlPanelState, code: str | None) -> None:
+		self._modify_alarm_control_panel_sections_state([section], state, code)
+
+	def modify_common_segment_state(self, common_segment: JablotronCommonSegment, state: AlarmControlPanelState, code: str | None) -> None:
+		# Filter to sections that actually exist on the panel.
+		valid_sections = [
+			section
+			for section in common_segment.sections
+			if self._get_section_alarm_id(section) in self.entities[EntityType.ALARM_CONTROL_PANEL]
+		]
+
+		if not valid_sections:
+			return
+
+		self._modify_alarm_control_panel_sections_state(valid_sections, state, code)
+
+	def _modify_alarm_control_panel_sections_state(self, sections: List[int], state: AlarmControlPanelState, code: str | None) -> None:
+		if not sections:
+			return
+
 		if code is None:
 			code = self._config[CONF_PASSWORD]
 
@@ -369,8 +399,9 @@ class Jablotron:
 			packets_to_send: List[bytes] = []
 
 			if self._successful_login is True:
-				modify_packet = self.int_to_bytes(int_packets[state] + section)
-				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
+				for section in sections:
+					modify_packet = self.int_to_bytes(int_packets[state] + section)
+					packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
 
 			if code != self._config[CONF_PASSWORD]:
 				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END))
@@ -624,6 +655,90 @@ class Jablotron:
 			)
 
 		return True
+
+	def _create_common_segments(self) -> None:
+		for index, common_segment_config in enumerate(self._get_common_segments_config()):
+			name = str(common_segment_config.get(CommonSegmentData.NAME.value, "") or "").strip()
+			sections = [int(s) for s in common_segment_config.get(CommonSegmentData.SECTIONS.value, [])]
+
+			if not name or not sections:
+				continue
+
+			common_segment_id = self._get_common_segment_id(index)
+			common_segment_hass_device = self._create_common_segment_hass_device(index, name)
+
+			self.entities[EntityType.ALARM_CONTROL_PANEL][common_segment_id] = JablotronCommonSegment(
+				self._central_unit,
+				common_segment_hass_device,
+				common_segment_id,
+				name,
+				sections,
+			)
+
+			initial_state = self._derive_common_segment_alarm_state(sections)
+			self._set_entity_initial_state(common_segment_id, initial_state)
+
+	def _get_common_segments_config(self) -> List[Dict[str, Any]]:
+		raw = self._options.get(CONF_COMMON_SEGMENTS, [])
+		if not isinstance(raw, list):
+			return []
+		return raw
+
+	def _derive_common_segment_alarm_state(self, sections: List[int]) -> AlarmControlPanelState | None:
+		states: List[AlarmControlPanelState] = []
+		for section in sections:
+			section_id = self._get_section_alarm_id(section)
+			section_state = self.entities_states.get(section_id)
+			if section_state is None:
+				continue
+			states.append(section_state)
+
+		if not states:
+			return None
+
+		# TRIGGERED and PENDING are urgent states that should bubble up to the
+		# common segment regardless of other sections — the alarm is going off
+		# / about to go off and the user needs to see it on the aggregate entity.
+		if AlarmControlPanelState.TRIGGERED in states:
+			return AlarmControlPanelState.TRIGGERED
+		if AlarmControlPanelState.PENDING in states:
+			return AlarmControlPanelState.PENDING
+
+		# A common segment is "armed" (or "arming") only when every constituent
+		# section is at least beyond DISARMED. Without this check, arming a
+		# single section with delayed arming would flip the whole common segment
+		# into ARMING even though the rest of the house stays disarmed.
+		if AlarmControlPanelState.DISARMED in states:
+			return AlarmControlPanelState.DISARMED
+
+		if AlarmControlPanelState.ARMING in states:
+			return AlarmControlPanelState.ARMING
+
+		# Pick the lowest common armed level so any mixed armed states still report
+		# the segment as armed (just not at the strictest level).
+		level: AlarmControlPanelState | None = None
+		for state in states:
+			if state == AlarmControlPanelState.ARMED_AWAY:
+				if level is None:
+					level = AlarmControlPanelState.ARMED_AWAY
+				continue
+			if state in (AlarmControlPanelState.ARMED_HOME, AlarmControlPanelState.ARMED_NIGHT):
+				level = state
+				continue
+			# Anything else (e.g. None or unexpected) — treat as not armed.
+			return AlarmControlPanelState.DISARMED
+
+		return level if level is not None else AlarmControlPanelState.DISARMED
+
+	def _refresh_common_segments_states(self) -> None:
+		for common_segment_id, control in self.entities[EntityType.ALARM_CONTROL_PANEL].items():
+			if not isinstance(control, JablotronCommonSegment):
+				continue
+			self._update_entity_state(
+				common_segment_id,
+				self._derive_common_segment_alarm_state(control.sections),
+				store_state=False,
+			)
 
 	def _create_pg_outputs(self) -> None:
 		if not self._has_pg_outputs():
@@ -1256,6 +1371,8 @@ class Jablotron:
 					self._convert_jablotron_section_state_to_fire_sensor_state(section_state),
 					store_state=False,
 				)
+
+		self._refresh_common_segments_states()
 
 		# No service mode found
 		self.in_service_mode = False
@@ -2484,6 +2601,19 @@ class Jablotron:
 			"section",
 			{"sectionNo": section},
 		)
+
+	@staticmethod
+	def _create_common_segment_hass_device(index: int, name: str) -> JablotronHassDevice:
+		return JablotronHassDevice(
+			"common_segment_{}".format(index),
+			name,
+			"common_segment",
+			{"name": name},
+		)
+
+	@staticmethod
+	def _get_common_segment_id(index: int) -> str:
+		return "common_segment_{}".format(index)
 
 	@staticmethod
 	def _get_section_alarm_id(section: int) -> str:
