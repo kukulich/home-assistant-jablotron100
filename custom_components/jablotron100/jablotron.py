@@ -281,14 +281,15 @@ class Jablotron:
 			self._serial_port = self._config[CONF_SERIAL_PORT]
 
 			# The hidraw device numbering can change across reboots when other USB
-			# HID devices are connected. If the configured path no longer points to
-			# a Jablotron device, transparently fall back to autodetection by USB
-			# vendor/product ID so the user does not have to reconfigure.
-			if not await self._hass.async_add_executor_job(
-				Jablotron._is_jablotron_serial_port, self._serial_port
-			):
+			# HID devices are connected. If the configured path no longer exists,
+			# transparently fall back to autodetection by USB vendor/product ID so
+			# the user does not have to reconfigure. We only trigger the fallback
+			# when the configured device node is missing — custom paths (e.g.
+			# Docker bind-mounts like /dev/jablotron or udev symlinks) cannot be
+			# verified via sysfs and must be trusted as long as they exist.
+			if not await self._hass.async_add_executor_job(os.path.exists, self._serial_port):
 				LOGGER.warning(
-					"Configured serial port %s does not point to a Jablotron device, attempting autodetection",
+					"Configured serial port %s does not exist, attempting autodetection",
 					self._serial_port,
 				)
 				detected_serial_port = await self._detect_serial_port()
