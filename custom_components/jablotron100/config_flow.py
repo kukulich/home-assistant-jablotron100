@@ -11,7 +11,7 @@ from homeassistant.helpers import selector
 import re
 import time
 import threading
-from typing import Any, Dict, Final, List
+from typing import Any, Dict, List
 import voluptuous as vol
 from .const import (
 	AUTODETECT_SERIAL_PORT,
@@ -37,6 +37,7 @@ from .const import (
 	DEFAULT_CONF_REQUIRE_CODE_TO_DISARM,
 	DOMAIN,
 	DeviceType,
+	EntityType,
 	LOGGER,
 	MAX_DEVICES,
 	MAX_PG_OUTPUTS,
@@ -55,7 +56,7 @@ from .errors import (
 	SerialPortNotDetected,
 	ServiceUnavailable,
 )
-from .jablotron import Jablotron
+from .jablotron import Jablotron, JablotronAlarmControlPanel
 
 
 def check_serial_port(serial_port: str) -> None:
@@ -160,22 +161,6 @@ def get_devices_fields(number_of_devices: int, default_values: List | None = Non
 
 def create_range_validation(minimum: int, maximum: int):
 	return vol.All(vol.Coerce(int), vol.Range(min=minimum, max=maximum))
-
-
-MAX_COMMON_SEGMENT_ROWS: Final = 5
-
-
-def _parse_sections_list(raw: str) -> List[int]:
-	"""Parse a comma/space separated section list. Raises ValueError on bad input."""
-	tokens = [t.strip() for t in re.split(r"[,\s]+", raw) if t.strip()]
-	sections: List[int] = []
-	for token in tokens:
-		value = int(token)
-		if value < 1 or value > MAX_SECTIONS:
-			raise ValueError(token)
-		if value not in sections:
-			sections.append(value)
-	return sections
 
 
 class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -412,8 +397,11 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 
 class JablotronOptionsFlow(OptionsFlow):
 	_options: Dict[str, Any]
+	_config_entry: ConfigEntry
+	_editing_segment_index: int | None = None
 
 	def __init__(self, config_entry: ConfigEntry) -> None:
+		self._config_entry = config_entry
 		self._options = deepcopy(dict(config_entry.options))
 
 	async def async_step_init(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -461,82 +449,143 @@ class JablotronOptionsFlow(OptionsFlow):
 		)
 
 	async def async_step_common_segments(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
-		max_rows = MAX_COMMON_SEGMENT_ROWS
-		errors: Dict[str, str] = {}
-
+		# Hub step — lists currently configured common segments and lets the
+		# user pick an action (add / edit / remove / save & exit). The actual
+		# add/edit form lives in async_step_common_segment_form, which dispatches
+		# back here on save.
 		if user_input is not None:
-			parsed: List[Dict[str, Any]] = []
-			any_invalid = False
+			action = str(user_input.get("action", ""))
 
-			for index in range(1, max_rows + 1):
-				name_field = "common_segment_name_{}".format(index)
-				sections_field = "common_segment_sections_{}".format(index)
+			if action == "add":
+				self._editing_segment_index = None
+				return await self.async_step_common_segment_form()
 
-				name = str(user_input.get(name_field, "") or "").strip()
-				sections_raw = str(user_input.get(sections_field, "") or "").strip()
-
-				if not name and not sections_raw:
-					continue
-
-				if not sections_raw:
-					errors[sections_field] = "common_segments_invalid_sections"
-					any_invalid = True
-					continue
-
-				if not name:
-					errors[name_field] = "common_segments_name_required"
-					any_invalid = True
-					continue
-
+			if action.startswith("edit_"):
 				try:
-					sections = _parse_sections_list(sections_raw)
+					self._editing_segment_index = int(action[len("edit_"):])
 				except ValueError:
-					errors[sections_field] = "common_segments_invalid_sections"
-					any_invalid = True
-					continue
+					self._editing_segment_index = None
+				return await self.async_step_common_segment_form()
 
-				if not sections:
-					errors[sections_field] = "common_segments_invalid_sections"
-					any_invalid = True
-					continue
+			if action.startswith("remove_"):
+				try:
+					index = int(action[len("remove_"):])
+				except ValueError:
+					return await self.async_step_common_segments()
+				segments = list(self._options.get(CONF_COMMON_SEGMENTS, []) or [])
+				if 0 <= index < len(segments):
+					del segments[index]
+					self._options[CONF_COMMON_SEGMENTS] = segments
+				return await self.async_step_common_segments()
 
-				parsed.append({
-					CommonSegmentData.NAME.value: name,
-					CommonSegmentData.SECTIONS.value: sections,
-				})
-
-			if not any_invalid:
-				self._options[CONF_COMMON_SEGMENTS] = parsed
+			if action == "save":
 				return self._save()
 
-		defaults: Dict[str, str] = {}
-		if user_input is not None:
-			# Preserve what the user typed on validation error.
-			for index in range(1, max_rows + 1):
-				name_field = "common_segment_name_{}".format(index)
-				sections_field = "common_segment_sections_{}".format(index)
-				defaults[name_field] = str(user_input.get(name_field, "") or "")
-				defaults[sections_field] = str(user_input.get(sections_field, "") or "")
-		else:
-			existing = self._options.get(CONF_COMMON_SEGMENTS, []) or []
-			for index in range(1, max_rows + 1):
-				row = existing[index - 1] if index - 1 < len(existing) else {}
-				name_default = str(row.get(CommonSegmentData.NAME.value, "") or "")
-				sections_value = row.get(CommonSegmentData.SECTIONS.value, []) or []
-				sections_default = ", ".join(str(s) for s in sections_value)
-				defaults["common_segment_name_{}".format(index)] = name_default
-				defaults["common_segment_sections_{}".format(index)] = sections_default
+		existing = self._options.get(CONF_COMMON_SEGMENTS, []) or []
 
-		schema_fields: Dict[Any, Any] = {}
-		for i in range(1, max_rows + 1):
-			schema_fields[vol.Optional("common_segment_name_{}".format(i), default=defaults["common_segment_name_{}".format(i)])] = str
-			schema_fields[vol.Optional("common_segment_sections_{}".format(i), default=defaults["common_segment_sections_{}".format(i)])] = str
+		options: List[Dict[str, str]] = [{"value": "add", "label": "+ Add common segment"}]
+		for i, seg in enumerate(existing):
+			name = str(seg.get(CommonSegmentData.NAME.value, "") or f"#{i + 1}")
+			sections_value = seg.get(CommonSegmentData.SECTIONS.value, []) or []
+			sections_str = ", ".join(str(s) for s in sections_value) if sections_value else "—"
+			options.append({"value": f"edit_{i}", "label": f"✎ Edit: {name} ({sections_str})"})
+			options.append({"value": f"remove_{i}", "label": f"✕ Remove: {name}"})
+		options.append({"value": "save", "label": "✓ Save and exit"})
 
 		return self.async_show_form(
 			step_id="common_segments",
-			data_schema=vol.Schema(schema_fields),
+			data_schema=vol.Schema({
+				vol.Required("action"): selector.SelectSelector(
+					selector.SelectSelectorConfig(
+						options=options,
+						mode=selector.SelectSelectorMode.LIST,
+					),
+				),
+			}),
+		)
+
+	async def async_step_common_segment_form(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
+		# Add (when _editing_segment_index is None) or edit (when set) a single
+		# common segment. On save returns to the hub.
+		errors: Dict[str, str] = {}
+		existing = list(self._options.get(CONF_COMMON_SEGMENTS, []) or [])
+		editing_index = self._editing_segment_index
+		is_edit = editing_index is not None and 0 <= editing_index < len(existing)
+
+		name_default = ""
+		sections_default: List[str] = []
+
+		if is_edit:
+			seg = existing[editing_index]
+			name_default = str(seg.get(CommonSegmentData.NAME.value, "") or "")
+			sections_default = [str(s) for s in seg.get(CommonSegmentData.SECTIONS.value, []) or []]
+
+		if user_input is not None:
+			name_default = str(user_input.get("name", "") or "").strip()
+			sections_default = list(user_input.get("sections", []) or [])
+
+			try:
+				sections_int = [int(s) for s in sections_default]
+			except (ValueError, TypeError):
+				sections_int = []
+
+			if not name_default:
+				errors["name"] = "common_segments_name_required"
+			if not sections_int:
+				errors["sections"] = "common_segments_invalid_sections"
+
+			if not errors:
+				new_segment = {
+					CommonSegmentData.NAME.value: name_default,
+					CommonSegmentData.SECTIONS.value: sections_int,
+				}
+				if is_edit:
+					existing[editing_index] = new_segment
+				else:
+					existing.append(new_segment)
+				self._options[CONF_COMMON_SEGMENTS] = existing
+				self._editing_segment_index = None
+				return await self.async_step_common_segments()
+
+		section_options = self._get_section_selector_options(
+			include=[int(s) for s in sections_default if str(s).isdigit()],
+		)
+
+		return self.async_show_form(
+			step_id="common_segment_form",
+			data_schema=vol.Schema({
+				vol.Required("name", default=name_default): str,
+				vol.Required("sections", default=sections_default): selector.SelectSelector(
+					selector.SelectSelectorConfig(
+						options=section_options,
+						multiple=True,
+						mode=selector.SelectSelectorMode.LIST,
+					),
+				),
+			}),
 			errors=errors,
 		)
+
+	def _get_section_selector_options(self, include: List[int] | None = None) -> List[Dict[str, str]]:
+		# Build the dropdown of available section numbers, preferring whatever
+		# the running Jablotron instance has detected. Falls back to the full
+		# MAX_SECTIONS range if the integration is not yet loaded.
+		sections: set[int] = set()
+		try:
+			jablotron = self._config_entry.runtime_data
+			for control in jablotron.entities[EntityType.ALARM_CONTROL_PANEL].values():
+				if isinstance(control, JablotronAlarmControlPanel):
+					sections.add(control.section)
+		except (AttributeError, KeyError):
+			pass
+
+		if include:
+			sections.update(include)
+
+		if not sections:
+			sections = set(range(1, MAX_SECTIONS + 1))
+
+		return [{"value": str(s), "label": f"Section {s}"} for s in sorted(sections)]
 
 	async def async_step_debug(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
 		if user_input is not None:

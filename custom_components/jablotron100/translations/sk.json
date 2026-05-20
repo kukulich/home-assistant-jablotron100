@@ -522,18 +522,17 @@
 			},
 			"common_segments": {
 				"title": "Spoločné segmenty",
-				"description": "Definujte virtuálne spoločné segmenty, ktoré jedným príkazom zabezpečia alebo odbezpečia viacero sekcií. Zadajte názov a zoznam čísel sekcií oddelených čiarkou (napr. \"1, 2, 3\"). Prázdne riadky sa ignorujú.",
+				"description": "Spravuj virtuálne spoločné segmenty, ktoré jedným príkazom zabezpečia alebo odbezpečia viacero sekcií. Vyber akciu nižšie.",
 				"data": {
-					"common_segment_name_1": "Názov 1",
-					"common_segment_sections_1": "Sekcie 1",
-					"common_segment_name_2": "Názov 2",
-					"common_segment_sections_2": "Sekcie 2",
-					"common_segment_name_3": "Názov 3",
-					"common_segment_sections_3": "Sekcie 3",
-					"common_segment_name_4": "Názov 4",
-					"common_segment_sections_4": "Sekcie 4",
-					"common_segment_name_5": "Názov 5",
-					"common_segment_sections_5": "Sekcie 5"
+					"action": "Akcia"
+				}
+			},
+			"common_segment_form": {
+				"title": "Spoločný segment",
+				"description": "Pomenuj segment a vyber ktoré fyzické sekcie ovláda.",
+				"data": {
+					"name": "Názov",
+					"sections": "Sekcie"
 				}
 			},
 			"debug": {
