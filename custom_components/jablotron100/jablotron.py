@@ -1014,7 +1014,11 @@ class Jablotron:
 		self._update_all_hass_entities()
 
 	def _read_packets(self) -> None:
-		stream = self._open_read_stream()
+		try:
+			stream = self._open_read_stream()
+		except OSError as ex:
+			LOGGER.warning("Initial read stream open failed: %s", ex)
+			stream = None
 		last_restarted_at_hour = datetime.datetime.now().hour
 		consecutive_errors = 0
 
@@ -1026,6 +1030,10 @@ class Jablotron:
 					stream = self._open_read_stream()
 
 				while True:
+
+					if stream is None:
+						stream = self._open_read_stream()
+						LOGGER.warning("Read stream reopened on %s", self._serial_port)
 
 					actual_hour = datetime.datetime.now().hour
 					if last_restarted_at_hour != actual_hour:
@@ -1041,6 +1049,11 @@ class Jablotron:
 
 					if not raw_packet:
 						self._set_unavailable()
+						try:
+							stream.close()
+						except Exception:
+							pass
+						stream = None
 						break
 
 					if self.last_update_success is False:
