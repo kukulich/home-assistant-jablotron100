@@ -1584,26 +1584,7 @@ class Jablotron:
 
 		for info_packet in info_packets:
 			if info_packet.type == DeviceInfoType.INPUT_VALUE:
-				input_type = info_packet.packet[2:3]
-
-				# Temperature
-				if input_type == b"\x00":
-					modifier = Jablotron.bytes_to_int(info_packet.packet[4:5])
-
-					if modifier >= 128:
-						modifier -= 256
-
-					temperature = round((Jablotron.bytes_to_int(info_packet.packet[3:4]) + (255 * modifier)) / 10, 1)
-
-					self._update_entity_state(
-						self._get_device_temperature_sensor_id(device_number),
-						temperature,
-					)
-				else:
-					self._log_error_with_packet(
-						"Unknown input type {} of value info packet {}".format(Jablotron.format_packet_to_string(input_type), Jablotron.format_packet_to_string(info_packet.packet)),
-						packet,
-					)
+				self._parse_device_input_value(info_packet, device_number, packet)
 			elif info_packet.type == DeviceInfoType.INPUT_EXTENDED:
 				# Ignore
 				pass
@@ -1627,6 +1608,8 @@ class Jablotron:
 					self._get_device_temperature_sensor_id(device_number),
 					temperature,
 				)
+			elif info_packet.type == DeviceInfoType.INPUT_VALUE:
+				self._parse_device_input_value(info_packet, device_number, packet)
 			elif info_packet.type == DeviceInfoType.INPUT_EXTENDED:
 				# Ignore
 				pass
@@ -1635,6 +1618,28 @@ class Jablotron:
 					"Unexpected info packet {} of smoke detector".format(Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
+
+	def _parse_device_input_value(self, info_packet: ParsedDeviceInfoPacket, device_number: int, packet: bytes) -> None:
+		input_type = info_packet.packet[2:3]
+
+		# Temperature
+		if input_type == b"\x00":
+			modifier = Jablotron.bytes_to_int(info_packet.packet[4:5])
+
+			if modifier >= 128:
+				modifier -= 256
+
+			temperature = round((Jablotron.bytes_to_int(info_packet.packet[3:4]) + (255 * modifier)) / 10, 1)
+
+			self._update_entity_state(
+				self._get_device_temperature_sensor_id(device_number),
+				temperature,
+			)
+		else:
+			self._log_error_with_packet(
+				"Unknown input type {} of value info packet {}".format(Jablotron.format_packet_to_string(input_type), Jablotron.format_packet_to_string(info_packet.packet)),
+				packet,
+			)
 
 	def _parse_device_siren_info_packet(self, info_subpacket: bytes, device_number: int, packet: bytes) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_subpacket(info_subpacket, packet)
