@@ -10,6 +10,8 @@ from custom_components.jablotron100.const import (
 	DeviceConnection,
 	DeviceData,
 	DeviceFault,
+	DeviceStateEvent,
+	DeviceStateFlag,
 	DeviceType,
 	PACKET_DEVICE_STATE,
 	SIGNAL_STRENGTH_STEP,
@@ -249,6 +251,40 @@ def test_parse_device_number(device_number: int) -> None:
 	packet = create_device_state_packet(device_number)
 
 	assert Jablotron._parse_device_number_from_device_state_packet(packet) == device_number
+
+
+@pytest.mark.parametrize(
+	("event_info", "expected_event", "expected_raw_flags", "no_reaction_when_partially_armed"),
+	[
+		pytest.param(0x00, DeviceStateEvent.INSTANT_ALARM, 0x00, False, id="instant"),
+		pytest.param(0x80, DeviceStateEvent.INSTANT_ALARM, 0x80, True, id="instant-no-partial-reaction"),
+		pytest.param(0x01, DeviceStateEvent.DELAYED_ALARM_A, 0x00, False, id="delayed-a"),
+		pytest.param(0x81, DeviceStateEvent.DELAYED_ALARM_A, 0x80, True, id="delayed-a-no-partial-reaction"),
+		pytest.param(0xA2, DeviceStateEvent.DELAYED_ALARM_B, 0xA0, True, id="delayed-b-no-partial-reaction"),
+		pytest.param(0xA3, DeviceStateEvent.DELAYED_ALARM_C, 0xA0, True, id="delayed-c-no-partial-reaction"),
+		pytest.param(0xA8, DeviceStateEvent.REPEATED_ALARM, 0xA0, True, id="repeated-no-partial-reaction"),
+		pytest.param(0x4F, DeviceStateEvent.HEARTBEAT, 0x40, False, id="heartbeat"),
+		pytest.param(0x34, DeviceStateEvent.BATTERY_FAULT, 0x20, False, id="battery-fault"),
+	],
+)
+def test_parse_device_state_event_and_known_flags(
+	event_info: int,
+	expected_event: DeviceStateEvent,
+	expected_raw_flags: int,
+	no_reaction_when_partially_armed: bool,
+) -> None:
+	packet = create_device_state_packet(1, state_info=event_info)
+
+	assert Jablotron._parse_device_state_event(packet) == expected_event
+	flags = Jablotron._parse_device_state_flags(packet)
+	assert int(flags) == expected_raw_flags
+	assert bool(flags & DeviceStateFlag.NO_REACTION_WHEN_PARTIALLY_ARMED) == no_reaction_when_partially_armed
+
+
+def test_parse_unknown_device_state_event() -> None:
+	packet = create_device_state_packet(1, state_info=0x0C)
+
+	assert Jablotron._parse_device_state_event(packet) is None
 
 
 @pytest.mark.parametrize("device_number", [1, 37, 38, 101, 102, 165, 166, 229, 230])

@@ -67,7 +67,11 @@ from .const import (
 	DeviceFault,
 	DeviceInfoType,
 	DeviceNumber,
+	DeviceStateEvent,
+	DeviceStateFlag,
 	DeviceType,
+	DEVICE_STATE_EVENT_MASK,
+	DEVICE_STATE_FLAGS_MASK,
 	EVENT_WRONG_CODE,
 	EMPTY_PACKET,
 	EntityType,
@@ -2425,22 +2429,35 @@ class Jablotron:
 		return Jablotron.binary_to_int(packet_binary[2:10])
 
 	@staticmethod
+	def _parse_device_state_event(packet: bytes) -> DeviceStateEvent | None:
+		event_value = Jablotron.bytes_to_int(packet[2:3]) & DEVICE_STATE_EVENT_MASK
+
+		try:
+			return DeviceStateEvent(event_value)
+		except ValueError:
+			return None
+
+	@staticmethod
+	def _parse_device_state_flags(packet: bytes) -> DeviceStateFlag:
+		return DeviceStateFlag(Jablotron.bytes_to_int(packet[2:3]) & DEVICE_STATE_FLAGS_MASK)
+
+	@staticmethod
 	def _parse_device_fault_from_device_state_packet(packet: bytes) -> DeviceFault | None:
-		packet_type = Jablotron.bytes_to_int(packet[2:3]) & 0x1f
+		event = Jablotron._parse_device_state_event(packet)
+		if event is None:
+			return None
 
-		# Battery fault is 0x14; 0x04 with the fifth bit unset is activity.
-		if packet_type == 0x14:
-			return DeviceFault.BATTERY
-
-		if packet_type in (0x05, 0x06, 0x07):
-			return DeviceFault(packet_type & 0x03)
-
-		return None
+		return {
+			DeviceStateEvent.BATTERY_FAULT: DeviceFault.BATTERY,
+			DeviceStateEvent.POWER_SUPPLY_FAULT: DeviceFault.POWER_SUPPLY,
+			DeviceStateEvent.SABOTAGE: DeviceFault.SABOTAGE,
+			DeviceStateEvent.FAULT: DeviceFault.UNKNOWN,
+		}.get(event)
 
 	@staticmethod
 	def _is_heartbeat_device_state_packet(packet: bytes) -> bool:
-		packet_type = Jablotron.bytes_to_int(packet[2:3])
-		return packet_type == 0x33 or packet_type & 0x0f == 0x0f
+		event_value = Jablotron.bytes_to_int(packet[2:3])
+		return event_value == 0x33 or Jablotron._parse_device_state_event(packet) == DeviceStateEvent.HEARTBEAT
 
 	@staticmethod
 	def _parse_device_number_from_device_info_packet(packet: bytes) -> int:

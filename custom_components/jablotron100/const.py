@@ -1,6 +1,6 @@
 """Jablotron specific constants."""
 import logging
-from enum import Enum, StrEnum
+from enum import Enum, IntEnum, IntFlag, StrEnum
 from typing import Final
 
 LOGGER: Final = logging.getLogger(__package__)
@@ -255,6 +255,31 @@ class DeviceFault(Enum):
 	POWER_SUPPLY = 1
 	SABOTAGE = 2
 	UNKNOWN = 3
+
+
+class DeviceStateEvent(IntEnum):
+	INSTANT_ALARM = 0x00
+	DELAYED_ALARM_A = 0x01
+	DELAYED_ALARM_B = 0x02
+	DELAYED_ALARM_C = 0x03
+	ACTIVITY = 0x04
+	POWER_SUPPLY_FAULT = 0x05
+	SABOTAGE = 0x06
+	FAULT = 0x07
+	REPEATED_ALARM = 0x08
+	HEARTBEAT = 0x0F
+	BATTERY_FAULT = 0x14
+
+
+# The remaining upper flag bits are preserved by the mask below, but their
+# meaning has not been verified yet.
+class DeviceStateFlag(IntFlag):
+	NONE = 0
+	NO_REACTION_WHEN_PARTIALLY_ARMED = 0x80
+
+
+DEVICE_STATE_EVENT_MASK: Final = 0x1F
+DEVICE_STATE_FLAGS_MASK: Final = 0xE0
 
 
 BATTERY_LEVEL_NO_CHANGE_FROM_PREVIOUS_STATE: Final[bytes] = b"\x0b"
