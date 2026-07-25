@@ -1647,7 +1647,7 @@ class Jablotron:
 			if modifier >= 128:
 				modifier -= 256
 
-			temperature = round((Jablotron.bytes_to_int(info_packet.packet[3:4]) + (255 * modifier)) / 10, 1)
+			temperature = round((Jablotron.bytes_to_int(info_packet.packet[3:4]) + (256 * modifier)) / 10, 1)
 
 			self._update_entity_state(
 				self._get_device_temperature_sensor_id(device_number),
@@ -1671,16 +1671,21 @@ class Jablotron:
 				continue
 
 			channel = info_packet.packet[1:2]
+			value_packet = (
+				info_packet.packet[2:4]
+				if info_packet.type == DeviceInfoType.POWER_PRECISE
+				else info_packet.packet[2:3]
+			)
 
 			if channel == b"\x00":
 				self._update_entity_state(
 					self._get_device_battery_standby_voltage_sensor_id(device_number),
-					self.bytes_to_float(info_packet.packet[2:3]),
+					self.bytes_to_float(value_packet),
 				)
 			elif channel == b"\x01":
 				self._update_entity_state(
 					self._get_device_battery_load_voltage_sensor_id(device_number),
-					self.bytes_to_float(info_packet.packet[2:3]),
+					self.bytes_to_float(value_packet),
 				)
 			else:
 				self._log_error_with_packet(
@@ -1705,7 +1710,7 @@ class Jablotron:
 				continue
 
 			if info_packet.packet[1:2] != EMPTY_PACKET:
-				pulses = self.bytes_to_int(info_packet.packet[1:2]) + 255 * self.bytes_to_int(info_packet.packet[2:3])
+				pulses = self.bytes_to_int(info_packet.packet[1:3])
 
 				# We have to add it dynamically
 				self._add_pulse_to_electricity_meter(device_number, pulse_number)
