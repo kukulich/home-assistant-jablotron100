@@ -25,6 +25,11 @@ except ModuleNotFoundError:
 	entity_registry = ModuleType("homeassistant.helpers.entity_registry")
 
 	class AlarmControlPanelState(StrEnum):
+		ARMED_AWAY = "armed_away"
+		ARMED_HOME = "armed_home"
+		ARMED_NIGHT = "armed_night"
+		ARMING = "arming"
+		DISARMED = "disarmed"
 		PENDING = "pending"
 		TRIGGERED = "triggered"
 

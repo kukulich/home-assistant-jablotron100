@@ -2750,7 +2750,7 @@ class Jablotron:
 			SectionPrimaryState(Jablotron.binary_to_int(section_binary[5:8])),
 			arming=section_binary[0:1] == "1",
 			pending=section_binary[1:2] == "1",
-			triggered=section_binary[3:4] == "1" or section_binary[4:5] == "1" or section_binary[12:13] == "1" or section_binary[13:14] == "1",
+			triggered=any(section_binary[index] == "1" for index in (3, 4, 9, 12, 13)),
 			problem=section_binary[2:3] == "1",
 			sabotage=section_binary[11:12] == "1",
 			fire=section_binary[14:15] == "1",
