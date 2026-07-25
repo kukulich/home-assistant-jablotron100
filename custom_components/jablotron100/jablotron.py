@@ -2269,13 +2269,12 @@ class Jablotron:
 					self._last_authorized_user_or_device = "Device {}".format(device_number)
 					return
 
-		offset = 104 if self._is_central_unit_101_or_similar() else 44
+		offset = 105 if self._is_central_unit_101_or_similar() else 45
 		if device_number in (DeviceNumber.MOBILE_APPLICATION.value, DeviceNumber.USB.value):
 			offset = offset - 1
 
-		# Each user occupies 4 consecutive values in the packet byte after the
-		# fixed offset, so // 4 converts the offset-relative position into the
-		# user number.
+		# Keypads encode user 0 at the fixed offset and increment by four for
+		# each user. System devices use the same sequence shifted down by one.
 		user_no = (self.bytes_to_int(packet[3:4]) - offset) // 4
 		self._last_authorized_user_or_device = "User {}".format(user_no)
 		LOGGER.debug("Authorized user: {}".format(user_no))
