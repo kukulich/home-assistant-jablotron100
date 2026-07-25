@@ -2483,12 +2483,12 @@ class Jablotron:
 		if battery_level_packet == BATTERY_LEVEL_NO_CHANGE_FROM_PREVIOUS_STATE:
 			return None
 
-		if battery_level_packet not in BATTERY_LEVELS_TO_IGNORE:
-			battery_level = Jablotron.bytes_to_int(battery_level_packet) * BATTERY_LEVEL_STEP
-			if battery_level > 100:
-				raise InvalidBatteryLevel
-		else:
-			battery_level = None
+		if battery_level_packet in BATTERY_LEVELS_TO_IGNORE:
+			return None
+
+		battery_level = Jablotron.bytes_to_int(battery_level_packet) * BATTERY_LEVEL_STEP
+		if battery_level > 100:
+			raise InvalidBatteryLevel
 
 		# 2:3 empty battery
 		# 3:4 problem of battery
