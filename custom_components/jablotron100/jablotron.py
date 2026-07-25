@@ -1444,8 +1444,7 @@ class Jablotron:
 			self._log_error_with_packet("Unknown state packet", packet)
 			return
 
-		packet_state_binary = self._bytes_to_binary(packet[2:3])
-		is_heartbeat = self.binary_to_int(packet_state_binary[4:]) == 15
+		is_heartbeat = self._is_heartbeat_device_state_packet(packet)
 
 		if not is_heartbeat:
 			is_fault = self._process_possible_fault_in_device_state_packet(device_number, device_state, packet)
@@ -2397,6 +2396,27 @@ class Jablotron:
 		return Jablotron.binary_to_int(packet_binary[2:10])
 
 	@staticmethod
+<<<<<<< HEAD
+=======
+	def _parse_device_fault_from_device_state_packet(packet: bytes) -> DeviceFault | None:
+		packet_type = Jablotron.bytes_to_int(packet[2:3]) & 0x1f
+
+		# Battery fault is 0x14; 0x04 with the fifth bit unset is activity.
+		if packet_type == 0x14:
+			return DeviceFault.BATTERY
+
+		if packet_type in (0x05, 0x06, 0x07):
+			return DeviceFault(packet_type & 0x03)
+
+		return None
+
+	@staticmethod
+	def _is_heartbeat_device_state_packet(packet: bytes) -> bool:
+		packet_type = Jablotron.bytes_to_int(packet[2:3])
+		return packet_type == 0x33 or packet_type & 0x0f == 0x0f
+
+	@staticmethod
+>>>>>>> 9b8f0a0 (WIP)
 	def _parse_device_number_from_device_info_packet(packet: bytes) -> int:
 		return Jablotron.bytes_to_int(packet[2:3])
 
@@ -2506,6 +2526,8 @@ class Jablotron:
 			high_device_number_offset = -64
 		elif device_number <= 165:
 			high_device_number_offset = -128
+		elif device_number <= 229:
+			high_device_number_offset = -192
 		else:
 			high_device_number_offset = -256
 
