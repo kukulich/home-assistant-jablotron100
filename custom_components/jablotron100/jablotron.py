@@ -264,7 +264,7 @@ class Jablotron:
 	def code_contains_asterisk(self) -> bool:
 		return self._config[CONF_PASSWORD].find("*") != -1
 
-	def last_authorized_user_or_device(self) -> int | None:
+	def last_authorized_user_or_device(self) -> str | None:
 		return self._last_authorized_user_or_device
 
 	async def initialize(self) -> None:
