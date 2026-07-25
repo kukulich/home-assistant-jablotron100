@@ -5,9 +5,9 @@ from homeassistant.components.sensor import (
 	SensorStateClass,
 )
 from homeassistant.const import (
-	PERCENTAGE,
 	UnitOfElectricCurrent,
 	UnitOfElectricPotential,
+	UnitOfRatio,
 	UnitOfTemperature,
 )
 from homeassistant.core import callback, HomeAssistant
@@ -27,7 +27,7 @@ SENSOR_TYPES: Dict[EntityType, SensorEntityDescription] = {
 	EntityType.SIGNAL_STRENGTH: SensorEntityDescription(
 		key=EntityType.SIGNAL_STRENGTH,
 		state_class=SensorStateClass.MEASUREMENT,
-		native_unit_of_measurement=PERCENTAGE,
+		native_unit_of_measurement=UnitOfRatio.PERCENTAGE,
 		suggested_display_precision=0,
 		entity_category=EntityCategory.DIAGNOSTIC,
 		icon="mdi:wifi",
@@ -35,7 +35,7 @@ SENSOR_TYPES: Dict[EntityType, SensorEntityDescription] = {
 	EntityType.GSM_SIGNAL_STRENGTH: SensorEntityDescription(
 		key=EntityType.GSM_SIGNAL_STRENGTH,
 		state_class=SensorStateClass.MEASUREMENT,
-		native_unit_of_measurement=PERCENTAGE,
+		native_unit_of_measurement=UnitOfRatio.PERCENTAGE,
 		suggested_display_precision=0,
 		entity_category=EntityCategory.DIAGNOSTIC,
 		icon="mdi:wifi",
@@ -43,7 +43,7 @@ SENSOR_TYPES: Dict[EntityType, SensorEntityDescription] = {
 	EntityType.BATTERY_LEVEL: SensorEntityDescription(
 		key=EntityType.BATTERY_LEVEL,
 		state_class=SensorStateClass.MEASUREMENT,
-		native_unit_of_measurement=PERCENTAGE,
+		native_unit_of_measurement=UnitOfRatio.PERCENTAGE,
 		suggested_display_precision=0,
 		device_class=SensorDeviceClass.BATTERY,
 		entity_category=EntityCategory.DIAGNOSTIC,

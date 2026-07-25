@@ -19,7 +19,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.entity_registry import EntityRegistry, async_get as async_get_entity_registry
 import math
 import os
 import threading
@@ -106,7 +106,7 @@ from .const import (
 	UI_CONTROL_MODIFY_SECTION,
 	UI_CONTROL_TOGGLE_PG_OUTPUT,
 )
-from typing import Any, Dict, Final, List, Mapping
+from typing import Any, BinaryIO, Dict, Final, List, Mapping
 from .errors import (
 	InvalidBatteryLevel,
 	SerialPortNotDetected,
@@ -213,11 +213,11 @@ class JablotronBatteryState:
 
 class Jablotron:
 
-	def __init__(self, hass: core.HomeAssistant, config_entry_id: str, config: Dict[str, Any], options: Dict[str, Any]) -> None:
+	def __init__(self, hass: core.HomeAssistant, config_entry_id: str, config: Mapping[str, Any], options: Mapping[str, Any]) -> None:
 		self._hass: core.HomeAssistant = hass
 		self._config_entry_id: str = config_entry_id
-		self._config: Dict[str, Any] = config
-		self._options: Dict[str, Any] = options
+		self._config: Dict[str, Any] = dict(config)
+		self._options: Dict[str, Any] = dict(options)
 		self._main_thread = threading.current_thread()
 
 		self._central_unit: JablotronCentralUnit | None = None
@@ -238,7 +238,7 @@ class Jablotron:
 		self._stream_diagnostics_event: threading.Event = threading.Event()
 
 		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
-		self._stored_data: dict | None = None
+		self._stored_data: dict = {}
 
 		self._central_unit_data: Dict[CentralUnitData, Any] = {}
 		self._devices_data: Dict[str, Dict[DeviceData, Any]] = {}
@@ -281,6 +281,7 @@ class Jablotron:
 				raise SerialPortNotDetected("No Jablotron USB device detected")
 		else:
 			self._serial_port = self._config[CONF_SERIAL_PORT]
+			assert self._serial_port is not None
 
 			# The hidraw device numbering can change across reboots when other USB
 			# HID devices are connected. If the configured path no longer exists,
@@ -308,9 +309,10 @@ class Jablotron:
 		self._create_central_unit_sensors()
 
 		# Initialize stream threads
-		self._stream_thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
-		self._stream_thread_pool_executor.submit(self._read_packets)
-		self._stream_thread_pool_executor.submit(self._keepalive)
+		stream_thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
+		self._stream_thread_pool_executor = stream_thread_pool_executor
+		stream_thread_pool_executor.submit(self._read_packets)
+		stream_thread_pool_executor.submit(self._keepalive)
 
 		self.last_update_success = True
 
@@ -321,13 +323,15 @@ class Jablotron:
 		self._detect_sections_and_pg_outputs()
 
 	def central_unit(self) -> JablotronCentralUnit:
+		assert self._central_unit is not None
+
 		return self._central_unit
 
 	def shutdown_and_clean(self) -> None:
 		self.shutdown()
 
 		unique_id = self._get_unique_id()
-		if self._stored_data is not None and unique_id in self._stored_data:
+		if unique_id in self._stored_data:
 			del self._stored_data[unique_id]
 			self._store_data_to_store_threadsafe()
 
@@ -340,9 +344,11 @@ class Jablotron:
 	def subscribe_hass_entity_for_updates(self, control_id: str, hass_entity: JablotronEntity) -> None:
 		self.hass_entities[control_id] = hass_entity
 
-	def modify_alarm_control_panel_section_state(self, section: int, state: AlarmControlPanelState, code: str | None) -> None:
-		if code is None:
-			code = self._config[CONF_PASSWORD]
+	def modify_alarm_control_panel_section_state(self, section: int, state: AlarmControlPanelState, entered_code: str | None) -> None:
+		configured_code = self._config[CONF_PASSWORD]
+		assert isinstance(configured_code, str)
+
+		code = configured_code if entered_code is None else entered_code
 
 		if len(code) < CODE_MIN_LENGTH:
 			self._login_error()
@@ -360,14 +366,16 @@ class Jablotron:
 		# Reset
 		self._successful_login = True
 
-		def after_modify_callback(_) -> None:
+		@core.callback
+		def after_modify_callback(_: datetime.datetime) -> None:
 			# Runs on the event loop; offload the blocking serial I/O.
 			self._hass.async_add_executor_job(
 				self._send_packet,
 				self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
 			)
 
-		def after_login_callback(_) -> None:
+		@core.callback
+		def after_login_callback(_: datetime.datetime | None) -> None:
 			# Runs on the event loop; offload the blocking serial I/O.
 			packets_to_send: List[bytes] = []
 
@@ -375,16 +383,16 @@ class Jablotron:
 				modify_packet = self.int_to_bytes(int_packets[state] + section)
 				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
 
-			if code != self._config[CONF_PASSWORD]:
+			if code != configured_code:
 				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END))
-				packets_to_send.extend(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
+				packets_to_send.extend(self.create_packets_keepalive(configured_code))
 
 			if packets_to_send:
 				self._hass.async_add_executor_job(self._send_packets, packets_to_send)
 
-			async_call_later(self._hass, 1.0, after_modify_callback)
+			async_call_later(self._hass, 1.0, core.HassJob(after_modify_callback))
 
-		if code != self._config[CONF_PASSWORD]:
+		if code != configured_code:
 			login_packets = [
 				self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END),
 				self.create_packet_authorisation_code(code),
@@ -420,13 +428,12 @@ class Jablotron:
 
 	async def _load_stored_data(self) -> None:
 		try:
-			self._stored_data = await self._store.async_load()
+			stored_data = await self._store.async_load()
 		except NotImplementedError:
 			# Version upgrade - no migration implemented
-			pass
+			stored_data = None
 
-		if self._stored_data is None:
-			self._stored_data = {}
+		self._stored_data = stored_data or {}
 
 		unique_id = self._get_unique_id()
 
@@ -515,10 +522,9 @@ class Jablotron:
 			stop_event.set()
 			thread_pool_executor.shutdown(wait=False, cancel_futures=True)
 
-		if self._central_unit is None:
-			raise ShouldNotHappen
+		central_unit = self.central_unit()
 
-		LOGGER.debug("Central unit: {} (hardware: {}, firmware: {})".format(self._central_unit.model, self._central_unit.hardware_version, self._central_unit.firmware_version))
+		LOGGER.debug("Central unit: {} (hardware: {}, firmware: {})".format(central_unit.model, central_unit.hardware_version, central_unit.firmware_version))
 
 	def _detect_sections_and_pg_outputs(self) -> None:
 		stop_event = threading.Event()
@@ -604,7 +610,7 @@ class Jablotron:
 
 		if section_alarm_id not in self.entities[EntityType.ALARM_CONTROL_PANEL]:
 			self.entities[EntityType.ALARM_CONTROL_PANEL][section_alarm_id] = JablotronAlarmControlPanel(
-				self._central_unit,
+				self.central_unit(),
 				section_hass_device,
 				section_alarm_id,
 				section,
@@ -639,7 +645,7 @@ class Jablotron:
 				continue
 
 			self.entities[EntityType.PROGRAMMABLE_OUTPUT][pg_output_id] = JablotronProgrammableOutput(
-				self._central_unit,
+				self.central_unit(),
 				pg_output_id,
 				self._get_pg_output_name(pg_output_number),
 				pg_output_number,
@@ -756,6 +762,9 @@ class Jablotron:
 			else:
 				devices_sections_packet = packet
 
+		if devices_sections_packet is None:
+			raise ShouldNotHappen
+
 		device_number = 0
 		for packet_offset in range(3, len(devices_sections_packet)):
 			sections_packet_binary = self._bytes_to_binary(devices_sections_packet[packet_offset:(packet_offset + 1)])
@@ -799,9 +808,12 @@ class Jablotron:
 
 			# State sensor
 			if self._is_device_with_state(device_number):
+				state_entity_type = self._get_device_state_entity_type(device_type)
+				assert state_entity_type is not None
+
 				self._add_entity(
 					hass_device,
-					self._get_device_state_entity_type(device_type),
+					state_entity_type,
 					self._get_device_state_sensor_id(device_number),
 					STATE_OFF,
 				)
@@ -974,8 +986,13 @@ class Jablotron:
 				devices_to_update.append(device_number)
 
 		if self._is_central_unit_103_or_similar():
-			devices_to_update.append(self._get_central_unit_lan_connection_device_number())
-			devices_to_update.append(self._get_central_unit_gsm_device_number())
+			lan_connection_device_number = self._get_central_unit_lan_connection_device_number()
+			gsm_device_number = self._get_central_unit_gsm_device_number()
+			assert lan_connection_device_number is not None
+			assert gsm_device_number is not None
+
+			devices_to_update.append(lan_connection_device_number)
+			devices_to_update.append(gsm_device_number)
 
 		for device_number in devices_to_update:
 			self._stream_diagnostics_event.clear()
@@ -999,9 +1016,13 @@ class Jablotron:
 		return self._config[CONF_NUMBER_OF_PG_OUTPUTS] > 0
 
 	def _login_error(self) -> None:
+		from .event import JablotronEventEntity
+
 		for control in self.entities[EntityType.EVENT_LOGIN].values():
 			if control.id in self.hass_entities:
-				self.hass_entities[control.id].trigger_event(EventLoginType.WRONG_CODE)
+				entity = self.hass_entities[control.id]
+				assert isinstance(entity, JablotronEventEntity)
+				entity.trigger_event(EventLoginType.WRONG_CODE)
 
 		self._hass.bus.fire(EVENT_WRONG_CODE)
 
@@ -1181,18 +1202,25 @@ class Jablotron:
 		stream.write(packet)
 
 		if self._main_thread == threading.current_thread():
-			async def callback(_) -> None:
+			@core.callback
+			def callback(_: datetime.datetime) -> None:
 				stream.close()
 
-			async_call_later(self._hass, 0.1, callback)
+			async_call_later(self._hass, 0.1, core.HassJob(callback))
 		else:
 			time.sleep(0.1)
 			stream.close()
 
-	def _open_write_stream(self):
+	def _open_write_stream(self) -> BinaryIO:
+		if self._serial_port is None:
+			raise SerialPortNotDetected
+
 		return open(self._serial_port, "wb", buffering=0)
 
-	def _open_read_stream(self):
+	def _open_read_stream(self) -> BinaryIO:
+		if self._serial_port is None:
+			raise SerialPortNotDetected
+
 		return open(self._serial_port, "rb", buffering=0)
 
 	def _redetect_serial_port(self) -> None:
@@ -1363,7 +1391,7 @@ class Jablotron:
 
 		ip_parts = []
 		for packet_position in range(0, 4):
-			ip_parts.append(str(self.bytes_to_int(packet[packet_position:(packet_position + 1)])))
+			ip_parts.append(f"{self.bytes_to_int(packet[packet_position:(packet_position + 1)]):d}")
 
 		lan_ip = ".".join(ip_parts)
 
@@ -1802,6 +1830,7 @@ class Jablotron:
 
 	def _parse_lan_connection_device_state_packet(self, packet: bytes) -> None:
 		lan_connection_device_number = self._get_central_unit_lan_connection_device_number()
+		assert lan_connection_device_number is not None
 
 		device_state = self._convert_jablotron_device_state_to_state(packet, lan_connection_device_number)
 
@@ -1816,6 +1845,7 @@ class Jablotron:
 
 	def _parse_gsm_device_state_packet(self, packet: bytes) -> None:
 		gsm_device_number = self._get_central_unit_gsm_device_number()
+		assert gsm_device_number is not None
 
 		device_state = self._convert_jablotron_device_state_to_state(packet, gsm_device_number)
 
@@ -1886,10 +1916,10 @@ class Jablotron:
 		return None
 
 	def _is_central_unit_101_or_similar(self) -> bool:
-		return self._central_unit.model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G", "JA-14K")
+		return self.central_unit().model in ("JA-101K", "JA-101K-LAN", "JA-106K-3G", "JA-14K")
 
 	def _is_central_unit_103_or_similar(self) -> bool:
-		return self._central_unit.model in ("JA-103K", "JA-103KRY", "JA-107K")
+		return self.central_unit().model in ("JA-103K", "JA-103KRY", "JA-107K")
 
 	def _get_not_ignored_devices(self) -> List[int]:
 		not_ignored_devices = []
@@ -2061,7 +2091,7 @@ class Jablotron:
 			"device_{}".format(device_number),
 			device_type.get_name() + " (device {deviceNo})",
 			device_type,
-			{"deviceNo": device_number},
+			{"deviceNo": f"{device_number:d}"},
 			battery_level,
 		)
 
@@ -2193,7 +2223,7 @@ class Jablotron:
 			return
 
 		control = JablotronControl(
-			self._central_unit,
+			self.central_unit(),
 			hass_device,
 			entity_id,
 			entity_name,
@@ -2560,7 +2590,7 @@ class Jablotron:
 			"section_{}".format(section),
 			"Section {sectionNo}",
 			"section",
-			{"sectionNo": section},
+			{"sectionNo": f"{section:d}"},
 		)
 
 	@staticmethod
@@ -2755,7 +2785,7 @@ class Jablotron:
 
 	@staticmethod
 	def format_packet_to_string(packet: bytes) -> str:
-		return str(binascii.hexlify(packet), "utf-8")
+		return binascii.hexlify(packet).decode("ascii")
 
 	@staticmethod
 	def bytes_to_int(packet: bytes) -> int:
@@ -2771,7 +2801,7 @@ class Jablotron:
 
 	@staticmethod
 	def int_to_bytes(number: int) -> bytes:
-		return int.to_bytes(number, 1, byteorder="little")
+		return number.to_bytes(1, byteorder="little")
 
 	@staticmethod
 	def create_packet(packet_type: bytes, data: bytes) -> bytes:
@@ -2782,11 +2812,11 @@ class Jablotron:
 		return Jablotron.create_packet(PACKET_GET_SYSTEM_INFO, Jablotron.int_to_bytes(info_type.value))
 
 	@staticmethod
-	def create_packet_command(command_type: bytes, data: bytes | None = b"") -> bytes:
+	def create_packet_command(command_type: bytes, data: bytes = b"") -> bytes:
 		return Jablotron.create_packet(PACKET_COMMAND, command_type + data)
 
 	@staticmethod
-	def create_packet_ui_control(control_type: bytes, data: bytes | None = b"") -> bytes:
+	def create_packet_ui_control(control_type: bytes, data: bytes = b"") -> bytes:
 		return Jablotron.create_packet(PACKET_UI_CONTROL, control_type + data)
 
 	@staticmethod
@@ -2953,7 +2983,8 @@ class JablotronEntity(Entity):
 
 	async def remove_from_hass(self) -> None:
 		if self.registry_entry:
-			er.async_get(self.hass).async_remove(self.entity_id)
+			entity_registry: EntityRegistry = async_get_entity_registry(self.hass)
+			entity_registry.async_remove(self.entity_id)
 		else:
 			await self.async_remove(force_remove=True)
 

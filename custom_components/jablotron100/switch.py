@@ -19,7 +19,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEn
 		entities = []
 
 		for entity in jablotron_instance.entities[EntityType.PROGRAMMABLE_OUTPUT].values():
-			if entity.id not in jablotron_instance.hass_entities:
+			if (
+				entity.id not in jablotron_instance.hass_entities
+				and isinstance(entity, JablotronProgrammableOutput)
+			):
 				entities.append(JablotronProgrammableOutputEntity(jablotron_instance, entity))
 
 		async_add_entities(entities)
@@ -46,7 +49,7 @@ class JablotronProgrammableOutputEntity(JablotronEntity, SwitchEntity):
 		super().__init__(jablotron, control)
 
 		self._attr_translation_placeholders = {
-			"pgOutputNo": control.pg_output_number,
+			"pgOutputNo": f"{control.pg_output_number:d}",
 		}
 
 	def _update_attributes(self) -> None:

@@ -161,7 +161,7 @@ def create_range_validation(minimum: int, maximum: int):
 
 class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 	_config_entry: ConfigEntry | None
-	_config: Dict[str, Any] | None = None
+	_config: Dict[str, Any]
 
 	@staticmethod
 	@callback
@@ -169,7 +169,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 		return JablotronOptionsFlow(config_entry)
 
 	async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
-		errors = {}
+		errors: Dict[str, str] = {}
 
 		if user_input is not None:
 
@@ -243,7 +243,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 		)
 
 	async def async_step_devices(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
-		errors = {}
+		errors: Dict[str, str] = {}
 
 		if user_input is not None:
 			try:
@@ -272,6 +272,8 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 		self._config_entry = self.hass.config_entries.async_get_entry(
 			self.context["entry_id"]
 		)
+		if self._config_entry is None:
+			raise ValueError("Config entry not found")
 
 		self._config = dict(self._config_entry.data)
 

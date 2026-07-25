@@ -22,7 +22,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEn
 		entities = []
 
 		for entity in jablotron_instance.entities[EntityType.ALARM_CONTROL_PANEL].values():
-			if entity.id not in jablotron_instance.hass_entities:
+			if (
+				entity.id not in jablotron_instance.hass_entities
+				and isinstance(entity, JablotronAlarmControlPanel)
+			):
 				entities.append(JablotronAlarmControlPanelEntity(jablotron_instance, entity))
 
 		async_add_entities(entities)
@@ -60,6 +63,13 @@ class JablotronAlarmControlPanelEntity(JablotronEntity, AlarmControlPanelEntity)
 		self._attr_alarm_state = self._get_state()
 		self._attr_changed_by = self._changed_by
 		self._attr_code_format = self._detect_code_format()
+
+	def _get_state(self) -> AlarmControlPanelState | None:
+		state = super()._get_state()
+		if state is not None and not isinstance(state, AlarmControlPanelState):
+			raise TypeError("Unexpected alarm control panel state")
+
+		return state
 
 	def alarm_disarm(self, code: str | None = None) -> None:
 		if self._get_state() == AlarmControlPanelState.DISARMED:
