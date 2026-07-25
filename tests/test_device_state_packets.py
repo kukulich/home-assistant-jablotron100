@@ -55,6 +55,11 @@ CAPTURED_DEVICE_STATE_PACKETS = [
 	captured_packet("5508866c400000000000", 1, "on", DeviceFault.SABOTAGE, None, "sabotage-fault-0x86"),
 	captured_packet("5508066c400000000000", 1, "on", DeviceFault.SABOTAGE, None, "sabotage-fault-0x06"),
 
+	# Activity packets whose 0x24 information byte must not be interpreted as
+	# a battery fault, even when the device itself has a battery.
+	captured_packet("55092475c000b0876a0c10", 3, "on", ACTIVITY, 80, "battery-device-activity-device-3"),
+	captured_packet("550924790001e0864a0c11", 4, "on", ACTIVITY, 85, "battery-device-activity-device-4"),
+
 	# Backup battery failure and recovery in the central unit.
 	captured_packet("550834680000a0c3b518", 0, "on", DeviceFault.BATTERY, None, "central-battery-failure-a"),
 	captured_packet("5508346a000020a50805", 0, "off", DeviceFault.BATTERY, None, "central-battery-recovery-a"),
@@ -314,7 +319,7 @@ def test_parse_co_detector_0x33_packet_as_heartbeat() -> None:
 def test_parse_battery_fault_updates_battery_problem() -> None:
 	device_number = 1
 	jablotron = create_jablotron(device_number, has_battery=True)
-	packet = create_device_state_packet(device_number, state_info=0x04)
+	packet = create_device_state_packet(device_number, state_info=0x34)
 
 	jablotron._parse_device_state_packet(packet)
 
@@ -327,7 +332,7 @@ def test_parse_battery_fault_updates_battery_problem() -> None:
 def test_parse_battery_fault_is_device_state_without_battery() -> None:
 	device_number = 1
 	jablotron = create_jablotron(device_number)
-	packet = create_device_state_packet(device_number, state_info=0x04)
+	packet = create_device_state_packet(device_number, state_info=0x34)
 
 	jablotron._parse_device_state_packet(packet)
 
@@ -349,3 +354,29 @@ def test_parse_non_battery_fault_updates_device_problem() -> None:
 		"device_problem_sensor_1",
 		"on",
 	)
+
+
+@pytest.mark.parametrize(
+	("packet_hex", "device_number", "signal_strength"),
+	[
+		pytest.param("55092475c000b0876a0c10", 3, 80, id="device-3"),
+		pytest.param("550924790001e0864a0c11", 4, 85, id="device-4"),
+	],
+)
+def test_parse_0x24_packet_as_activity_for_battery_device(
+	packet_hex: str,
+	device_number: int,
+	signal_strength: int,
+) -> None:
+	jablotron = create_jablotron(
+		device_number,
+		connection=DeviceConnection.WIRELESS,
+		has_battery=True,
+	)
+
+	jablotron._parse_device_state_packet(bytes.fromhex(packet_hex))
+
+	assert jablotron._update_entity_state.call_args_list == [
+		call("device_sensor_{}".format(device_number), "on", store_state=False),
+		call("device_signal_strength_sensor_{}".format(device_number), signal_strength),
+	]

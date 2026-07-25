@@ -1470,14 +1470,9 @@ class Jablotron:
 			)
 
 	def _process_possible_fault_in_device_state_packet(self, device_number: int, device_state: str | None, packet: bytes) -> bool:
-		packet_state_binary = self._bytes_to_binary(packet[2:3])
-
-		is_fault = self.binary_to_int(packet_state_binary[4:6]) == 1
-
-		if not is_fault:
+		fault = self._parse_device_fault_from_device_state_packet(packet)
+		if fault is None:
 			return False
-
-		fault = DeviceFault(self.binary_to_int(packet_state_binary[6:]))
 
 		if fault == DeviceFault.BATTERY:
 			if self.is_device_with_battery(device_number):
@@ -2396,8 +2391,6 @@ class Jablotron:
 		return Jablotron.binary_to_int(packet_binary[2:10])
 
 	@staticmethod
-<<<<<<< HEAD
-=======
 	def _parse_device_fault_from_device_state_packet(packet: bytes) -> DeviceFault | None:
 		packet_type = Jablotron.bytes_to_int(packet[2:3]) & 0x1f
 
@@ -2416,7 +2409,6 @@ class Jablotron:
 		return packet_type == 0x33 or packet_type & 0x0f == 0x0f
 
 	@staticmethod
->>>>>>> 9b8f0a0 (WIP)
 	def _parse_device_number_from_device_info_packet(packet: bytes) -> int:
 		return Jablotron.bytes_to_int(packet[2:3])
 
