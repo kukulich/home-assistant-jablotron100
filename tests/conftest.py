@@ -35,6 +35,9 @@ except ModuleNotFoundError:
 	class Entity:
 		pass
 
+	class EntityRegistry:
+		pass
+
 	class HomeAssistant:
 		pass
 
@@ -62,6 +65,7 @@ except ModuleNotFoundError:
 	entity.Entity = Entity
 	event.async_call_later = lambda *args, **kwargs: None
 	typing.StateType = bool | float | int | str | None
+	entity_registry.EntityRegistry = EntityRegistry
 	entity_registry.async_get = lambda *args, **kwargs: None
 
 	homeassistant.core = core
