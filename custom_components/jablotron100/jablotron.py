@@ -1031,10 +1031,6 @@ class Jablotron:
 
 				while True:
 
-					if stream is None:
-						stream = self._open_read_stream()
-						LOGGER.warning("Read stream reopened on %s", self._serial_port)
-
 					actual_hour = datetime.datetime.now().hour
 					if last_restarted_at_hour != actual_hour:
 						stream.close()
