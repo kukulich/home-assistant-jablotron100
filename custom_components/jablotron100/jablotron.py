@@ -371,7 +371,7 @@ class Jablotron:
 			# Runs on the event loop; offload the blocking serial I/O.
 			packets_to_send: List[bytes] = []
 
-			if self._successful_login is True:
+			if self._successful_login:
 				modify_packet = self.int_to_bytes(int_packets[state] + section)
 				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
 
@@ -1052,7 +1052,7 @@ class Jablotron:
 						stream = None
 						break
 
-					if self.last_update_success is False:
+					if not self.last_update_success:
 						self._set_available()
 
 					packets = self.get_packets_from_packet(raw_packet)
@@ -1914,7 +1914,7 @@ class Jablotron:
 		self._update_entity_state(entity_id, initial_state, store_state=False)
 
 	def _update_entity_state(self, entity_id: str, state: StateType | AlarmControlPanelState, store_state: bool = True) -> None:
-		if store_state is True:
+		if store_state:
 			self._store_state(entity_id, state)
 
 		if entity_id in self.entities_states and state == self.entities_states[entity_id]:
@@ -2926,7 +2926,7 @@ class JablotronEntity(Entity):
 
 	@property
 	def available(self) -> bool:
-		if self._jablotron.in_service_mode is True:
+		if self._jablotron.in_service_mode:
 			return False
 
 		if self._get_state() is None:
