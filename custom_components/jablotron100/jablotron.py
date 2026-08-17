@@ -2735,7 +2735,7 @@ class Jablotron:
 		if state.state in (SectionPrimaryState.SERVICE, SectionPrimaryState.BLOCKED):
 			return None
 
-		if state.triggered:
+		if state.triggered or state.sabotage:
 			return AlarmControlPanelState.TRIGGERED
 
 		if state.pending:

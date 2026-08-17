@@ -94,6 +94,7 @@ def test_parse_section_alarm_flags(
 		pytest.param(0x41, 0x00, AlarmControlPanelState.PENDING, id="pending"),
 		pytest.param(0x83, 0x00, AlarmControlPanelState.ARMING, id="arming"),
 		pytest.param(0x03, 0x04, AlarmControlPanelState.TRIGGERED, id="triggered"),
+		pytest.param(0x01, 0x11, AlarmControlPanelState.TRIGGERED, id="sabotage-disarmed"),
 		pytest.param(0x9B, 0x00, AlarmControlPanelState.TRIGGERED, id="triggered-before-arming"),
 	],
 )
