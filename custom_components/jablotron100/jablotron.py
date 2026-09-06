@@ -1948,6 +1948,12 @@ class Jablotron:
 		self._update_entity_state(entity_id, initial_state, store_state=False)
 
 	def _update_entity_state(self, entity_id: str, state: StateType | AlarmControlPanelState, store_state: bool = True) -> None:
+		if entity_id in self.hass_entities:
+			self._hass.loop.call_soon_threadsafe(self._apply_entity_state, entity_id, state, store_state)
+		else:
+			self._apply_entity_state(entity_id, state, store_state)
+
+	def _apply_entity_state(self, entity_id: str, state: StateType | AlarmControlPanelState, store_state: bool) -> None:
 		if store_state:
 			self._store_state(entity_id, state)
 
@@ -1955,9 +1961,7 @@ class Jablotron:
 			return
 
 		if entity_id in self.hass_entities:
-			self._hass.loop.call_soon_threadsafe(
-				lambda: self.hass_entities[entity_id].update_state(state)
-			)
+			self.hass_entities[entity_id].update_state(state)
 		else:
 			self.entities_states[entity_id] = state
 
