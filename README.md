@@ -42,6 +42,8 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 
 ## Before installation
 
+Requires Home Assistant 2026.9.1 or newer.
+
 1. Connect the USB cable to Jablotron central unit
 2. Restart the Home Assistant OS
 

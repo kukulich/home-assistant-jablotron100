@@ -331,6 +331,13 @@ class Jablotron:
 
 		return self._central_unit
 
+	def central_unit_device_id(self) -> str:
+		return dr.async_get_device_id_by_identifier(
+			self._hass,
+			(DOMAIN, self.central_unit().unique_id),
+			config_entry_id=self._config_entry_id,
+		)
+
 	def shutdown_and_clean(self) -> None:
 		self.shutdown()
 
@@ -2974,7 +2981,7 @@ class JablotronEntity(Entity):
 				name=self._control.hass_device.name,
 				translation_key=self._control.hass_device.translation_key,
 				translation_placeholders=self._control.hass_device.translation_placeholders,
-				via_device=(DOMAIN, self._control.central_unit.unique_id),
+				via_device_id=self._jablotron.central_unit_device_id(),
 			)
 
 		self._update_attributes()
