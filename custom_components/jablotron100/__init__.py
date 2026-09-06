@@ -3,7 +3,7 @@
 from homeassistant.const import Platform
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr, storage
+from homeassistant.helpers import device_registry as dr
 from typing import Final
 
 from .const import (
@@ -12,6 +12,7 @@ from .const import (
 	DOMAIN,
 )
 from .jablotron import Jablotron, STORAGE_VERSION
+from .storage import async_get_store
 
 
 type JablotronConfigEntry = ConfigEntry[Jablotron]
@@ -68,7 +69,7 @@ async def async_remove_entry(hass: HomeAssistant, config_entry: JablotronConfigE
 	if unique_id is None:
 		return
 
-	store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
+	store = async_get_store(hass, STORAGE_VERSION)
 	stored_data = await store.async_load()
 	if not stored_data or unique_id not in stored_data:
 		return

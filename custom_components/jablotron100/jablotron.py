@@ -13,13 +13,13 @@ from homeassistant.const import (
 	STATE_ON,
 )
 from homeassistant.components.alarm_control_panel import AlarmControlPanelState
-from homeassistant.helpers import storage
 from homeassistant.helpers.dispatcher import async_dispatcher_send, dispatcher_send
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.entity_registry import EntityRegistry, async_get as async_get_entity_registry
+from .storage import async_get_store
 import math
 import os
 import threading
@@ -241,8 +241,8 @@ class Jablotron:
 		self._stream_data_updating_event: threading.Event = threading.Event()
 		self._stream_diagnostics_event: threading.Event = threading.Event()
 
-		self._store: storage.Store = storage.Store(hass, STORAGE_VERSION, DOMAIN)
-		self._stored_data: dict = {}
+		self._store = async_get_store(hass, STORAGE_VERSION)
+		self._stored_data = self._store.data
 
 		self._central_unit_data: Dict[CentralUnitData, Any] = {}
 		self._devices_data: Dict[str, Dict[DeviceData, Any]] = {}
@@ -438,13 +438,7 @@ class Jablotron:
 			hass_entity.refresh_state()
 
 	async def _load_stored_data(self) -> None:
-		try:
-			stored_data = await self._store.async_load()
-		except NotImplementedError:
-			# Version upgrade - no migration implemented
-			stored_data = None
-
-		self._stored_data = stored_data or {}
+		await self._store.async_load()
 
 		unique_id = self._get_unique_id()
 
@@ -798,7 +792,7 @@ class Jablotron:
 
 			if self._is_device_ignored(device_number):
 				device_registry = dr.async_get(self._hass)
-				existing_device = device_registry.async_get_device(identifiers={(DOMAIN, device_id)})
+				existing_device = device_registry.async_get_device_by_identifier((DOMAIN, device_id), self._config_entry_id)
 				if existing_device is not None:
 					device_registry.async_remove_device(existing_device.id)
 

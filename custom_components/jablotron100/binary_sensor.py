@@ -4,7 +4,8 @@ from homeassistant.components.binary_sensor import (
 	BinarySensorEntityDescription,
 	BinarySensorEntity,
 )
-from homeassistant.core import callback, HomeAssistant, ServiceCall
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import async_get_current_platform, AddEntitiesCallback
@@ -125,15 +126,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEn
 		async_dispatcher_connect(hass, jablotron_instance.signal_entities_added(), add_entities)
 	)
 
-	async def reset_problem(entity: JablotronEntity, service_call: ServiceCall) -> None:
-		jablotron_instance.reset_problem_sensor(entity.control)
-
 	platform = async_get_current_platform()
 
 	platform.async_register_entity_service(
 		"reset_problem",
 		{},
-		reset_problem,
+		"async_reset_problem",
+		entity_device_classes=[BinarySensorDeviceClass.PROBLEM],
 	)
 
 
@@ -151,6 +150,11 @@ class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 		self._attr_translation_key = description.key
 
 		super().__init__(jablotron, control)
+
+	async def async_reset_problem(self) -> None:
+		if self.device_class != BinarySensorDeviceClass.PROBLEM:
+			raise ServiceValidationError("Only problem binary sensors can be reset")
+		self._jablotron.reset_problem_sensor(self.control)
 
 	def _update_attributes(self) -> None:
 		super()._update_attributes()

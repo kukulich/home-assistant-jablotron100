@@ -22,7 +22,7 @@ def test_setup_registers_parent_before_platforms_and_scopes_lookup(tmp_path, sha
 	from homeassistant.helpers import device_registry as dr, frame
 
 	from custom_components.jablotron100 import PLATFORMS, async_setup_entry
-	from custom_components.jablotron100.const import DOMAIN
+	from custom_components.jablotron100.const import CONF_DEVICES, CONF_NUMBER_OF_DEVICES, DOMAIN, DeviceType
 	from custom_components.jablotron100.jablotron import (
 		Jablotron,
 		JablotronCentralUnit,
@@ -86,6 +86,13 @@ def test_setup_registers_parent_before_platforms_and_scopes_lookup(tmp_path, sha
 			assert parents[0].id != parents[1].id
 			assert peripherals[0].id != peripherals[1].id
 			assert peripherals[0].via_device_id != peripherals[1].via_device_id
+			entry.runtime_data._config.update({CONF_NUMBER_OF_DEVICES: 1, CONF_DEVICES: [DeviceType.EMPTY]})
+			await entry.runtime_data._create_devices()
+			await entry.runtime_data._create_devices()
+			assert registry.async_get_device_by_identifier((DOMAIN, "device_1"), "panel-a").id == peripherals[0].id
+			assert registry.async_get_device_by_identifier((DOMAIN, "device_1"), "panel-b") is None
+			assert registry.async_get(parents[0].id) is not None
+			assert registry.async_get(parents[1].id) is not None
 		finally:
 			await hass.async_block_till_done()
 			await hass.async_stop(force=True)
