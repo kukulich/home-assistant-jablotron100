@@ -1967,7 +1967,10 @@ class Jablotron:
 
 	def _log_outcoming_packet(self, packet: bytes) -> None:
 		if self._should_be_outcoming_packet_logged(packet):
-			self._log_debug_with_packet("Outcoming", packet)
+			if packet[:1] == PACKET_UI_CONTROL and packet[2:3] == UI_CONTROL_AUTHORISATION_CODE:
+				LOGGER.debug("Outcoming: authorisation code [redacted]")
+			else:
+				self._log_debug_with_packet("Outcoming", packet)
 
 	def _should_be_incoming_packet_logged(self, packet: bytes) -> bool:
 		if not self._options.get(CONF_ENABLE_DEBUGGING, DEFAULT_CONF_ENABLE_DEBUGGING):
