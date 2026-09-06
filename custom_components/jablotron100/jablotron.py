@@ -1889,6 +1889,12 @@ class Jablotron:
 
 		states_start = 2
 		states_end = states_start + self.bytes_to_int(packet[1:2])
+		if (
+			len(packet) < states_end
+			or (states_end - states_start) * 8 < self._config[CONF_NUMBER_OF_PG_OUTPUTS]
+		):
+			self._log_error_with_packet("Incomplete PG outputs states packet", packet)
+			return
 
 		states = self._bytes_to_reverse_binary(packet[states_start:states_end])
 
