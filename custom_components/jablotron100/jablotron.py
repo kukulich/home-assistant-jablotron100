@@ -251,7 +251,9 @@ class Jablotron:
 		self.in_service_mode = False
 
 		self._last_authorized_user_or_device: str | None = None
-		self._successful_login: bool = True
+		self._authorisation_lock = threading.Lock()
+		self._login_failed = threading.Event()
+		self._authorisation_restore_pending = False
 
 	def signal_entities_added(self) -> str:
 		return "{}_{}_entities_added".format(DOMAIN, self._config_entry_id)
@@ -375,53 +377,40 @@ class Jablotron:
 			AlarmControlPanelState.ARMED_NIGHT: 175,
 		}
 
-		# Reset
-		self._successful_login = True
+		with self._authorisation_lock:
+			if self._stream_stop_event.is_set():
+				return
 
-		@core.callback
-		def after_modify_callback(_: datetime.datetime) -> None:
-			# Runs on the event loop; offload the blocking serial I/O.
-			self._hass.async_add_executor_job(
-				self._send_packet,
-				self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES),
-			)
+			self._login_failed.clear()
+			self._authorisation_restore_pending = True
+			try:
+				self._send_packets([
+					self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END),
+					self.create_packet_authorisation_code(code),
+				])
+				if self._stream_stop_event.wait(1.0):
+					return
 
-		@core.callback
-		def after_login_callback(_: datetime.datetime | None) -> None:
-			# Runs on the event loop; offload the blocking serial I/O.
-			packets_to_send: List[bytes] = []
+				if code == configured_code:
+					self._authorisation_restore_pending = False
 
-			if self._successful_login:
-				modify_packet = self.int_to_bytes(int_packets[state] + section)
-				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
+				if not self._login_failed.is_set():
+					modify_packet = self.int_to_bytes(int_packets[state] + section)
+					self._send_packet(self.create_packet_ui_control(UI_CONTROL_MODIFY_SECTION, modify_packet))
+			finally:
+				if not self._stream_stop_event.is_set():
+					try:
+						if code != configured_code:
+							self._send_packets([
+								self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END),
+								*self.create_packets_keepalive(configured_code),
+							])
+							self._authorisation_restore_pending = False
+					finally:
+						self._stream_stop_event.wait(1.0)
 
-			if code != configured_code:
-				packets_to_send.append(self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END))
-				packets_to_send.extend(self.create_packets_keepalive(configured_code))
-
-			if packets_to_send:
-				self._hass.async_add_executor_job(self._send_packets, packets_to_send)
-
-			async_call_later(self._hass, 1.0, core.HassJob(after_modify_callback))
-
-		if code != configured_code:
-			login_packets = [
-				self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END),
-				self.create_packet_authorisation_code(code),
-			]
-
-			self._send_packets(login_packets)
-
-			self._hass.loop.call_soon_threadsafe(
-				async_call_later,
-				self._hass,
-				1.0,
-				after_login_callback,
-			)
-		else:
-			# Run the callback on the event loop so it can use async_call_later
-			# and async_add_executor_job safely from any caller thread.
-			self._hass.loop.call_soon_threadsafe(after_login_callback, None)
+			if not self._stream_stop_event.is_set():
+				self._send_packet(self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 
 	def toggle_pg_output(self, pg_output_number: int, state: str) -> None:
 		pg_output_number_packet = self.int_to_bytes(pg_output_number - 1)
@@ -429,7 +418,11 @@ class Jablotron:
 
 		packet = self.create_packet_ui_control(UI_CONTROL_TOGGLE_PG_OUTPUT, pg_output_number_packet + state_packet)
 
-		self._send_packet(packet)
+		with self._authorisation_lock:
+			if not self._stream_stop_event.is_set():
+				if self._authorisation_restore_pending:
+					raise ServiceUnavailable("Configured authorisation has not been restored")
+				self._send_packet(packet)
 
 	def reset_problem_sensor(self, control: JablotronControl) -> None:
 		self._update_entity_state(control.id, STATE_OFF)
@@ -1071,6 +1064,7 @@ class Jablotron:
 					self._stream_data_updating_event.set()
 
 					if not raw_packet:
+						self._login_failed.set()
 						self._set_unavailable()
 						try:
 							stream.close()
@@ -1114,7 +1108,7 @@ class Jablotron:
 							self._parse_device_status_packet(packet)
 
 						elif self._is_login_error_packet(packet):
-							self._successful_login = False
+							self._login_failed.set()
 							self._last_authorized_user_or_device = None
 							self._login_error()
 
@@ -1129,6 +1123,7 @@ class Jablotron:
 				else:
 					LOGGER.debug("Read error: %s", ex)
 
+				self._login_failed.set()
 				self._set_unavailable()
 
 				if stream is not None:
@@ -1157,7 +1152,8 @@ class Jablotron:
 			if not self._stream_data_updating_event.wait(0.5):
 				try:
 					if counter == 0 and not self._is_alarm_active():
-						self._send_packets(self.create_packets_keepalive(self._config[CONF_PASSWORD]))
+						if not self._send_keepalive():
+							continue
 
 						# Check some devices once an hour (and on the start too)
 						actual_time = datetime.datetime.now()
@@ -1183,6 +1179,21 @@ class Jablotron:
 
 			if counter == 60:
 				counter = 0
+
+	def _send_keepalive(self) -> bool:
+		if not self._authorisation_lock.acquire(blocking=False):
+			return False
+		try:
+			if self._stream_stop_event.is_set():
+				return False
+			packets = self.create_packets_keepalive(self._config[CONF_PASSWORD])
+			if self._authorisation_restore_pending:
+				packets.insert(0, self.create_packet_ui_control(UI_CONTROL_AUTHORISATION_END))
+			self._send_packets(packets)
+			self._authorisation_restore_pending = False
+			return True
+		finally:
+			self._authorisation_lock.release()
 
 	def _send_packets(self, batch: List[bytes]) -> None:
 		batch_packet = b""
