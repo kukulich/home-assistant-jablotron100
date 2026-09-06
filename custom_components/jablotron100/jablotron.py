@@ -24,6 +24,7 @@ import math
 import os
 import threading
 import time
+from .code import validate_authorisation_code
 from .const import (
 	AUTODETECT_SERIAL_PORT,
 	BATTERY_LEVEL_NO_BATTERY,
@@ -31,7 +32,6 @@ from .const import (
 	BATTERY_LEVELS_TO_IGNORE,
 	BATTERY_LEVEL_STEP,
 	CentralUnitData,
-	CODE_MIN_LENGTH,
 	COMMAND_ENABLE_DEVICE_STATE_PACKETS,
 	COMMAND_GET_DEVICE_STATUS,
 	COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES,
@@ -361,10 +361,11 @@ class Jablotron:
 
 		code = configured_code if entered_code is None else entered_code
 
-		if len(code) < CODE_MIN_LENGTH:
+		try:
+			validate_authorisation_code(code)
+			validate_authorisation_code(configured_code)
+		except ValueError:
 			self._login_error()
-			# Update section states to have actual states
-			self._send_packet(self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
 			return
 
 		int_packets = {
@@ -2876,6 +2877,7 @@ class Jablotron:
 
 	@staticmethod
 	def create_packet_authorisation_code(code: str) -> bytes:
+		validate_authorisation_code(code)
 		magic_offset = 48
 
 		if code.find("*") != -1:

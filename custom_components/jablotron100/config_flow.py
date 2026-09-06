@@ -13,10 +13,9 @@ import time
 import threading
 from typing import Any, Dict, List
 import voluptuous as vol
+from .code import validate_authorisation_code
 from .const import (
 	AUTODETECT_SERIAL_PORT,
-	CODE_MAX_LENGTH,
-	CODE_MIN_LENGTH,
 	CONF_DEVICES,
 	CONF_ENABLE_DEBUGGING,
 	CONF_LOG_ALL_INCOMING_PACKETS,
@@ -234,7 +233,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 			data_schema=vol.Schema(
 				{
 					vol.Required(CONF_SERIAL_PORT, default=AUTODETECT_SERIAL_PORT): str,
-					vol.Required(CONF_PASSWORD): vol.All(str, vol.Length(min=CODE_MIN_LENGTH, max=CODE_MAX_LENGTH)),
+					vol.Required(CONF_PASSWORD): vol.All(str, validate_authorisation_code),
 					vol.Optional(CONF_NUMBER_OF_DEVICES, default=0): create_range_validation(0, MAX_DEVICES),
 					vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=0): create_range_validation(0, MAX_PG_OUTPUTS),
 				}
@@ -341,7 +340,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 			vol.Optional(
 				CONF_PASSWORD,
 				default="",
-			): vol.All(str, vol.Length(min=0, max=CODE_MAX_LENGTH)),
+			): vol.Any("", vol.All(str, validate_authorisation_code)),
 		}
 
 		number_of_devices_validation = create_range_validation(self._config[CONF_NUMBER_OF_DEVICES], MAX_DEVICES)
