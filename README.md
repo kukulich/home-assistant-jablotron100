@@ -130,6 +130,11 @@ logger:
 ```
 4. Restart Home Assistant
 
+## Development
+
+See [Testing](tests/README.md) for packet tests, tests with real Home Assistant,
+and the minimum/latest Home Assistant CI matrix.
+
 ## Credits
 
 Big thanks to [plaksnor](https://github.com/plaksnor/), [Horsi70](https://github.com/Horsi70/) and [Shamshala](https://github.com/Shamshala/) for their work on previous integration.

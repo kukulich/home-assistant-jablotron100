@@ -5,6 +5,27 @@ from pathlib import Path
 import sys
 from types import ModuleType
 
+import pytest
+
+
+def pytest_addoption(parser):
+	parser.addoption(
+		"--ha-integration",
+		action="store_true",
+		help="Run integration tests against an installed Home Assistant (no stubs).",
+	)
+
+
+def pytest_configure(config):
+	if config.getoption("--ha-integration") and not getattr(homeassistant, "__file__", None):
+		raise pytest.UsageError("--ha-integration requires an installed Home Assistant; stubs are not allowed")
+
+
+def pytest_ignore_collect(collection_path, config):
+	if collection_path.name == "integration" and not config.getoption("--ha-integration"):
+		return True
+	return None
+
 
 try:
 	import homeassistant

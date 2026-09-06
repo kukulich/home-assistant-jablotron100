@@ -47,3 +47,41 @@ jobs:
 
       - name: Run tests
         run: python -m pytest
+
+  integration-tests:
+    name: Home Assistant (${{ matrix.homeassistant }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        homeassistant: [minimum, latest]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            requirements_test.txt
+            requirements_integration_test.txt
+            hacs.json
+
+      - name: Install integration test dependencies
+        env:
+          HA_TARGET: ${{ matrix.homeassistant }}
+        run: |
+          if [ "$HA_TARGET" = "minimum" ]; then
+            HA_REQUIREMENT="homeassistant==$(python -c 'import json; print(json.load(open("hacs.json"))["homeassistant"])')"
+          else
+            HA_REQUIREMENT="homeassistant"
+          fi
+          python -m pip install --upgrade --requirement requirements_integration_test.txt "$HA_REQUIREMENT"
+          python -m pip check
+          python -c 'from importlib.metadata import version; print("Home Assistant:", version("homeassistant"))'
+
+      - name: Run tests with real Home Assistant
+        run: python -m pytest --ha-integration
