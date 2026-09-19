@@ -362,6 +362,27 @@ def test_parse_captured_gsm_info() -> None:
 
 
 @pytest.mark.parametrize(
+	("packet_hex", "expected_signal_strength"),
+	[
+		pytest.param("900cea0a090f84d53223d2af0101", 50.0, id="signal-strength-50"),
+		pytest.param("900cea0a090f84d53c23d2af0101", 60.0, id="signal-strength-60"),
+	],
+)
+def test_parse_captured_gsm_other_info(packet_hex: str, expected_signal_strength: float) -> None:
+	packet = bytes.fromhex(packet_hex)
+	assert len(packet) == packet[1] + 2
+	jablotron = object.__new__(Jablotron)
+	jablotron._update_entity_state = Mock()
+
+	jablotron._parse_gsm_info_packet(parse_info_subpacket(packet), packet)
+
+	assert jablotron._update_entity_state.call_args_list == [
+		call("gsm_signal_sensor", "on"),
+		call("gsm_signal_strength_sensor", expected_signal_strength),
+	]
+
+
+@pytest.mark.parametrize(
 	("packet_hex", "device_number", "expected_standby_voltage", "expected_load_voltage"),
 	[
 		pytest.param(

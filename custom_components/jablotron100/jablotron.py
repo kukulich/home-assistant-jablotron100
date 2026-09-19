@@ -1831,11 +1831,12 @@ class Jablotron:
 		info_packets = self._parse_device_info_packets_from_device_info_subpacket(info_subpacket, packet)
 
 		for info_packet in info_packets:
-			if info_packet.type != DeviceInfoType.GSM:
+			if info_packet.type not in (DeviceInfoType.GSM, DeviceInfoType.GSM_OTHER):
 				self._log_error_with_packet(
 					"Unexpected info packet {} of GSM".format(Jablotron.format_packet_to_string(info_packet.packet)),
 					packet,
 				)
+
 				continue
 
 			state_binary = Jablotron._bytes_to_binary(info_packet.packet[5:6])

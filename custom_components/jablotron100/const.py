@@ -244,10 +244,10 @@ class DeviceInfoType(Enum):
 	UNKNOWN_1 = 16
 	PULSE = 17
 	UNKNOWN_2 = 19
-	UNKNOWN_GSM = 21
+	GSM_OTHER = 21
 
 	def is_unknown(self) -> bool:
-		return self in (self.UNKNOWN_1, self.UNKNOWN_2, self.UNKNOWN_GSM)
+		return self in (self.UNKNOWN_1, self.UNKNOWN_2)
 
 
 class DeviceFault(Enum):
