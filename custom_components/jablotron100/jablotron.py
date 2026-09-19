@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import binascii
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 import copy
 import datetime
@@ -20,6 +22,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.entity_registry import EntityRegistry, async_get as async_get_entity_registry
 from .storage import async_get_store
+from .stream import JablotronReadStream
 import math
 import os
 import threading
@@ -237,6 +240,8 @@ class Jablotron:
 		self._serial_port: str | None = None
 
 		self._stream_thread_pool_executor: ThreadPoolExecutor | None = None
+		self._detection_future: asyncio.Future[Any] | None = None
+		self._remove_stop_listener: Callable[[], None] | None = None
 		self._stream_stop_event: threading.Event = threading.Event()
 		self._stream_data_updating_event: threading.Event = threading.Event()
 		self._stream_diagnostics_event: threading.Event = threading.Event()
@@ -274,11 +279,17 @@ class Jablotron:
 		return self._last_authorized_user_or_device
 
 	async def initialize(self) -> None:
-		def shutdown_event(_):
-			self.shutdown()
+		async def shutdown_event(_):
+			await self.async_shutdown()
 
-		self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, shutdown_event)
+		self._remove_stop_listener = self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, shutdown_event)
+		try:
+			await self._initialize()
+		except BaseException:
+			await self.async_shutdown()
+			raise
 
+	async def _initialize(self) -> None:
 		await self._load_stored_data()
 
 		if self._config[CONF_SERIAL_PORT] == AUTODETECT_SERIAL_PORT:
@@ -310,7 +321,7 @@ class Jablotron:
 					)
 					self._serial_port = detected_serial_port
 
-		await self._hass.async_add_executor_job(self._detect_central_unit)
+		await self._async_run_detection(self._detect_central_unit)
 		await self._detect_and_create_devices_and_sections_and_pg_outputs()
 		self._create_central_unit_sensors()
 
@@ -322,11 +333,22 @@ class Jablotron:
 
 		self.last_update_success = True
 
+	async def _async_run_detection[T](self, detector: Callable[[], T]) -> T:
+		if self._stream_stop_event.is_set():
+			raise ServiceUnavailable("Initialization stopped")
+		future = self._hass.async_add_executor_job(detector)
+		self._detection_future = future
+		result = await asyncio.shield(future)
+		self._detection_future = None
+		if self._stream_stop_event.is_set():
+			raise ServiceUnavailable("Initialization stopped")
+		return result
+
 	async def _detect_and_create_devices_and_sections_and_pg_outputs(self):
-		await self._hass.async_add_executor_job(self._detect_devices)
+		await self._async_run_detection(self._detect_devices)
 		await self._create_devices()
 		# We need to detect devices first
-		packets = await self._hass.async_add_executor_job(self._detect_sections_and_pg_outputs)
+		packets = await self._async_run_detection(self._detect_sections_and_pg_outputs)
 		for packet in packets:
 			if self._is_sections_states_packet(packet):
 				self._create_sections(packet)
@@ -358,9 +380,25 @@ class Jablotron:
 
 	def shutdown(self) -> None:
 		self._stream_stop_event.set()
+		self._stream_data_updating_event.set()
+		self._stream_diagnostics_event.set()
+		self.last_update_success = False
 
 		if self._stream_thread_pool_executor is not None:
 			self._stream_thread_pool_executor.shutdown(wait=False, cancel_futures=True)
+
+	async def async_shutdown(self) -> None:
+		self.shutdown()
+		if self._remove_stop_listener is not None:
+			self._remove_stop_listener()
+			self._remove_stop_listener = None
+		if self._detection_future is not None:
+			await asyncio.shield(asyncio.gather(self._detection_future, return_exceptions=True))
+			self._detection_future = None
+		executor = self._stream_thread_pool_executor
+		if executor is not None:
+			await self._hass.async_add_executor_job(executor.shutdown, True)
+			self._stream_thread_pool_executor = None
 
 	def subscribe_hass_entity_for_updates(self, control_id: str, hass_entity: JablotronEntity) -> None:
 		self.hass_entities[control_id] = hass_entity
@@ -468,11 +506,15 @@ class Jablotron:
 			hardware_version = None
 			firmware_version = None
 
-			stream = self._open_read_stream()
+			stream = self._open_read_stream(stop_event)
 
 			try:
 				while not stop_event.is_set():
 					raw_packet = stream.read(STREAM_PACKET_SIZE)
+					if raw_packet is None:
+						break
+					if not raw_packet:
+						raise ServiceUnavailable("Serial stream closed during central unit detection")
 					packets = self.get_packets_from_packet(raw_packet)
 
 					for packet in packets:
@@ -513,7 +555,7 @@ class Jablotron:
 					self.create_packet_get_system_info(SystemInfo.HARDWARE_VERSION),
 					self.create_packet_get_system_info(SystemInfo.FIRMWARE_VERSION),
 				])
-				time.sleep(1)
+				stop_event.wait(1)
 
 		try:
 			reader = thread_pool_executor.submit(reader_thread)
@@ -527,8 +569,10 @@ class Jablotron:
 
 		finally:
 			stop_event.set()
-			thread_pool_executor.shutdown(wait=False, cancel_futures=True)
+			thread_pool_executor.shutdown(wait=True, cancel_futures=True)
 
+		if self._central_unit is None:
+			raise ServiceUnavailable("Central unit detection stopped")
 		central_unit = self.central_unit()
 
 		LOGGER.debug("Central unit: {} (hardware: {}, firmware: {})".format(central_unit.model, central_unit.hardware_version, central_unit.firmware_version))
@@ -540,11 +584,15 @@ class Jablotron:
 		def reader_thread() -> List[bytes] | None:
 			states_packets = None
 
-			stream = self._open_read_stream()
+			stream = self._open_read_stream(stop_event)
 
 			try:
 				while not stop_event.is_set():
 					raw_packet = stream.read(STREAM_PACKET_SIZE)
+					if raw_packet is None:
+						break
+					if not raw_packet:
+						raise ServiceUnavailable("Serial stream closed during section detection")
 					read_packets = self.get_packets_from_packet(raw_packet)
 					for read_packet in read_packets:
 						self._log_incoming_packet(read_packet)
@@ -564,7 +612,7 @@ class Jablotron:
 		def writer_thread() -> None:
 			while not stop_event.is_set():
 				self._send_packet(self.create_packet_command(COMMAND_GET_SECTIONS_AND_PG_OUTPUTS_STATES))
-				time.sleep(1)
+				stop_event.wait(1)
 
 		try:
 			reader = thread_pool_executor.submit(reader_thread)
@@ -578,7 +626,7 @@ class Jablotron:
 
 		finally:
 			stop_event.set()
-			thread_pool_executor.shutdown(wait=False, cancel_futures=True)
+			thread_pool_executor.shutdown(wait=True, cancel_futures=True)
 
 		if packets is None:
 			raise ShouldNotHappen
@@ -677,11 +725,15 @@ class Jablotron:
 		def reader_thread() -> List[bytes]:
 			expected_packets = []
 
-			stream = self._open_read_stream()
+			stream = self._open_read_stream(stop_event)
 
 			try:
 				while not stop_event.is_set():
 					raw_packet = stream.read(STREAM_PACKET_SIZE)
+					if raw_packet is None:
+						break
+					if not raw_packet:
+						raise ServiceUnavailable("Serial stream closed during device detection")
 					parsed_packets = self.get_packets_from_packet(raw_packet)
 
 					for parsed_packet in parsed_packets:
@@ -716,7 +768,7 @@ class Jablotron:
 				))
 
 				self._send_packets(packets_to_send)
-				time.sleep(estimated_duration)
+				stop_event.wait(estimated_duration)
 
 		try:
 			reader = thread_pool_executor.submit(reader_thread)
@@ -730,7 +782,7 @@ class Jablotron:
 
 		finally:
 			stop_event.set()
-			thread_pool_executor.shutdown(wait=False, cancel_futures=True)
+			thread_pool_executor.shutdown(wait=True, cancel_futures=True)
 
 		if len(packets) != expected_packets_count:
 			raise ShouldNotHappen
@@ -994,6 +1046,8 @@ class Jablotron:
 			devices_to_update.append(gsm_device_number)
 
 		for device_number in devices_to_update:
+			if self._stream_stop_event.is_set():
+				return
 			self._stream_diagnostics_event.clear()
 
 			self._send_packets([
@@ -1005,6 +1059,8 @@ class Jablotron:
 			# The previous "while ... wait(0.5): break" pattern always exited
 			# after a single 0.5s wait regardless of whether the event fired.
 			self._stream_diagnostics_event.wait(2.0)
+			if self._stream_stop_event.is_set():
+				return
 
 			self._send_packet(self._create_packet_device_diagnostics_end(device_number))
 
@@ -1034,6 +1090,8 @@ class Jablotron:
 		self._update_all_hass_entities()
 
 	def _read_packets(self) -> None:
+		if self._stream_stop_event.is_set():
+			return
 		try:
 			stream = self._open_read_stream()
 		except OSError as ex:
@@ -1062,6 +1120,9 @@ class Jablotron:
 					raw_packet = stream.read(STREAM_PACKET_SIZE)
 
 					self._stream_data_updating_event.set()
+
+					if raw_packet is None:
+						break
 
 					if not raw_packet:
 						self._login_failed.set()
@@ -1115,7 +1176,7 @@ class Jablotron:
 					break
 
 				consecutive_errors = 0
-				time.sleep(0.5)
+				self._stream_stop_event.wait(0.5)
 
 			except Exception as ex:
 				if consecutive_errors == 0:
@@ -1136,7 +1197,7 @@ class Jablotron:
 				self._redetect_serial_port()
 
 				consecutive_errors += 1
-				time.sleep(min(STREAM_REOPEN_DELAY * consecutive_errors, STREAM_REOPEN_MAX_DELAY))
+				self._stream_stop_event.wait(min(STREAM_REOPEN_DELAY * consecutive_errors, STREAM_REOPEN_MAX_DELAY))
 
 		if stream is not None:
 			try:
@@ -1150,6 +1211,8 @@ class Jablotron:
 
 		while not self._stream_stop_event.is_set():
 			if not self._stream_data_updating_event.wait(0.5):
+				if self._stream_stop_event.is_set():
+					break
 				try:
 					if counter == 0 and not self._is_alarm_active():
 						if not self._send_keepalive():
@@ -1175,7 +1238,7 @@ class Jablotron:
 
 				counter += 1
 			else:
-				time.sleep(1)
+				self._stream_stop_event.wait(1)
 
 			if counter == 60:
 				counter = 0
@@ -1214,9 +1277,15 @@ class Jablotron:
 		self._send_packet_by_stream(packet)
 
 	def _send_packet_by_stream(self, packet: bytes) -> None:
+		if self._stream_stop_event.is_set():
+			return
 		stream = self._open_write_stream()
 
-		stream.write(packet)
+		try:
+			stream.write(packet)
+		except BaseException:
+			stream.close()
+			raise
 
 		if self._main_thread == threading.current_thread():
 			@core.callback
@@ -1225,7 +1294,7 @@ class Jablotron:
 
 			async_call_later(self._hass, 0.1, core.HassJob(callback))
 		else:
-			time.sleep(0.1)
+			self._stream_stop_event.wait(0.1)
 			stream.close()
 
 	def _open_write_stream(self) -> BinaryIO:
@@ -1234,11 +1303,11 @@ class Jablotron:
 
 		return open(self._serial_port, "wb", buffering=0)
 
-	def _open_read_stream(self) -> BinaryIO:
+	def _open_read_stream(self, stop_event: threading.Event | None = None) -> JablotronReadStream:
 		if self._serial_port is None:
 			raise SerialPortNotDetected
 
-		return open(self._serial_port, "rb", buffering=0)
+		return JablotronReadStream(self._serial_port, self._stream_stop_event, stop_event or self._stream_stop_event)
 
 	def _redetect_serial_port(self) -> None:
 		"""Re-run autodetection if the configured port is AUTODETECT_SERIAL_PORT.
