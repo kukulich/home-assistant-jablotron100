@@ -310,7 +310,7 @@ class Jablotron:
 					)
 					self._serial_port = detected_serial_port
 
-		self._detect_central_unit()
+		await self._hass.async_add_executor_job(self._detect_central_unit)
 		await self._detect_and_create_devices_and_sections_and_pg_outputs()
 		self._create_central_unit_sensors()
 
@@ -323,10 +323,18 @@ class Jablotron:
 		self.last_update_success = True
 
 	async def _detect_and_create_devices_and_sections_and_pg_outputs(self):
-		self._detect_devices()
+		await self._hass.async_add_executor_job(self._detect_devices)
 		await self._create_devices()
 		# We need to detect devices first
-		self._detect_sections_and_pg_outputs()
+		packets = await self._hass.async_add_executor_job(self._detect_sections_and_pg_outputs)
+		for packet in packets:
+			if self._is_sections_states_packet(packet):
+				self._create_sections(packet)
+			elif self._is_pg_outputs_states_packet(packet):
+				self._parse_pg_outputs_states_packet(packet)
+
+		# We have to create PG outputs even when no packet arrived
+		self._create_pg_outputs()
 
 	def central_unit(self) -> JablotronCentralUnit:
 		assert self._central_unit is not None
@@ -525,7 +533,7 @@ class Jablotron:
 
 		LOGGER.debug("Central unit: {} (hardware: {}, firmware: {})".format(central_unit.model, central_unit.hardware_version, central_unit.firmware_version))
 
-	def _detect_sections_and_pg_outputs(self) -> None:
+	def _detect_sections_and_pg_outputs(self) -> List[bytes]:
 		stop_event = threading.Event()
 		thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
 
@@ -575,15 +583,7 @@ class Jablotron:
 		if packets is None:
 			raise ShouldNotHappen
 
-		for packet in packets:
-			if self._is_sections_states_packet(packet):
-				self._create_sections(packet)
-
-			elif self._is_pg_outputs_states_packet(packet):
-				self._parse_pg_outputs_states_packet(packet)
-
-		# We have to create PG outputs even when no packet arrived
-		self._create_pg_outputs()
+		return packets
 
 	def _create_sections(self, packet: bytes) -> None:
 		sections_states = self._convert_sections_states_packet_to_sections_states(packet)
@@ -2942,13 +2942,7 @@ class Jablotron:
 		return Jablotron._check_possible_paths_for_serial_port(possible_paths)
 
 	async def _detect_serial_port(self) -> str | None:
-		try:
-			possible_paths = await self._hass.async_add_executor_job(os.listdir, HIDRAW_PATH)
-		except OSError as ex:
-			LOGGER.debug("Failed to list %s: %s", HIDRAW_PATH, ex)
-			return None
-
-		return Jablotron._check_possible_paths_for_serial_port(possible_paths)
+		return await self._hass.async_add_executor_job(self.detect_serial_port)
 
 	@staticmethod
 	def _check_possible_paths_for_serial_port(possible_paths: list[str]) -> str | None:

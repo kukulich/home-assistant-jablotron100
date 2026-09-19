@@ -179,7 +179,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 				self._abort_if_unique_id_configured()
 
 				if user_input[CONF_SERIAL_PORT] == AUTODETECT_SERIAL_PORT:
-					serial_port = Jablotron.detect_serial_port()
+					serial_port = await self.hass.async_add_executor_job(Jablotron.detect_serial_port)
 
 					if serial_port is None:
 						LOGGER.error("No serial port found")
@@ -187,7 +187,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 				else:
 					serial_port = user_input[CONF_SERIAL_PORT]
 
-				check_serial_port(serial_port)
+				await self.hass.async_add_executor_job(check_serial_port, serial_port)
 
 				self._config = {
 					CONF_UNIQUE_ID: user_input[CONF_SERIAL_PORT],
