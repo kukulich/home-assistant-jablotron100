@@ -54,7 +54,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEn
 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: JablotronConfigEntry) -> bool:
-	await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
+	if not await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS):
+		return False
 
 	# Only stop the running instance. Stored data must be preserved so reloads
 	# (e.g. after changing options) do not have to re-detect every device.
