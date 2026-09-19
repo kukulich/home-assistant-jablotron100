@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
@@ -9,7 +10,6 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers import selector
 import re
-import time
 import threading
 from typing import Any, Dict, List
 import voluptuous as vol
@@ -52,20 +52,25 @@ from .errors import (
 	ServiceUnavailable,
 )
 from .jablotron import Jablotron
+from .stream import JablotronReadStream
 
 
-def check_serial_port(serial_port: str) -> None:
-	stop_event = threading.Event()
+def check_serial_port(serial_port: str, stop_event: threading.Event | None = None) -> None:
+	stop_event = stop_event or threading.Event()
 	thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
 
 	def reader_thread() -> str | None:
 		detected_model = None
 
-		stream = open(serial_port, "rb", buffering=0)
+		stream = JablotronReadStream(serial_port, stop_event)
 
 		try:
 			while not stop_event.is_set():
 				raw_packet = stream.read(STREAM_PACKET_SIZE)
+				if raw_packet is None:
+					break
+				if not raw_packet:
+					raise ServiceUnavailable("Serial stream closed during port check")
 				LOGGER.debug("Check serial port: {}".format(Jablotron.format_packet_to_string(raw_packet)))
 
 				packets = Jablotron.get_packets_from_packet(raw_packet)
@@ -85,7 +90,7 @@ def check_serial_port(serial_port: str) -> None:
 					break
 
 				# Because of USB/IP
-				time.sleep(1)
+				stop_event.wait(1)
 
 		finally:
 			stream.close()
@@ -94,13 +99,10 @@ def check_serial_port(serial_port: str) -> None:
 
 	def writer_thread() -> None:
 		while not stop_event.is_set():
-			stream = open(serial_port, "wb", buffering=0)
+			with open(serial_port, "wb", buffering=0) as stream:
+				stream.write(Jablotron.create_packet_get_system_info(SystemInfo.MODEL))
 
-			stream.write(Jablotron.create_packet_get_system_info(SystemInfo.MODEL))
-
-			stream.close()
-
-			time.sleep(1)
+			stop_event.wait(1)
 
 	try:
 		reader = thread_pool_executor.submit(reader_thread)
@@ -121,7 +123,7 @@ def check_serial_port(serial_port: str) -> None:
 
 	finally:
 		stop_event.set()
-		thread_pool_executor.shutdown(wait=False, cancel_futures=True)
+		thread_pool_executor.shutdown(wait=True, cancel_futures=True)
 
 
 def get_devices_fields(number_of_devices: int, default_values: List | None = None) -> OrderedDict:
@@ -167,6 +169,15 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 	def async_get_options_flow(config_entry: ConfigEntry) -> JablotronOptionsFlow:
 		return JablotronOptionsFlow(config_entry)
 
+	async def _async_check_serial_port(self, serial_port: str) -> None:
+		stop_event = threading.Event()
+		future = self.hass.async_add_executor_job(check_serial_port, serial_port, stop_event)
+		try:
+			await asyncio.shield(future)
+		finally:
+			stop_event.set()
+			await asyncio.shield(asyncio.gather(future, return_exceptions=True))
+
 	async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
 		errors: Dict[str, str] = {}
 
@@ -187,7 +198,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 				else:
 					serial_port = user_input[CONF_SERIAL_PORT]
 
-				await self.hass.async_add_executor_job(check_serial_port, serial_port)
+				await self._async_check_serial_port(serial_port)
 
 				self._config = {
 					CONF_UNIQUE_ID: user_input[CONF_SERIAL_PORT],
@@ -304,7 +315,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 					else:
 						serial_port_to_check = new_serial_port
 
-					await self.hass.async_add_executor_job(check_serial_port, serial_port_to_check)
+					await self._async_check_serial_port(serial_port_to_check)
 
 				except ModelNotDetected:
 					errors[CONF_SERIAL_PORT] = "model_not_detected"

@@ -32,23 +32,27 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: JablotronConfigEn
 	jablotron_instance: Jablotron = Jablotron(hass, config_entry.entry_id, config_entry.data, config_entry.options)
 	await jablotron_instance.initialize()
 
-	config_entry.runtime_data = jablotron_instance
-	config_entry.async_on_unload(config_entry.add_update_listener(options_update_listener))
+	try:
+		config_entry.runtime_data = jablotron_instance
+		config_entry.async_on_unload(config_entry.add_update_listener(options_update_listener))
 
-	central_unit = jablotron_instance.central_unit()
-	device_registry = dr.async_get(hass)
+		central_unit = jablotron_instance.central_unit()
+		device_registry = dr.async_get(hass)
 
-	device_registry.async_get_or_create(
-		config_entry_id=config_entry.entry_id,
-		identifiers={(DOMAIN, central_unit.unique_id)},
-		name="Jablotron 100",
-		model=central_unit.model,
-		manufacturer="Jablotron",
-		hw_version=central_unit.hardware_version,
-		sw_version=central_unit.firmware_version,
-	)
+		device_registry.async_get_or_create(
+			config_entry_id=config_entry.entry_id,
+			identifiers={(DOMAIN, central_unit.unique_id)},
+			name="Jablotron 100",
+			model=central_unit.model,
+			manufacturer="Jablotron",
+			hw_version=central_unit.hardware_version,
+			sw_version=central_unit.firmware_version,
+		)
 
-	await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+		await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+	except BaseException:
+		await jablotron_instance.async_shutdown()
+		raise
 
 	return True
 
@@ -59,7 +63,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: JablotronConfigE
 
 	# Only stop the running instance. Stored data must be preserved so reloads
 	# (e.g. after changing options) do not have to re-detect every device.
-	config_entry.runtime_data.shutdown()
+	await config_entry.runtime_data.async_shutdown()
 
 	return True
 
