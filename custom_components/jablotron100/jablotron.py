@@ -20,7 +20,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
-from homeassistant.helpers.entity_registry import EntityRegistry, async_get as async_get_entity_registry
+from homeassistant.helpers.entity_registry import EntityRegistry, async_entries_for_config_entry, async_get as async_get_entity_registry
 from .storage import async_get_store
 from .stream import JablotronReadStream
 import math
@@ -356,7 +356,7 @@ class Jablotron:
 				self._parse_pg_outputs_states_packet(packet)
 
 		# We have to create PG outputs even when no packet arrived
-		self._create_pg_outputs()
+		await self._create_pg_outputs()
 
 	def central_unit(self) -> JablotronCentralUnit:
 		assert self._central_unit is not None
@@ -681,7 +681,20 @@ class Jablotron:
 
 		return True
 
-	def _create_pg_outputs(self) -> None:
+	async def _create_pg_outputs(self) -> None:
+		output_count = self._config.get(CONF_NUMBER_OF_PG_OUTPUTS, 0)
+		known_ids = set(self.entities[EntityType.PROGRAMMABLE_OUTPUT]) | set(self.hass_entities) | set(self.entities_states)
+		known_ids.update(self._stored_data.get(self._get_unique_id(), {}).get(STORAGE_STATES_KEY, {}))
+		registry = async_get_entity_registry(self._hass)
+		unique_id_prefix = "{}.{}.".format(DOMAIN, self.central_unit().unique_id)
+		for registry_entry in async_entries_for_config_entry(registry, self._config_entry_id):
+			if registry_entry.platform == DOMAIN and registry_entry.domain == "switch" and registry_entry.unique_id.startswith(unique_id_prefix):
+				known_ids.add(registry_entry.unique_id.removeprefix(unique_id_prefix))
+		for entity_id in known_ids:
+			output_number = entity_id.removeprefix("pg_output_")
+			if output_number.isdecimal() and int(output_number) > output_count and entity_id == self._get_pg_output_id(int(output_number)):
+				await self._remove_entity(EntityType.PROGRAMMABLE_OUTPUT, entity_id)
+
 		if not self._has_pg_outputs():
 			return
 
@@ -708,12 +721,20 @@ class Jablotron:
 
 	def _detect_devices(self) -> None:
 		not_ignored_devices = self._get_not_ignored_devices()
+		expected_device_numbers = set(not_ignored_devices)
 		not_ignored_devices_count = len(not_ignored_devices)
 
 		if not_ignored_devices_count == 0:
+			if self._devices_data:
+				self._devices_data = {}
+				self._store_devices_data()
 			return
 
-		if len(self._devices_data.items()) == not_ignored_devices_count:
+		required_data = {DeviceData.CONNECTION, DeviceData.SIGNAL_STRENGTH, DeviceData.BATTERY, DeviceData.BATTERY_LEVEL, DeviceData.SECTION}
+		if (
+			set(self._devices_data) == {self._get_device_id(number) for number in not_ignored_devices}
+			and all(required_data <= data.keys() and data[DeviceData.SECTION] is not None for data in self._devices_data.values())
+		):
 			return
 
 		stop_event = threading.Event()
@@ -721,9 +742,11 @@ class Jablotron:
 
 		estimated_duration = math.ceil(not_ignored_devices_count / 10) + 1
 		expected_packets_count = not_ignored_devices_count + 1
+		minimum_sections_packet_length = 3 + math.ceil(max(not_ignored_devices) / 2)
 
 		def reader_thread() -> List[bytes]:
-			expected_packets = []
+			device_status_packets: Dict[int, bytes] = {}
+			devices_sections_packet = None
 
 			stream = self._open_read_stream(stop_event)
 
@@ -739,19 +762,27 @@ class Jablotron:
 					for parsed_packet in parsed_packets:
 						self._log_incoming_packet(parsed_packet)
 
-						if (
-							self._is_device_status_packet(parsed_packet)
-							or self._is_devices_sections_packet(parsed_packet)
+						if self._is_device_status_packet(parsed_packet):
+							device_number = self._parse_device_number_from_device_status_packet(parsed_packet)
+							if device_number in expected_device_numbers:
+								device_status_packets[device_number] = parsed_packet
+						elif (
+							self._is_devices_sections_packet(parsed_packet)
+							and len(parsed_packet) >= minimum_sections_packet_length
+							and len(parsed_packet) == self.bytes_to_int(parsed_packet[1:2]) + 2
 						):
-							expected_packets.append(parsed_packet)
+							devices_sections_packet = parsed_packet
 
-					if len(expected_packets) == expected_packets_count:
+					if set(device_status_packets) == expected_device_numbers and devices_sections_packet is not None:
 						break
 
 			finally:
 				stream.close()
 
-			return expected_packets
+			packets = list(device_status_packets.values())
+			if devices_sections_packet is not None:
+				packets.append(devices_sections_packet)
+			return packets
 
 		def writer_thread() -> None:
 			self._send_packet(self.create_packet_authorisation_code(self._config[CONF_PASSWORD]))
@@ -787,6 +818,7 @@ class Jablotron:
 		if len(packets) != expected_packets_count:
 			raise ShouldNotHappen
 
+		devices_data: Dict[str, Dict[DeviceData, Any]] = {}
 		devices_sections_packet = None
 
 		for packet in packets:
@@ -794,7 +826,7 @@ class Jablotron:
 				device_id = self._get_device_id(self._parse_device_number_from_device_status_packet(packet))
 				device_connection = self._parse_device_connection_type_from_device_status_packet(packet)
 
-				self._devices_data[device_id] = {
+				devices_data[device_id] = {
 					DeviceData.CONNECTION: device_connection,
 					DeviceData.SIGNAL_STRENGTH: None,
 					DeviceData.BATTERY: False,
@@ -804,12 +836,12 @@ class Jablotron:
 
 				if device_connection == DeviceConnection.WIRELESS:
 					signal_strength = self._parse_device_signal_strength_from_device_status_packet(packet)
-					self._devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
+					devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
 
 					battery_state = self._parse_device_battery_level_from_device_status_packet(packet)
 					if battery_state is not None:
-						self._devices_data[device_id][DeviceData.BATTERY] = True
-						self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
+						devices_data[device_id][DeviceData.BATTERY] = True
+						devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
 			else:
 				devices_sections_packet = packet
 
@@ -824,9 +856,10 @@ class Jablotron:
 				device_number += 1
 				device_id = self._get_device_id(device_number)
 
-				if device_id in self._devices_data:
-					self._devices_data[device_id][DeviceData.SECTION] = self.binary_to_int(sections_packet_binary[device_offset:(device_offset + 4)]) + 1
+				if device_id in devices_data:
+					devices_data[device_id][DeviceData.SECTION] = self.binary_to_int(sections_packet_binary[device_offset:(device_offset + 4)]) + 1
 
+		self._devices_data = devices_data
 		self._store_devices_data()
 
 	async def _create_devices(self) -> None:
@@ -868,6 +901,8 @@ class Jablotron:
 					self._get_device_state_sensor_id(device_number),
 					STATE_OFF,
 				)
+			else:
+				await self._remove_entity(None, self._get_device_state_sensor_id(device_number))
 
 			# Signal strength sensor
 			device_signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
@@ -2338,15 +2373,19 @@ class Jablotron:
 
 		self._set_entity_initial_state(entity_id, initial_state)
 
-	async def _remove_entity(self, entity_type: EntityType, entity_id: str) -> None:
-		if entity_id not in self.entities[entity_type]:
-			return
-
-		del self.entities[entity_type][entity_id]
+	async def _remove_entity(self, entity_type: EntityType | None, entity_id: str) -> None:
+		for current_type in self.entities if entity_type is None else (entity_type,):
+			self.entities[current_type].pop(entity_id, None)
 
 		if entity_id in self.hass_entities:
 			await self.hass_entities[entity_id].remove_from_hass()
 			del self.hass_entities[entity_id]
+
+		registry = async_get_entity_registry(self._hass)
+		unique_id = "{}.{}.{}".format(DOMAIN, self.central_unit().unique_id, entity_id)
+		for registry_entry in async_entries_for_config_entry(registry, self._config_entry_id):
+			if registry_entry.platform == DOMAIN and registry_entry.unique_id == unique_id:
+				registry.async_remove(registry_entry.entity_id)
 
 		if entity_id in self.entities_states:
 			del self.entities_states[entity_id]

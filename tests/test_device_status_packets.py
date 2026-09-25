@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from unittest.mock import Mock
+
+from homeassistant.const import CONF_PASSWORD
 import pytest
 
-from custom_components.jablotron100.const import DeviceConnection, SIGNAL_STRENGTH_STEP
+from custom_components.jablotron100.const import DeviceConnection, DeviceData, PACKET_DEVICES_SECTIONS, SIGNAL_STRENGTH_STEP
+from custom_components.jablotron100.errors import ShouldNotHappen
 from custom_components.jablotron100.jablotron import Jablotron
 
 
@@ -121,3 +125,118 @@ def test_parse_captured_device_status_packet(
 		assert battery_state is not None
 		assert battery_state.level == expected_battery_level
 		assert battery_state.ok == expected_battery_ok
+
+
+@pytest.fixture
+def discovery():
+	jablotron = object.__new__(Jablotron)
+	jablotron._config = {CONF_PASSWORD: "1234"}
+	jablotron._devices_data = {}
+	jablotron._get_not_ignored_devices = Mock(return_value=[1, 2])
+	jablotron._send_packet = Mock()
+	jablotron._send_packets = Mock()
+	jablotron._store_devices_data = Mock()
+	jablotron._log_incoming_packet = Mock()
+	stream = Mock()
+	jablotron._open_read_stream = Mock(return_value=stream)
+	return jablotron, stream
+
+
+DEVICE_ONE_STATUS = bytes.fromhex("52078a0104000000f2")
+DEVICE_TWO_STATUS = bytes.fromhex("52078a0204200000f2")
+UNREQUESTED_DEVICE_STATUS = bytes.fromhex("52078a0306200000fc")
+DEVICE_SECTIONS = Jablotron.create_packet(PACKET_DEVICES_SECTIONS, b"\x01\x21")
+
+
+@pytest.mark.parametrize("reads", [
+	pytest.param([DEVICE_ONE_STATUS, DEVICE_ONE_STATUS, DEVICE_SECTIONS, DEVICE_TWO_STATUS], id="duplicate-status"),
+	pytest.param([DEVICE_SECTIONS, DEVICE_SECTIONS, DEVICE_ONE_STATUS, DEVICE_TWO_STATUS], id="duplicate-sections"),
+	pytest.param([UNREQUESTED_DEVICE_STATUS, DEVICE_ONE_STATUS, DEVICE_SECTIONS, DEVICE_TWO_STATUS], id="unrequested-device"),
+	pytest.param([DEVICE_ONE_STATUS * 2 + DEVICE_SECTIONS + DEVICE_TWO_STATUS], id="duplicates-in-one-read"),
+	pytest.param([DEVICE_TWO_STATUS, DEVICE_SECTIONS, DEVICE_ONE_STATUS], id="out-of-order"),
+])
+def test_discovery_requires_distinct_requested_devices(discovery, reads):
+	jablotron, stream = discovery
+	stream.read.side_effect = [*reads, None]
+	jablotron._detect_devices()
+	assert set(jablotron._devices_data) == {"device_1", "device_2"}
+	assert jablotron._devices_data["device_1"][DeviceData.SECTION] == 2
+	assert jablotron._devices_data["device_2"][DeviceData.SECTION] == 3
+	jablotron._store_devices_data.assert_called_once_with()
+	stream.close.assert_called_once_with()
+
+
+def test_equal_size_cache_with_different_device_ids_is_rediscovered(discovery):
+	jablotron, stream = discovery
+	jablotron._devices_data = {"device_1": {DeviceData.SECTION: 1}, "device_3": {DeviceData.SECTION: 1}}
+	stream.read.side_effect = [DEVICE_ONE_STATUS, DEVICE_TWO_STATUS, DEVICE_SECTIONS, None]
+	jablotron._detect_devices()
+	assert set(jablotron._devices_data) == {"device_1", "device_2"}
+	assert jablotron._devices_data["device_1"][DeviceData.SECTION] == 2
+	jablotron._store_devices_data.assert_called_once_with()
+
+
+def test_missing_device_response_does_not_replace_previous_cache(discovery):
+	jablotron, stream = discovery
+	previous_data = {"device_9": {DeviceData.SECTION: 4}}
+	jablotron._devices_data = previous_data.copy()
+	stream.read.side_effect = [DEVICE_ONE_STATUS, DEVICE_ONE_STATUS, DEVICE_SECTIONS, None]
+	with pytest.raises(ShouldNotHappen):
+		jablotron._detect_devices()
+	assert jablotron._devices_data == previous_data
+	jablotron._store_devices_data.assert_not_called()
+	stream.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize("complete", [False, True])
+def test_only_complete_matching_cache_skips_discovery(discovery, complete):
+	jablotron, stream = discovery
+	jablotron._devices_data = {
+		f"device_{number}": {
+			DeviceData.CONNECTION: DeviceConnection.WIRED,
+			DeviceData.SIGNAL_STRENGTH: None,
+			DeviceData.BATTERY: False,
+			DeviceData.BATTERY_LEVEL: None,
+			DeviceData.SECTION: number + 1 if complete else None,
+		}
+		for number in (1, 2)
+	}
+	stream.read.side_effect = [DEVICE_ONE_STATUS, DEVICE_TWO_STATUS, DEVICE_SECTIONS, None]
+	jablotron._detect_devices()
+	if complete:
+		jablotron._open_read_stream.assert_not_called()
+		jablotron._store_devices_data.assert_not_called()
+	else:
+		assert jablotron._devices_data["device_2"][DeviceData.SECTION] == 3
+		jablotron._store_devices_data.assert_called_once_with()
+
+
+def test_discovery_waits_for_map_covering_highest_requested_device(discovery):
+	jablotron, stream = discovery
+	jablotron._get_not_ignored_devices.return_value = [1, 3]
+	full_map = Jablotron.create_packet(PACKET_DEVICES_SECTIONS, b"\x01\x21\x03")
+	stream.read.side_effect = [DEVICE_ONE_STATUS, UNREQUESTED_DEVICE_STATUS, DEVICE_SECTIONS, full_map, None]
+	jablotron._detect_devices()
+	assert set(jablotron._devices_data) == {"device_1", "device_3"}
+	assert jablotron._devices_data["device_3"][DeviceData.SECTION] == 4
+
+
+def test_discovery_clears_cache_when_all_devices_are_ignored(discovery):
+	jablotron, stream = discovery
+	jablotron._get_not_ignored_devices.return_value = []
+	jablotron._devices_data = {"device_1": {DeviceData.SECTION: 1}}
+	jablotron._detect_devices()
+	assert jablotron._devices_data == {}
+	jablotron._open_read_stream.assert_not_called()
+	jablotron._store_devices_data.assert_called_once_with()
+
+
+def test_missing_section_map_does_not_replace_previous_cache(discovery):
+	jablotron, stream = discovery
+	previous_data = {"device_9": {DeviceData.SECTION: 4}}
+	jablotron._devices_data = previous_data.copy()
+	stream.read.side_effect = [DEVICE_ONE_STATUS, DEVICE_TWO_STATUS, None]
+	with pytest.raises(ShouldNotHappen):
+		jablotron._detect_devices()
+	assert jablotron._devices_data == previous_data
+	jablotron._store_devices_data.assert_not_called()
