@@ -708,12 +708,20 @@ class Jablotron:
 
 	def _detect_devices(self) -> None:
 		not_ignored_devices = self._get_not_ignored_devices()
+		expected_device_numbers = set(not_ignored_devices)
 		not_ignored_devices_count = len(not_ignored_devices)
 
 		if not_ignored_devices_count == 0:
+			if self._devices_data:
+				self._devices_data = {}
+				self._store_devices_data()
 			return
 
-		if len(self._devices_data.items()) == not_ignored_devices_count:
+		required_data = {DeviceData.CONNECTION, DeviceData.SIGNAL_STRENGTH, DeviceData.BATTERY, DeviceData.BATTERY_LEVEL, DeviceData.SECTION}
+		if (
+			set(self._devices_data) == {self._get_device_id(number) for number in not_ignored_devices}
+			and all(required_data <= data.keys() and data[DeviceData.SECTION] is not None for data in self._devices_data.values())
+		):
 			return
 
 		stop_event = threading.Event()
@@ -721,9 +729,11 @@ class Jablotron:
 
 		estimated_duration = math.ceil(not_ignored_devices_count / 10) + 1
 		expected_packets_count = not_ignored_devices_count + 1
+		minimum_sections_packet_length = 3 + math.ceil(max(not_ignored_devices) / 2)
 
 		def reader_thread() -> List[bytes]:
-			expected_packets = []
+			device_status_packets: Dict[int, bytes] = {}
+			devices_sections_packet = None
 
 			stream = self._open_read_stream(stop_event)
 
@@ -739,19 +749,27 @@ class Jablotron:
 					for parsed_packet in parsed_packets:
 						self._log_incoming_packet(parsed_packet)
 
-						if (
-							self._is_device_status_packet(parsed_packet)
-							or self._is_devices_sections_packet(parsed_packet)
+						if self._is_device_status_packet(parsed_packet):
+							device_number = self._parse_device_number_from_device_status_packet(parsed_packet)
+							if device_number in expected_device_numbers:
+								device_status_packets[device_number] = parsed_packet
+						elif (
+							self._is_devices_sections_packet(parsed_packet)
+							and len(parsed_packet) >= minimum_sections_packet_length
+							and len(parsed_packet) == self.bytes_to_int(parsed_packet[1:2]) + 2
 						):
-							expected_packets.append(parsed_packet)
+							devices_sections_packet = parsed_packet
 
-					if len(expected_packets) == expected_packets_count:
+					if set(device_status_packets) == expected_device_numbers and devices_sections_packet is not None:
 						break
 
 			finally:
 				stream.close()
 
-			return expected_packets
+			packets = list(device_status_packets.values())
+			if devices_sections_packet is not None:
+				packets.append(devices_sections_packet)
+			return packets
 
 		def writer_thread() -> None:
 			self._send_packet(self.create_packet_authorisation_code(self._config[CONF_PASSWORD]))
@@ -787,6 +805,7 @@ class Jablotron:
 		if len(packets) != expected_packets_count:
 			raise ShouldNotHappen
 
+		devices_data: Dict[str, Dict[DeviceData, Any]] = {}
 		devices_sections_packet = None
 
 		for packet in packets:
@@ -794,7 +813,7 @@ class Jablotron:
 				device_id = self._get_device_id(self._parse_device_number_from_device_status_packet(packet))
 				device_connection = self._parse_device_connection_type_from_device_status_packet(packet)
 
-				self._devices_data[device_id] = {
+				devices_data[device_id] = {
 					DeviceData.CONNECTION: device_connection,
 					DeviceData.SIGNAL_STRENGTH: None,
 					DeviceData.BATTERY: False,
@@ -804,12 +823,12 @@ class Jablotron:
 
 				if device_connection == DeviceConnection.WIRELESS:
 					signal_strength = self._parse_device_signal_strength_from_device_status_packet(packet)
-					self._devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
+					devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
 
 					battery_state = self._parse_device_battery_level_from_device_status_packet(packet)
 					if battery_state is not None:
-						self._devices_data[device_id][DeviceData.BATTERY] = True
-						self._devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
+						devices_data[device_id][DeviceData.BATTERY] = True
+						devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
 			else:
 				devices_sections_packet = packet
 
@@ -824,9 +843,10 @@ class Jablotron:
 				device_number += 1
 				device_id = self._get_device_id(device_number)
 
-				if device_id in self._devices_data:
-					self._devices_data[device_id][DeviceData.SECTION] = self.binary_to_int(sections_packet_binary[device_offset:(device_offset + 4)]) + 1
+				if device_id in devices_data:
+					devices_data[device_id][DeviceData.SECTION] = self.binary_to_int(sections_packet_binary[device_offset:(device_offset + 4)]) + 1
 
+		self._devices_data = devices_data
 		self._store_devices_data()
 
 	async def _create_devices(self) -> None:
