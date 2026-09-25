@@ -20,7 +20,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.entity import DeviceInfo, Entity
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
-from homeassistant.helpers.entity_registry import EntityRegistry, async_get as async_get_entity_registry
+from homeassistant.helpers.entity_registry import EntityRegistry, async_entries_for_config_entry, async_get as async_get_entity_registry
 from .storage import async_get_store
 from .stream import JablotronReadStream
 import math
@@ -356,7 +356,7 @@ class Jablotron:
 				self._parse_pg_outputs_states_packet(packet)
 
 		# We have to create PG outputs even when no packet arrived
-		self._create_pg_outputs()
+		await self._create_pg_outputs()
 
 	def central_unit(self) -> JablotronCentralUnit:
 		assert self._central_unit is not None
@@ -681,7 +681,20 @@ class Jablotron:
 
 		return True
 
-	def _create_pg_outputs(self) -> None:
+	async def _create_pg_outputs(self) -> None:
+		output_count = self._config.get(CONF_NUMBER_OF_PG_OUTPUTS, 0)
+		known_ids = set(self.entities[EntityType.PROGRAMMABLE_OUTPUT]) | set(self.hass_entities) | set(self.entities_states)
+		known_ids.update(self._stored_data.get(self._get_unique_id(), {}).get(STORAGE_STATES_KEY, {}))
+		registry = async_get_entity_registry(self._hass)
+		unique_id_prefix = "{}.{}.".format(DOMAIN, self.central_unit().unique_id)
+		for registry_entry in async_entries_for_config_entry(registry, self._config_entry_id):
+			if registry_entry.platform == DOMAIN and registry_entry.domain == "switch" and registry_entry.unique_id.startswith(unique_id_prefix):
+				known_ids.add(registry_entry.unique_id.removeprefix(unique_id_prefix))
+		for entity_id in known_ids:
+			output_number = entity_id.removeprefix("pg_output_")
+			if output_number.isdecimal() and int(output_number) > output_count and entity_id == self._get_pg_output_id(int(output_number)):
+				await self._remove_entity(EntityType.PROGRAMMABLE_OUTPUT, entity_id)
+
 		if not self._has_pg_outputs():
 			return
 
@@ -888,6 +901,8 @@ class Jablotron:
 					self._get_device_state_sensor_id(device_number),
 					STATE_OFF,
 				)
+			else:
+				await self._remove_entity(None, self._get_device_state_sensor_id(device_number))
 
 			# Signal strength sensor
 			device_signal_strength_sensor_id = self._get_device_signal_strength_sensor_id(device_number)
@@ -2358,15 +2373,19 @@ class Jablotron:
 
 		self._set_entity_initial_state(entity_id, initial_state)
 
-	async def _remove_entity(self, entity_type: EntityType, entity_id: str) -> None:
-		if entity_id not in self.entities[entity_type]:
-			return
-
-		del self.entities[entity_type][entity_id]
+	async def _remove_entity(self, entity_type: EntityType | None, entity_id: str) -> None:
+		for current_type in self.entities if entity_type is None else (entity_type,):
+			self.entities[current_type].pop(entity_id, None)
 
 		if entity_id in self.hass_entities:
 			await self.hass_entities[entity_id].remove_from_hass()
 			del self.hass_entities[entity_id]
+
+		registry = async_get_entity_registry(self._hass)
+		unique_id = "{}.{}.{}".format(DOMAIN, self.central_unit().unique_id, entity_id)
+		for registry_entry in async_entries_for_config_entry(registry, self._config_entry_id):
+			if registry_entry.platform == DOMAIN and registry_entry.unique_id == unique_id:
+				registry.async_remove(registry_entry.entity_id)
 
 		if entity_id in self.entities_states:
 			del self.entities_states[entity_id]
