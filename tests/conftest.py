@@ -93,6 +93,7 @@ except ModuleNotFoundError:
 	typing.StateType = bool | float | int | str | None
 	entity_registry.EntityRegistry = EntityRegistry
 	entity_registry.async_get = lambda *args, **kwargs: None
+	entity_registry.async_entries_for_config_entry = lambda *args, **kwargs: []
 
 	homeassistant.core = core
 	homeassistant.const = const

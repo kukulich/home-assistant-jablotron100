@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, EVENT_STATE_CHANGED, STATE_OFF, STATE_ON
 from homeassistant.core import callback
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.storage import Store
 import pytest
@@ -19,13 +20,14 @@ import pytest
 from custom_components.jablotron100 import async_remove_entry, binary_sensor
 from custom_components.jablotron100.const import (
 	CONF_DEVICES, CONF_NUMBER_OF_DEVICES, CONF_NUMBER_OF_PG_OUTPUTS,
-	CONF_SERIAL_PORT, CONF_UNIQUE_ID, DOMAIN, EntityType,
+	CONF_SERIAL_PORT, CONF_UNIQUE_ID, DOMAIN, DeviceConnection, DeviceData, DeviceType, EntityType,
 )
 from custom_components.jablotron100.jablotron import (
 	Jablotron, JablotronCentralUnit, JablotronControl, STORAGE_VERSION,
 	STORAGE_CENTRAL_UNIT_KEY, STORAGE_DEVICES_KEY, STORAGE_STATES_KEY,
 )
 from custom_components.jablotron100.storage import JablotronStore
+from custom_components.jablotron100.switch import JablotronProgrammableOutputEntity
 
 
 @pytest.fixture
@@ -200,3 +202,165 @@ async def test_removing_panel_preserves_other_data_and_pending_saves(hass, panel
 	assert "panel-a" not in first_panel._stored_data
 	await async_remove_entry(hass, first_entry)
 	assert await read_stored_data(hass) == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("disabled", [False, True])
+async def test_fresh_instance_removes_obsolete_registry_entity_only_from_own_panel(hass, panels, disabled):
+	registry = er.async_get(hass)
+	control_id = "device_temperature_sensor_1"
+	registered = []
+	for entry, instance in panels:
+		await instance._load_stored_data()
+		instance.entities_states[control_id] = 21.5
+		instance._store_state(control_id, 21.5)
+		registry_entry = registry.async_get_or_create(
+			"sensor", DOMAIN, f"{DOMAIN}.{instance.central_unit().unique_id}.{control_id}",
+			config_entry=entry,
+			disabled_by=er.RegistryEntryDisabler.USER if disabled else None,
+		)
+		registry_entry = registry.async_update_entity(
+			registry_entry.entity_id, new_entity_id=f"sensor.renamed_{entry.entry_id.replace('-', '_')}",
+		)
+		registered.append(registry_entry)
+	first_entry, first_panel = panels[0]
+	second_entry, second_panel = panels[1]
+	assert first_panel.entities[EntityType.TEMPERATURE] == {}
+	assert first_panel.hass_entities == {}
+	await first_panel._remove_entity(EntityType.TEMPERATURE, control_id)
+	await first_panel._remove_entity(EntityType.TEMPERATURE, control_id)
+	assert registry.async_get(registered[0].entity_id) is None
+	assert registry.async_get(registered[1].entity_id) == registered[1]
+	assert control_id not in first_panel.entities_states
+	assert second_panel.entities_states[control_id] == 21.5
+	await first_panel._store.async_save(first_panel._data_to_store())
+	stored = await read_stored_data(hass)
+	assert control_id not in stored[first_entry.entry_id][STORAGE_STATES_KEY]
+	assert stored[second_entry.entry_id][STORAGE_STATES_KEY][control_id] == 21.5
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("output_count", [0, 1, 3])
+async def test_startup_removes_only_obsolete_pg_outputs(hass, panels, output_count):
+	registry = er.async_get(hass)
+	registered = {}
+	for entry, instance in panels:
+		await instance._load_stored_data()
+		for number in (1, 2, 3):
+			control_id = instance._get_pg_output_id(number)
+			instance.entities_states[control_id] = STATE_ON
+			instance._store_state(control_id, STATE_ON)
+			registered[entry.entry_id, number] = registry.async_get_or_create(
+				"switch", DOMAIN, f"{DOMAIN}.{instance.central_unit().unique_id}.{control_id}",
+				config_entry=entry, suggested_object_id=f"renamed_{entry.entry_id.replace('-', '_')}_{number}",
+				disabled_by=er.RegistryEntryDisabler.USER if number == 3 else None,
+			)
+	first_entry, first_panel = panels[0]
+	second_entry, second_panel = panels[1]
+	first_panel._config[CONF_NUMBER_OF_PG_OUTPUTS] = output_count
+	first_panel.entities_states["pg_output_4"] = STATE_ON
+	first_panel._store_state("pg_output_4", STATE_ON)
+	registry_only = registry.async_get_or_create(
+		"switch", DOMAIN, f"{DOMAIN}.{first_panel.central_unit().unique_id}.pg_output_5", config_entry=first_entry,
+	)
+	unrelated = registry.async_get_or_create(
+		"sensor", DOMAIN, f"{DOMAIN}.{first_panel.central_unit().unique_id}.pg_output_2_status", config_entry=first_entry,
+	)
+	with patch.object(first_panel, "_detect_sections_and_pg_outputs", return_value=[]):
+		await first_panel._detect_and_create_devices_and_sections_and_pg_outputs()
+		await first_panel._detect_and_create_devices_and_sections_and_pg_outputs()
+	for number in (1, 2, 3):
+		first_registered = registered[first_entry.entry_id, number]
+		assert registry.async_get(first_registered.entity_id) == (first_registered if number <= output_count else None)
+		second_registered = registered[second_entry.entry_id, number]
+		assert registry.async_get(second_registered.entity_id) == second_registered
+	assert registry.async_get(registry_only.entity_id) is None
+	assert registry.async_get(unrelated.entity_id) == unrelated
+	expected_ids = {first_panel._get_pg_output_id(number) for number in range(1, output_count + 1)}
+	assert set(first_panel.entities[EntityType.PROGRAMMABLE_OUTPUT]) == expected_ids
+	assert set(first_panel.entities_states) == expected_ids
+	await first_panel._store.async_save(first_panel._data_to_store())
+	stored = await read_stored_data(hass)
+	assert set(stored[first_entry.entry_id][STORAGE_STATES_KEY]) == expected_ids
+	assert set(stored[second_entry.entry_id][STORAGE_STATES_KEY]) == {"pg_output_1", "pg_output_2", "pg_output_3"}
+
+
+@pytest.mark.asyncio
+async def test_pg_reduction_removes_loaded_entity(hass, panels):
+	entry, instance = panels[0]
+	instance._config[CONF_NUMBER_OF_PG_OUTPUTS] = 2
+	await instance._create_pg_outputs()
+	component = EntityComponent(logging.getLogger(__name__), "switch", hass)
+	platform = component._async_init_entity_platform(DOMAIN, None)
+	platform.config_entry = entry
+	entities = [JablotronProgrammableOutputEntity(instance, control) for control in instance.entities[EntityType.PROGRAMMABLE_OUTPUT].values()]
+	try:
+		await platform.async_add_entities(entities)
+		kept, removed = entities
+		instance._config[CONF_NUMBER_OF_PG_OUTPUTS] = 1
+		await instance._create_pg_outputs()
+		await hass.async_block_till_done()
+		assert instance.hass_entities == {"pg_output_1": kept}
+		assert removed.entity_id not in platform.entities
+		assert er.async_get(hass).async_get(removed.entity_id) is None
+		assert er.async_get(hass).async_get(kept.entity_id).unique_id == kept.unique_id
+	finally:
+		await platform.async_reset()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("device_type", [DeviceType.MOTION_DETECTOR, DeviceType.KEYPAD])
+async def test_device_configuration_removes_obsolete_sensor_roles(hass, panels, device_type):
+	entry, instance = panels[0]
+	registry = er.async_get(hass)
+	instance._config[CONF_NUMBER_OF_DEVICES] = 1
+	instance._config[CONF_DEVICES] = [device_type]
+	instance._devices_data = {"device_1": {
+		DeviceData.CONNECTION: DeviceConnection.WIRED,
+		DeviceData.SIGNAL_STRENGTH: None,
+		DeviceData.BATTERY: False,
+		DeviceData.BATTERY_LEVEL: None,
+		DeviceData.SECTION: 1,
+	}}
+	obsolete = [
+		("sensor", instance._get_device_signal_strength_sensor_id(1)),
+		("binary_sensor", instance._get_device_battery_problem_sensor_id(1)),
+		("sensor", instance._get_device_battery_level_sensor_id(1)),
+		("sensor", instance._get_device_battery_standby_voltage_sensor_id(1)),
+		("sensor", instance._get_device_battery_load_voltage_sensor_id(1)),
+		("sensor", instance._get_device_temperature_sensor_id(1)),
+		("sensor", instance._get_device_pulse_sensor_id(1)),
+		("sensor", instance._get_device_pulse_sensor_id(1, 1)),
+	]
+	state_id = instance._get_device_state_sensor_id(1)
+	if device_type == DeviceType.KEYPAD:
+		obsolete.append(("binary_sensor", state_id))
+	kept_id = instance._get_device_problem_sensor_id(1)
+	registered = {}
+	for domain, control_id in [*obsolete, ("binary_sensor", kept_id)]:
+		registered[control_id] = registry.async_get_or_create(
+			domain, DOMAIN, f"{DOMAIN}.{instance.central_unit().unique_id}.{control_id}", config_entry=entry,
+		)
+		instance.entities_states[control_id] = STATE_ON
+		instance._store_state(control_id, STATE_ON)
+	await instance._create_devices()
+	await instance._create_devices()
+	for domain, control_id in obsolete:
+		assert registry.async_get(registered[control_id].entity_id) is None
+		assert control_id not in instance.entities_states
+		assert control_id not in instance._data_to_store()[entry.entry_id][STORAGE_STATES_KEY]
+	assert registry.async_get(registered[kept_id].entity_id) == registered[kept_id]
+	assert instance.entities_states[kept_id] == STATE_ON
+	assert (state_id in instance.entities_states) is (device_type == DeviceType.MOTION_DETECTOR)
+
+
+@pytest.mark.asyncio
+async def test_matching_unique_id_in_another_config_entry_is_not_removed(hass, panels):
+	first_entry, first_panel = panels[0]
+	second_entry, second_panel = panels[1]
+	registry = er.async_get(hass)
+	foreign = registry.async_get_or_create(
+		"sensor", DOMAIN, f"{DOMAIN}.{first_panel.central_unit().unique_id}.temperature", config_entry=second_entry,
+	)
+	await first_panel._remove_entity(EntityType.TEMPERATURE, "temperature")
+	assert registry.async_get(foreign.entity_id) == foreign
