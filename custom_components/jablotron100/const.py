@@ -230,6 +230,9 @@ DEVICE_INFO_KNOWN_SUBPACKETS: Final[tuple[bytes, ...]] = (
 )
 DEVICE_INFO_UNKNOWN_SUBPACKETS: Final[tuple[bytes, ...]] = (
 	b"\x05",
+	b"\x19",
+	b"\x36",
+	b"\x40",
 )
 
 

@@ -5,6 +5,7 @@ from unittest.mock import Mock, call
 import pytest
 
 from custom_components.jablotron100.const import (
+	CONF_NUMBER_OF_DEVICES,
 	DEVICE_INFO_KNOWN_SUBPACKETS,
 	DeviceInfoType,
 )
@@ -458,3 +459,36 @@ def test_input_extended_does_not_update_state() -> None:
 	jablotron._parse_device_input_value_info_packet(parse_info_subpacket(packet), 8, packet)
 
 	jablotron._update_entity_state.assert_called_once_with("device_temperature_sensor_8", 23.8)
+
+
+@pytest.mark.parametrize(
+	("packet_hex", "expected_error"),
+	[
+		pytest.param("90031d0500", None, id="ignored-0x05"),
+		pytest.param("9006131903c03000", None, id="ignored-0x19"),
+		pytest.param("90031d3600", None, id="ignored-0x36"),
+		pytest.param("90051340021001", None, id="ignored-0x40-unknown-system-info"),
+		pytest.param(
+			"9021134008084c5736323130334009094c573132313036614009024a412d3135315354",
+			None,
+			id="ignored-0x40-device-identification",
+		),
+		pytest.param("90031d3700", "Unknown info subpacket type 37", id="unrecognized-0x37"),
+	],
+)
+def test_unknown_device_info_subpacket(packet_hex: str, expected_error: str | None) -> None:
+	packet = bytes.fromhex(packet_hex)
+	jablotron = object.__new__(Jablotron)
+	jablotron._config = {CONF_NUMBER_OF_DEVICES: 29}
+	jablotron._get_central_unit_lan_connection_device_number = Mock(return_value=233)
+	jablotron._get_central_unit_gsm_device_number = Mock(return_value=234)
+	jablotron._update_entity_state = Mock()
+	jablotron._log_error_with_packet = Mock()
+
+	jablotron._parse_device_info_packet(packet)
+
+	jablotron._update_entity_state.assert_not_called()
+	if expected_error is None:
+		jablotron._log_error_with_packet.assert_not_called()
+	else:
+		jablotron._log_error_with_packet.assert_called_once_with(expected_error, packet)
