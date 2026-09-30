@@ -48,6 +48,9 @@ class DeviceData(StrEnum):
 	CONNECTION = "connection"
 	SECTION = "section"
 	SIGNAL_STRENGTH = "signal_strength"
+	MODEL = "model"
+	HARDWARE_VERSION = "hardware_version"
+	FIRMWARE_VERSION = "firmware_version"
 
 
 class DeviceConnection(StrEnum):
@@ -223,16 +226,17 @@ class SectionPrimaryState(Enum):
 DEVICE_INFO_SUBPACKET_WIRELESS: Final[bytes] = b"\x01"
 DEVICE_INFO_SUBPACKET_PERIODIC: Final[bytes] = b"\x9c"
 DEVICE_INFO_SUBPACKET_REQUESTED: Final[bytes] = b"\x0a"
+DEVICE_INFO_SUBPACKET_IDENTIFICATION: Final[bytes] = b"\x40"
 DEVICE_INFO_KNOWN_SUBPACKETS: Final[tuple[bytes, ...]] = (
 	DEVICE_INFO_SUBPACKET_WIRELESS,
 	DEVICE_INFO_SUBPACKET_PERIODIC,
 	DEVICE_INFO_SUBPACKET_REQUESTED,
+	DEVICE_INFO_SUBPACKET_IDENTIFICATION,
 )
 DEVICE_INFO_UNKNOWN_SUBPACKETS: Final[tuple[bytes, ...]] = (
 	b"\x05",
 	b"\x19",
 	b"\x36",
-	b"\x40",
 )
 
 

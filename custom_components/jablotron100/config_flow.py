@@ -80,7 +80,7 @@ def check_serial_port(serial_port: str, stop_event: threading.Event | None = Non
 						and Jablotron.bytes_to_int(packet[2:3]) == SystemInfo.MODEL.value
 					):
 						try:
-							detected_model = Jablotron.decode_system_info_packet(packet)
+							detected_model = Jablotron.decode_info_packet_string(packet)
 							break
 						except UnicodeDecodeError:
 							# Will try again

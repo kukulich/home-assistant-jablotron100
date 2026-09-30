@@ -24,6 +24,7 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 - Pulses are reported for electricity meters with pulse output.
 - Signal strength is reported for wireless devices.
 - Battery level is reported for devices with battery.
+- Model, hardware and firmware versions are shown in device information when reported by a device.
 
 ### PG outputs
 

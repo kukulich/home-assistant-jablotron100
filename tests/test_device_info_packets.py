@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 
 import pytest
 
 from custom_components.jablotron100.const import (
 	CONF_NUMBER_OF_DEVICES,
 	DEVICE_INFO_KNOWN_SUBPACKETS,
+	DeviceData,
 	DeviceInfoType,
 )
 from custom_components.jablotron100.jablotron import Jablotron
@@ -468,11 +469,6 @@ def test_input_extended_does_not_update_state() -> None:
 		pytest.param("9006131903c03000", None, id="ignored-0x19"),
 		pytest.param("90031d3600", None, id="ignored-0x36"),
 		pytest.param("90051340021001", None, id="ignored-0x40-unknown-system-info"),
-		pytest.param(
-			"9021134008084c5736323130334009094c573132313036614009024a412d3135315354",
-			None,
-			id="ignored-0x40-device-identification",
-		),
 		pytest.param("90031d3700", "Unknown info subpacket type 37", id="unrecognized-0x37"),
 	],
 )
@@ -480,6 +476,7 @@ def test_unknown_device_info_subpacket(packet_hex: str, expected_error: str | No
 	packet = bytes.fromhex(packet_hex)
 	jablotron = object.__new__(Jablotron)
 	jablotron._config = {CONF_NUMBER_OF_DEVICES: 29}
+	jablotron._is_device_ignored = Mock(return_value=False)
 	jablotron._get_central_unit_lan_connection_device_number = Mock(return_value=233)
 	jablotron._get_central_unit_gsm_device_number = Mock(return_value=234)
 	jablotron._update_entity_state = Mock()
@@ -492,3 +489,67 @@ def test_unknown_device_info_subpacket(packet_hex: str, expected_error: str | No
 		jablotron._log_error_with_packet.assert_not_called()
 	else:
 		jablotron._log_error_with_packet.assert_called_once_with(expected_error, packet)
+
+
+IDENTIFICATION_PACKET = bytes.fromhex(
+	"9021134008084c5736323130334009094c573132313036614009024a412d3135315354"
+)
+
+
+@pytest.mark.parametrize(
+	("packet", "expected_value"),
+	[
+		pytest.param(b"\x40\x08\x02JA-103K", "JA-103K", id="central-unit-model"),
+		pytest.param(b"\x40\x09\x02JA-151ST", "JA-151ST", id="peripheral-model"),
+		pytest.param(b"\x40\x08\x08LW62103", "LW62103", id="hardware"),
+		pytest.param(b"\x40\x09\x09LW12106a", "LW12106a", id="firmware"),
+		pytest.param(b"\x40\x05\x02JA\x00X", "JA", id="null-terminated"),
+		pytest.param(b"\x40\x01\x02", "", id="empty"),
+	],
+)
+def test_decode_info_packet_string(packet: bytes, expected_value: str) -> None:
+	assert Jablotron.decode_info_packet_string(packet) == expected_value
+
+
+def test_parse_captured_device_identification() -> None:
+	assert Jablotron._parse_device_number_from_device_info_packet(IDENTIFICATION_PACKET) == 19
+	assert Jablotron._parse_device_identification_from_packet(IDENTIFICATION_PACKET) == {
+		DeviceData.MODEL: "JA-151ST",
+		DeviceData.HARDWARE_VERSION: "LW62103",
+		DeviceData.FIRMWARE_VERSION: "LW12106a",
+	}
+
+
+@pytest.mark.parametrize(
+	("subpacket", "expected_value", "expected_error"),
+	[
+		pytest.param("4006024a412d5800", "JA-X", None, id="null-terminated"),
+		pytest.param("4006024a41005800", "JA", None, id="ignore-after-null"),
+		pytest.param("400102", None, None, id="empty"),
+		pytest.param("40020200", None, None, id="empty-null"),
+		pytest.param("400210ff", None, None, id="unsupported-binary"),
+		pytest.param("400202ff", None, "Invalid device identification text", id="invalid-text"),
+		pytest.param("40020201", None, "Invalid device identification text", id="control-character"),
+		pytest.param("4006024a41", None, "Malformed device identification subpacket", id="truncated"),
+		pytest.param("4000", None, "Malformed device identification subpacket", id="missing-type"),
+	],
+)
+def test_parse_device_identification_subpacket(subpacket, expected_value, expected_error) -> None:
+	packet = Jablotron.create_packet(b"\x90", b"\x13" + bytes.fromhex(subpacket))
+	with patch.object(Jablotron, "_log_error_with_packet") as log_error:
+		actual = Jablotron._parse_device_identification_from_packet(packet)
+		assert actual == ({DeviceData.MODEL: expected_value} if expected_value is not None else {})
+		if expected_error is None:
+			log_error.assert_not_called()
+		else:
+			log_error.assert_called_once_with(expected_error, packet)
+
+
+def test_identification_continues_after_invalid_and_unsupported_fields() -> None:
+	packet = Jablotron.create_packet(b"\x90", bytes.fromhex("13400202ff4002100140040956310036004005024a412d58"))
+	with patch.object(Jablotron, "_log_error_with_packet") as log_error:
+		assert Jablotron._parse_device_identification_from_packet(packet) == {
+			DeviceData.FIRMWARE_VERSION: "V1",
+			DeviceData.MODEL: "JA-X",
+		}
+		log_error.assert_called_once_with("Invalid device identification text", packet)

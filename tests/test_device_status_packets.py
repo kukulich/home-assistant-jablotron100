@@ -240,3 +240,32 @@ def test_missing_section_map_does_not_replace_previous_cache(discovery):
 		jablotron._detect_devices()
 	assert jablotron._devices_data == previous_data
 	jablotron._store_devices_data.assert_not_called()
+
+
+@pytest.mark.parametrize("complete", [False, True])
+def test_discovery_preserves_and_collects_identification(discovery, complete):
+	jablotron, stream = discovery
+	previous_data = {
+		"device_1": {DeviceData.MODEL: "JA-OLD", DeviceData.HARDWARE_VERSION: "HW1"},
+		"device_3": {DeviceData.MODEL: "removed"},
+	}
+	jablotron._devices_data = previous_data.copy()
+	device_one_info = Jablotron.create_packet(b"\x90", bytes.fromhex("014005024a412d58"))
+	ignored_device_info = Jablotron.create_packet(b"\x90", bytes.fromhex("034005024a412d59"))
+	stream.read.side_effect = [
+		device_one_info, ignored_device_info, DEVICE_ONE_STATUS,
+		DEVICE_SECTIONS, *([DEVICE_TWO_STATUS] if complete else []), None,
+	]
+	if not complete:
+		with pytest.raises(ShouldNotHappen):
+			jablotron._detect_devices()
+		assert jablotron._devices_data == previous_data
+		jablotron._store_devices_data.assert_not_called()
+		return
+
+	jablotron._detect_devices()
+	assert jablotron._devices_data["device_1"][DeviceData.MODEL] == "JA-X"
+	assert jablotron._devices_data["device_1"][DeviceData.HARDWARE_VERSION] == "HW1"
+	assert DeviceData.FIRMWARE_VERSION not in jablotron._devices_data["device_1"]
+	assert set(jablotron._devices_data) == {"device_1", "device_2"}
+	jablotron._store_devices_data.assert_called_once_with()

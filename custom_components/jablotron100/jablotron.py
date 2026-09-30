@@ -60,6 +60,7 @@ from .const import (
 	DEVICE_INFO_KNOWN_SUBPACKETS,
 	DEVICE_INFO_SUBPACKET_WIRELESS,
 	DEVICE_INFO_SUBPACKET_REQUESTED,
+	DEVICE_INFO_SUBPACKET_IDENTIFICATION,
 	DEVICE_INFO_UNKNOWN_SUBPACKETS,
 	DIAGNOSTICS_COMMAND_GET_INFO,
 	DIAGNOSTICS_OFF,
@@ -126,6 +127,12 @@ STORAGE_CENTRAL_UNIT_KEY: Final = "central_unit"
 STORAGE_DEVICES_KEY: Final = "devices"
 STORAGE_STATES_KEY: Final = "states"
 
+DEVICE_IDENTIFICATION_FIELDS: Final = {
+	0x02: DeviceData.MODEL,
+	0x08: DeviceData.HARDWARE_VERSION,
+	0x09: DeviceData.FIRMWARE_VERSION,
+}
+
 DEVICE_TYPE_TO_ENTITY_TYPE: Final = {
 	DeviceType.MOTION_DETECTOR: EntityType.DEVICE_STATE_MOTION,
 	DeviceType.WINDOW_OPENING_DETECTOR: EntityType.DEVICE_STATE_WINDOW,
@@ -178,12 +185,25 @@ class JablotronCentralUnit:
 
 class JablotronHassDevice:
 
-	def __init__(self, device_id: str, device_name: str, translation_key: str, translation_placeholders: Mapping[str, str], battery_level: int | None = None) -> None:
+	def __init__(
+		self,
+		device_id: str,
+		device_name: str,
+		translation_key: str,
+		translation_placeholders: Mapping[str, str],
+		battery_level: int | None = None,
+		model: str | None = None,
+		hardware_version: str | None = None,
+		firmware_version: str | None = None,
+	) -> None:
 		self.id: str = device_id
 		self.name: str = device_name
 		self.translation_key = translation_key
 		self.translation_placeholders = translation_placeholders
 		self.battery_level: int | None = battery_level
+		self.model: str | None = model
+		self.hardware_version: str | None = hardware_version
+		self.firmware_version: str | None = firmware_version
 
 
 class JablotronControl:
@@ -526,11 +546,11 @@ class Jablotron:
 						try:
 							info_type = SystemInfo(self.bytes_to_int(packet[2:3]))
 							if info_type == SystemInfo.MODEL:
-								model = self.decode_system_info_packet(packet)
+								model = self.decode_info_packet_string(packet)
 							elif info_type == SystemInfo.HARDWARE_VERSION:
-								hardware_version = self.decode_system_info_packet(packet)
+								hardware_version = self.decode_info_packet_string(packet)
 							elif info_type == SystemInfo.FIRMWARE_VERSION:
-								firmware_version = self.decode_system_info_packet(packet)
+								firmware_version = self.decode_info_packet_string(packet)
 						except (KeyError, TypeError):
 							# Unknown/Ignored info type packet
 							pass
@@ -743,6 +763,7 @@ class Jablotron:
 		estimated_duration = math.ceil(not_ignored_devices_count / 10) + 1
 		expected_packets_count = not_ignored_devices_count + 1
 		minimum_sections_packet_length = 3 + math.ceil(max(not_ignored_devices) / 2)
+		device_identification: Dict[str, Dict[DeviceData, str]] = {}
 
 		def reader_thread() -> List[bytes]:
 			device_status_packets: Dict[int, bytes] = {}
@@ -766,6 +787,11 @@ class Jablotron:
 							device_number = self._parse_device_number_from_device_status_packet(parsed_packet)
 							if device_number in expected_device_numbers:
 								device_status_packets[device_number] = parsed_packet
+						elif self._is_device_info_packet(parsed_packet):
+							device_number = self._parse_device_number_from_device_info_packet(parsed_packet)
+							if device_number in expected_device_numbers:
+								metadata = self._parse_device_identification_from_packet(parsed_packet)
+								device_identification.setdefault(self._get_device_id(device_number), {}).update(metadata)
 						elif (
 							self._is_devices_sections_packet(parsed_packet)
 							and len(parsed_packet) >= minimum_sections_packet_length
@@ -847,6 +873,13 @@ class Jablotron:
 
 		if devices_sections_packet is None:
 			raise ShouldNotHappen
+
+		for device_id, data in devices_data.items():
+			previous_data = self._devices_data.get(device_id, {})
+			for field in DEVICE_IDENTIFICATION_FIELDS.values():
+				if field in previous_data:
+					data[field] = previous_data[field]
+			data.update(device_identification.get(device_id, {}))
 
 		device_number = 0
 		for packet_offset in range(3, len(devices_sections_packet)):
@@ -1661,9 +1694,19 @@ class Jablotron:
 			return
 
 		subpackets = self._parse_device_info_subpackets_from_device_info_packet(packet)
+		identification: Dict[DeviceData, str] = {}
 
 		for subpacket in subpackets:
 			subpacket_type = subpacket[0:1]
+
+			if subpacket_type == DEVICE_INFO_SUBPACKET_IDENTIFICATION:
+				if (
+					1 <= device_number <= self._config[CONF_NUMBER_OF_DEVICES]
+					and device_number not in (lan_connection_number, gsm_device_number)
+					and not self._is_device_ignored(device_number)
+				):
+					identification.update(self._parse_device_identification_subpacket(subpacket, packet))
+				continue
 
 			if subpacket_type not in DEVICE_INFO_KNOWN_SUBPACKETS:
 				if subpacket_type not in DEVICE_INFO_UNKNOWN_SUBPACKETS:
@@ -1717,6 +1760,50 @@ class Jablotron:
 					self._parse_device_electricity_meter_with_pulse_info_packet(info_subpacket, device_number, packet)
 				elif device_type == DeviceType.RADIO_MODULE:
 					self._log_debug_with_packet("Info packet of radio module", packet)
+
+		if identification:
+			self._hass.loop.call_soon_threadsafe(self._apply_device_identification, device_number, identification, packet)
+
+	def _apply_device_identification(self, device_number: int, identification: Mapping[DeviceData, str], packet: bytes) -> None:
+		if (
+			self._stream_stop_event.is_set()
+			or not 1 <= device_number <= self._config[CONF_NUMBER_OF_DEVICES]
+			or self._is_device_ignored(device_number)
+		):
+			return
+
+		device_id = self._get_device_id(device_number)
+		data = self._devices_data.get(device_id)
+		if data is None:
+			self._log_error_with_packet("Identification of undiscovered device", packet)
+			return
+
+		changes = {field: value for field, value in identification.items() if data.get(field) != value}
+		if not changes:
+			return
+
+		data.update(changes)
+		self._store_devices_data()
+		hass_device = self._device_hass_devices.get(device_id)
+		if hass_device is None:
+			return
+
+		hass_device.model = data.get(DeviceData.MODEL)
+		hass_device.hardware_version = data.get(DeviceData.HARDWARE_VERSION)
+		hass_device.firmware_version = data.get(DeviceData.FIRMWARE_VERSION)
+		for entity in self.hass_entities.values():
+			if entity.control.hass_device is hass_device:
+				entity._update_device_info()
+
+		registry = dr.async_get(self._hass)
+		device_entry = registry.async_get_device_by_identifier((DOMAIN, device_id), self._config_entry_id)
+		if device_entry is not None:
+			registry.async_update_device(
+				device_entry.id,
+				model=hass_device.model if hass_device.model is not None else dr.UNDEFINED,
+				hw_version=hass_device.hardware_version if hass_device.hardware_version is not None else dr.UNDEFINED,
+				sw_version=hass_device.firmware_version if hass_device.firmware_version is not None else dr.UNDEFINED,
+			)
 
 	def _parse_device_input_value_info_packet(self, info_subpacket: bytes, device_number: int, packet: bytes) -> None:
 		info_packets = self._parse_device_info_packets_from_device_info_subpacket(info_subpacket, packet)
@@ -2233,6 +2320,9 @@ class Jablotron:
 			device_type,
 			{"deviceNo": f"{device_number:d}"},
 			battery_level,
+			model=self._devices_data[device_id].get(DeviceData.MODEL),
+			hardware_version=self._devices_data[device_id].get(DeviceData.HARDWARE_VERSION),
+			firmware_version=self._devices_data[device_id].get(DeviceData.FIRMWARE_VERSION),
 		)
 
 	def _add_lan_connection_ip(self) -> None:
@@ -2622,6 +2712,37 @@ class Jablotron:
 		return Jablotron.get_packets_from_packet(packet[3:])
 
 	@staticmethod
+	def _parse_device_identification_from_packet(packet: bytes) -> Dict[DeviceData, str]:
+		identification: Dict[DeviceData, str] = {}
+		for subpacket in Jablotron._parse_device_info_subpackets_from_device_info_packet(packet):
+			if subpacket[:1] == DEVICE_INFO_SUBPACKET_IDENTIFICATION:
+				identification.update(Jablotron._parse_device_identification_subpacket(subpacket, packet))
+		return identification
+
+	@staticmethod
+	def _parse_device_identification_subpacket(subpacket: bytes, packet: bytes) -> Dict[DeviceData, str]:
+		if len(subpacket) < 3 or len(subpacket) != subpacket[1] + 2:
+			Jablotron._log_error_with_packet("Malformed device identification subpacket", packet)
+			return {}
+
+		field = DEVICE_IDENTIFICATION_FIELDS.get(subpacket[2])
+		if field is None:
+			return {}
+
+		try:
+			value = Jablotron.decode_info_packet_string(subpacket)
+		except UnicodeDecodeError:
+			Jablotron._log_error_with_packet("Invalid device identification text", packet)
+			return {}
+
+		if not value:
+			return {}
+		if not value.isprintable():
+			Jablotron._log_error_with_packet("Invalid device identification text", packet)
+			return {}
+		return {field: value}
+
+	@staticmethod
 	def _parse_device_info_packets_from_device_info_subpacket(info_subpacket: bytes, packet: bytes) -> List[ParsedDeviceInfoPacket]:
 		info_packets = []
 
@@ -2926,7 +3047,7 @@ class Jablotron:
 		return packets
 
 	@staticmethod
-	def decode_system_info_packet(packet: bytes) -> str:
+	def decode_info_packet_string(packet: bytes) -> str:
 		info = ""
 
 		for i in range(3, len(packet)):
@@ -3092,6 +3213,10 @@ class JablotronEntity(Entity):
 
 		self._attr_unique_id = "{}.{}.{}".format(DOMAIN, self._control.central_unit.unique_id, self._control.id)
 
+		self._update_device_info()
+		self._update_attributes()
+
+	def _update_device_info(self) -> None:
 		if self._control.hass_device is None:
 			self._attr_device_info = DeviceInfo(
 				manufacturer="Jablotron",
@@ -3105,9 +3230,10 @@ class JablotronEntity(Entity):
 				translation_key=self._control.hass_device.translation_key,
 				translation_placeholders=self._control.hass_device.translation_placeholders,
 				via_device_id=self._jablotron.central_unit_device_id(),
+				model=self._control.hass_device.model,
+				hw_version=self._control.hass_device.hardware_version,
+				sw_version=self._control.hass_device.firmware_version,
 			)
-
-		self._update_attributes()
 
 	def _update_attributes(self) -> None:
 		if self._control.hass_device is not None and self._control.hass_device.battery_level is not None:
