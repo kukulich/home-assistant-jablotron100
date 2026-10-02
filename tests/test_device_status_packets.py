@@ -5,8 +5,16 @@ from unittest.mock import Mock
 from homeassistant.const import CONF_PASSWORD
 import pytest
 
-from custom_components.jablotron100.const import DeviceConnection, DeviceData, PACKET_DEVICES_SECTIONS, SIGNAL_STRENGTH_STEP
-from custom_components.jablotron100.errors import ShouldNotHappen
+from custom_components.jablotron100.const import (
+	CONF_DEVICES,
+	CONF_NUMBER_OF_DEVICES,
+	DeviceConnection,
+	DeviceData,
+	DeviceType,
+	PACKET_DEVICES_SECTIONS,
+	SIGNAL_STRENGTH_STEP,
+)
+from custom_components.jablotron100.errors import ServiceUnavailable, ShouldNotHappen
 from custom_components.jablotron100.jablotron import Jablotron
 
 
@@ -142,6 +150,28 @@ def discovery():
 	return jablotron, stream
 
 
+@pytest.fixture
+def blocking_discovery(discovery):
+	jablotron, stream = discovery
+	packets: list[bytes] = []
+
+	def open_stream(stop_event):
+		pending = iter(packets)
+
+		def read(size):
+			packet = next(pending, None)
+			if packet is not None:
+				return packet
+			assert stop_event.wait(10), "Device discovery did not stop its idle reader"
+			return None
+
+		stream.read.side_effect = read
+		return stream
+
+	jablotron._open_read_stream.side_effect = open_stream
+	return jablotron, stream, packets
+
+
 DEVICE_ONE_STATUS = bytes.fromhex("52078a0104000000f2")
 DEVICE_TWO_STATUS = bytes.fromhex("52078a0204200000f2")
 UNREQUESTED_DEVICE_STATUS = bytes.fromhex("52078a0306200000fc")
@@ -240,6 +270,126 @@ def test_missing_section_map_does_not_replace_previous_cache(discovery):
 		jablotron._detect_devices()
 	assert jablotron._devices_data == previous_data
 	jablotron._store_devices_data.assert_not_called()
+
+
+@pytest.mark.parametrize("packets,expected_details", [
+	pytest.param(
+		[DEVICE_ONE_STATUS, DEVICE_ONE_STATUS, UNREQUESTED_DEVICE_STATUS, DEVICE_SECTIONS],
+		["Missing status replies for positions: [2].", "Section map covers 2 positions (4 bytes)"],
+		id="missing-status-despite-duplicate-and-unrequested-replies",
+	),
+	pytest.param(
+		[DEVICE_ONE_STATUS, DEVICE_TWO_STATUS],
+		["Missing status replies for positions: none.", "No complete section map received"],
+		id="missing-section-map",
+	),
+	pytest.param(
+		[DEVICE_ONE_STATUS, DEVICE_TWO_STATUS, DEVICE_SECTIONS[:-1]],
+		["Missing status replies for positions: none.", "No complete section map received"],
+		id="truncated-section-map",
+	),
+	pytest.param(
+		[DEVICE_ONE_STATUS, DEVICE_TWO_STATUS, bytes.fromhex("3b00")],
+		["Missing status replies for positions: none.", "No complete section map received"],
+		id="section-map-without-start-position",
+	),
+	pytest.param(
+		[],
+		["Missing status replies for positions: [1, 2].", "No complete section map received"],
+		id="no-replies",
+	),
+	pytest.param(
+		[DEVICE_ONE_STATUS, bytes.fromhex("3b0101")],
+		[
+			"Missing status replies for positions: [2].",
+			"Section map covers 0 positions (3 bytes)",
+			"Positions missing from section map: [1, 2].",
+		],
+		id="missing-status-and-empty-section-map",
+	),
+])
+def test_discovery_timeout_reports_missing_data(blocking_discovery, caplog, packets, expected_details):
+	jablotron, stream, pending = blocking_discovery
+	previous_data = {"device_9": {DeviceData.SECTION: 4}}
+	jablotron._devices_data = previous_data.copy()
+	jablotron._config[CONF_PASSWORD] = "12*4826"
+	pending.extend(packets)
+
+	with pytest.raises(ServiceUnavailable) as error:
+		jablotron._detect_devices()
+
+	message = str(error.value)
+	assert message.startswith("Device discovery timed out.")
+	for detail in expected_details:
+		assert detail in message
+	assert isinstance(error.value.__cause__, TimeoutError)
+	assert caplog.messages == [f"Service unavailable: {message}"]
+	assert "12*4826" not in caplog.text
+	assert Jablotron.create_packet_authorisation_code("12*4826")[3:].hex() not in caplog.text
+	assert jablotron._devices_data == previous_data
+	jablotron._store_devices_data.assert_not_called()
+	stream.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize("slot_29_type,complete_map_later", [
+	pytest.param(DeviceType.KEY_FOB, False, id="stale-position-29-times-out"),
+	pytest.param(DeviceType.EMPTY, False, id="empty-position-29-succeeds"),
+	pytest.param(DeviceType.KEY_FOB, True, id="complete-map-after-short-map-succeeds"),
+])
+def test_discovery_section_map_boundary_at_position_29(blocking_discovery, caplog, slot_29_type, complete_map_later):
+	jablotron, stream, pending = blocking_discovery
+	jablotron._config[CONF_NUMBER_OF_DEVICES] = 29
+	jablotron._config[CONF_DEVICES] = [DeviceType.EMPTY.value] * 27 + [DeviceType.KEY_FOB.value, slot_29_type.value]
+	del jablotron._get_not_ignored_devices
+	previous_data = {"device_9": {DeviceData.SECTION: 4}}
+	jablotron._devices_data = previous_data.copy()
+
+	# Captured JA-103K replies from upstream issue 170; other positions are isolated out.
+	section_map = bytes.fromhex("3b0f010000000000000000000000000000")
+	assert len(section_map) == section_map[1] + 2 == 17
+	pending.extend([
+		bytes.fromhex("52098a1c0600fffffc8e0e"),
+		bytes.fromhex("52078a1d00000f00fc"),
+		section_map,
+		DEVICE_SECTIONS,
+	])
+	if complete_map_later:
+		pending.append(Jablotron.create_packet(PACKET_DEVICES_SECTIONS, b"\x01" + b"\x00" * 15))
+
+	if slot_29_type == DeviceType.KEY_FOB and not complete_map_later:
+		with pytest.raises(ServiceUnavailable) as error:
+			jablotron._detect_devices()
+		message = str(error.value)
+		assert "Missing status replies for positions: none." in message
+		assert "Section map covers 28 positions (17 bytes)" in message
+		assert "expected coverage through position 29 (at least 18 bytes)" in message
+		assert "Positions missing from section map: [29]." in message
+		assert "F-Link/J-Link" in message
+		assert "Empty" in message
+		assert "Reconfigure" in message
+		assert caplog.messages == [f"Service unavailable: {message}"]
+		assert jablotron._devices_data == previous_data
+		jablotron._store_devices_data.assert_not_called()
+	else:
+		jablotron._detect_devices()
+		expected_numbers = [28] if slot_29_type == DeviceType.EMPTY else [28, 29]
+		assert jablotron._get_not_ignored_devices() == expected_numbers
+		assert set(jablotron._devices_data) == {f"device_{number}" for number in expected_numbers}
+		assert all(data[DeviceData.SECTION] == 1 for data in jablotron._devices_data.values())
+		jablotron._store_devices_data.assert_called_once_with()
+		assert caplog.messages == []
+	stream.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize("read_error", [OSError("Synthetic read failure"), FileNotFoundError("Synthetic read failure")])
+def test_discovery_read_errors_are_not_reported_as_timeouts(discovery, caplog, read_error):
+	jablotron, stream = discovery
+	stream.read.side_effect = read_error
+	with pytest.raises(ServiceUnavailable):
+		jablotron._detect_devices()
+	assert caplog.messages == ["Service unavailable: Synthetic read failure"]
+	jablotron._store_devices_data.assert_not_called()
+	stream.close.assert_called_once_with()
 
 
 @pytest.mark.parametrize("complete", [False, True])

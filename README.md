@@ -52,7 +52,7 @@ Requires Home Assistant 2026.9.1 or newer.
 
 - If you use code with a prefix, insert the code with the asterisk, e.g. `12*3456`.
 - Use code of administrator to make devices work. If you cannot use code of administrator, or you don't want to use devices, set the number of devices to 0.
-- You have to set devices in the same order as you see them in your J-Link/F-Link/mobile application. Ignore the central unit on position 0.
+- You have to set devices in the same order as you see them in your J-Link/F-Link/mobile application. Ignore the central unit on position 0. The number of devices is the highest position to include, not the number of physical devices in use. Set unoccupied positions to **Empty** without renumbering the other devices.
 - If you want to use PG outputs, the user of the code has to have rights to control the PG outputs. Set the number of PG outputs to 0 to ignore them.
 
 
@@ -86,6 +86,8 @@ The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
 ### Reconfigure
 
 To change the serial port, code, number of devices or PG outputs without losing your existing configuration, open the integration on the *Devices & Services* page and choose *Reconfigure*. Leave the password field empty to keep the previously stored code. Per-device type assignments are preserved across reconfiguration.
+
+If device discovery times out, the error reports missing status replies and the received section-map coverage. If the map does not cover some configured positions, compare those positions with F-Link/J-Link and change only positions that are actually unoccupied to **Empty** using *Reconfigure*. The total number of positions can remain unchanged. There is no need to remove the integration or clear its cache to correct a position assignment.
 
 
 ## Check
