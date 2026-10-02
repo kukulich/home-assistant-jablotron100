@@ -762,11 +762,14 @@ class Jablotron:
 
 		estimated_duration = math.ceil(not_ignored_devices_count / 10) + 1
 		expected_packets_count = not_ignored_devices_count + 1
-		minimum_sections_packet_length = 3 + math.ceil(max(not_ignored_devices) / 2)
+		highest_device_number = max(not_ignored_devices)
+		minimum_sections_packet_length = 3 + math.ceil(highest_device_number / 2)
+		device_status_packets: Dict[int, bytes] = {}
+		received_sections_packet_length: int | None = None
 		device_identification: Dict[str, Dict[DeviceData, str]] = {}
 
 		def reader_thread() -> List[bytes]:
-			device_status_packets: Dict[int, bytes] = {}
+			nonlocal received_sections_packet_length
 			devices_sections_packet = None
 
 			stream = self._open_read_stream(stop_event)
@@ -794,10 +797,13 @@ class Jablotron:
 								device_identification.setdefault(self._get_device_id(device_number), {}).update(metadata)
 						elif (
 							self._is_devices_sections_packet(parsed_packet)
-							and len(parsed_packet) >= minimum_sections_packet_length
+							and len(parsed_packet) >= 3
 							and len(parsed_packet) == self.bytes_to_int(parsed_packet[1:2]) + 2
 						):
-							devices_sections_packet = parsed_packet
+							if received_sections_packet_length is None or len(parsed_packet) > received_sections_packet_length:
+								received_sections_packet_length = len(parsed_packet)
+							if len(parsed_packet) >= minimum_sections_packet_length:
+								devices_sections_packet = parsed_packet
 
 					if set(device_status_packets) == expected_device_numbers and devices_sections_packet is not None:
 						break
@@ -821,25 +827,52 @@ class Jablotron:
 
 				packets_to_send.append(self.create_packet(
 					PACKET_GET_DEVICES_SECTIONS,
-					self.int_to_bytes(1) + self.int_to_bytes(max(not_ignored_devices)),
+					self.int_to_bytes(1) + self.int_to_bytes(highest_device_number),
 				))
 
 				self._send_packets(packets_to_send)
 				stop_event.wait(estimated_duration)
 
 		try:
-			reader = thread_pool_executor.submit(reader_thread)
-			thread_pool_executor.submit(writer_thread)
+			try:
+				reader = thread_pool_executor.submit(reader_thread)
+				thread_pool_executor.submit(writer_thread)
 
-			packets = reader.result(estimated_duration * 2)
+				packets = reader.result(estimated_duration * 2)
+
+			finally:
+				# Join workers before reading their progress for timeout diagnostics.
+				stop_event.set()
+				thread_pool_executor.shutdown(wait=True, cancel_futures=True)
+
+		except TimeoutError as ex:
+			missing_status_positions = sorted(expected_device_numbers - device_status_packets.keys())
+			message = "Device discovery timed out. Missing status replies for positions: {}.".format(missing_status_positions or "none")
+			if received_sections_packet_length is None:
+				message += " No complete section map received; expected coverage through position {} (at least {} bytes).".format(
+					highest_device_number,
+					minimum_sections_packet_length,
+				)
+			else:
+				covered_positions = (received_sections_packet_length - 3) * 2
+				message += " Section map covers {} positions ({} bytes); expected coverage through position {} (at least {} bytes).".format(
+					covered_positions,
+					received_sections_packet_length,
+					highest_device_number,
+					minimum_sections_packet_length,
+				)
+				missing_section_positions = sorted(number for number in expected_device_numbers if number > covered_positions)
+				if missing_section_positions:
+					message += (
+						" Positions missing from section map: {}."
+						" Check device positions against F-Link/J-Link and set unused positions to Empty using Reconfigure."
+					).format(missing_section_positions)
+			LOGGER.exception("Service unavailable: %s", message)
+			raise ServiceUnavailable(message) from ex
 
 		except (IndexError, FileNotFoundError, IsADirectoryError, UnboundLocalError, OSError) as ex:
 			LOGGER.exception("Service unavailable: %s", ex)
 			raise ServiceUnavailable
-
-		finally:
-			stop_event.set()
-			thread_pool_executor.shutdown(wait=True, cancel_futures=True)
 
 		if len(packets) != expected_packets_count:
 			raise ShouldNotHappen
