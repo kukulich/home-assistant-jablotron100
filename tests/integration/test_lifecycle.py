@@ -24,6 +24,8 @@ from custom_components.jablotron100.const import (
 	DeviceType,
 	PACKET_PG_OUTPUTS_STATES,
 	PACKET_SECTIONS_STATES,
+	PACKET_SYSTEM_INFO,
+	SystemInfo,
 )
 from custom_components.jablotron100.errors import ServiceUnavailable
 from custom_components.jablotron100.jablotron import Jablotron
@@ -294,11 +296,8 @@ async def test_cancelled_config_flow_waits_for_probe_to_exit(hass):
 
 
 @pytest.mark.parametrize("stage", ["probe", "_detect_central_unit", "_detect_sections_and_pg_outputs", "_detect_devices"])
-async def test_detection_timeout_closes_stream_and_joins_workers(hass, jablotron, monkeypatch, stage):
-	if sys.platform != "linux":
-		pytest.skip("Uses Linux file descriptors like hidraw")
-	read_fd, write_fd = os.pipe()
-	serial_port = f"/proc/self/fd/{read_fd}"
+async def test_detection_timeout_closes_stream_and_joins_workers(hass, jablotron, monkeypatch, serial_device, stage):
+	serial_port, _ = serial_device
 	streams = []
 	threads = []
 	executors = []
@@ -323,7 +322,7 @@ async def test_detection_timeout_closes_stream_and_joins_workers(hass, jablotron
 	if stage == "probe":
 		module = sys.modules[JablotronConfigFlow.__module__]
 		monkeypatch.setattr(module, "JablotronReadStream", open_reader)
-		monkeypatch.setattr(module, "open", mock_open(), raising=False)
+		monkeypatch.setattr(module, "open_serial_port", mock_open())
 		detect = partial(check_serial_port, serial_port)
 	else:
 		module = sys.modules[Jablotron.__module__]
@@ -347,8 +346,53 @@ async def test_detection_timeout_closes_stream_and_joins_workers(hass, jablotron
 		jablotron._stream_stop_event.set()
 		for executor in executors:
 			await hass.async_add_executor_job(executor.shutdown, True)
-		os.close(read_fd)
-		os.close(write_fd)
+
+
+@pytest.mark.parametrize("existing", [False, True])
+async def test_probe_rejects_non_devices_without_creating_or_truncating_files(hass, tmp_path, caplog, existing):
+	serial_port = tmp_path / "hidraw0"
+	contents = b"not a device"
+	if existing:
+		serial_port.write_bytes(contents)
+
+	with pytest.raises(ServiceUnavailable):
+		await hass.async_add_executor_job(check_serial_port, str(serial_port))
+
+	if existing:
+		assert serial_port.read_bytes() == contents
+		assert "not a character device" in caplog.text
+	else:
+		assert not serial_port.exists()
+	assert str(serial_port) in caplog.text
+
+
+async def test_probe_accepts_supported_model_from_character_device(hass, serial_device):
+	serial_port, write_fd = serial_device
+	packet = Jablotron.create_packet(PACKET_SYSTEM_INFO, bytes([SystemInfo.MODEL.value]) + b"JA-107K")
+	os.write(write_fd, packet)
+
+	await hass.async_add_executor_job(check_serial_port, serial_port)
+
+
+async def test_probe_reports_writer_failure_and_stops_reader(hass, monkeypatch, caplog):
+	stop_event = threading.Event()
+	stream = Mock()
+
+	def read(size):
+		assert stop_event.wait(5)
+		return None
+
+	stream.read.side_effect = read
+	module = sys.modules[JablotronConfigFlow.__module__]
+	monkeypatch.setattr(module, "JablotronReadStream", Mock(return_value=stream))
+	monkeypatch.setattr(module, "open_serial_port", Mock(side_effect=OSError("Synthetic port write failure")))
+
+	with pytest.raises(ServiceUnavailable):
+		await hass.async_add_executor_job(check_serial_port, os.devnull, stop_event)
+
+	assert "Synthetic port write failure" in caplog.text
+	assert stop_event.is_set()
+	stream.close.assert_called_once_with()
 
 
 async def test_platform_setup_failure_stops_initialized_instance(hass, jablotron, entity_component):

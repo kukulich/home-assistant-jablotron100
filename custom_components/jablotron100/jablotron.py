@@ -22,9 +22,10 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.entity_registry import EntityRegistry, async_entries_for_config_entry, async_get as async_get_entity_registry
 from .storage import async_get_store
-from .stream import JablotronReadStream
+from .stream import JablotronReadStream, open_serial_port
 import math
 import os
+import stat
 import threading
 import time
 from .code import validate_authorisation_code
@@ -1402,7 +1403,7 @@ class Jablotron:
 		if self._serial_port is None:
 			raise SerialPortNotDetected
 
-		return open(self._serial_port, "wb", buffering=0)
+		return open_serial_port(self._serial_port, "wb")
 
 	def _open_read_stream(self, stop_event: threading.Event | None = None) -> JablotronReadStream:
 		if self._serial_port is None:
@@ -3224,11 +3225,21 @@ class Jablotron:
 
 		try:
 			realpath = os.path.realpath("{}/{}".format(HIDRAW_PATH, device_name))
+			if "16D6:0008" not in realpath:
+				return False
+			mode = os.stat(serial_port).st_mode
 		except OSError as ex:
 			LOGGER.debug("Failed to verify serial port %s: %s", serial_port, ex)
 			return False
 
-		return "16D6:0008" in realpath
+		if not stat.S_ISCHR(mode):
+			LOGGER.error(
+				"Serial port %s is not a character device; check for a stale regular file before reconnecting USB",
+				serial_port,
+			)
+			return False
+
+		return True
 
 
 class JablotronEntity(Entity):

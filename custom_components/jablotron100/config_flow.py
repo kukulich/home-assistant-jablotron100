@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
@@ -52,7 +52,7 @@ from .errors import (
 	ServiceUnavailable,
 )
 from .jablotron import Jablotron
-from .stream import JablotronReadStream
+from .stream import JablotronReadStream, open_serial_port
 
 
 def check_serial_port(serial_port: str, stop_event: threading.Event | None = None) -> None:
@@ -99,16 +99,20 @@ def check_serial_port(serial_port: str, stop_event: threading.Event | None = Non
 
 	def writer_thread() -> None:
 		while not stop_event.is_set():
-			with open(serial_port, "wb", buffering=0) as stream:
+			with open_serial_port(serial_port, "wb") as stream:
 				stream.write(Jablotron.create_packet_get_system_info(SystemInfo.MODEL))
 
 			stop_event.wait(1)
 
 	try:
 		reader = thread_pool_executor.submit(reader_thread)
-		thread_pool_executor.submit(writer_thread)
+		writer = thread_pool_executor.submit(writer_thread)
 
-		model = reader.result(STREAM_TIMEOUT)
+		futures: tuple[Future[Any], ...] = (reader, writer)
+		done, _ = wait(futures, timeout=STREAM_TIMEOUT, return_when=FIRST_COMPLETED)
+		if writer in done:
+			writer.result()
+		model = reader.result(0)
 
 		if model is None:
 			raise ModelNotDetected
