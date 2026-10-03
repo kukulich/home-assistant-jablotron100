@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 import sys
 import threading
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -16,10 +16,10 @@ from custom_components.jablotron100.stream import JablotronReadStream
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Uses Linux file descriptors like hidraw")
 
 
-def test_shutdown_stops_idle_reader_without_another_packet():
-	read_fd, write_fd = os.pipe()
+def test_shutdown_stops_idle_reader_without_another_packet(serial_device):
+	serial_port, write_fd = serial_device
 	jablotron = object.__new__(Jablotron)
-	jablotron._serial_port = f"/proc/self/fd/{read_fd}"
+	jablotron._serial_port = serial_port
 	jablotron._stream_stop_event = threading.Event()
 	jablotron._stream_data_updating_event = threading.Event()
 	jablotron._stream_diagnostics_event = threading.Event()
@@ -58,23 +58,22 @@ def test_shutdown_stops_idle_reader_without_another_packet():
 		jablotron._stream_stop_event.set()
 		os.write(write_fd, b"\x00")
 		executor.shutdown(wait=True, cancel_futures=True)
-		os.close(read_fd)
-		os.close(write_fd)
 
 
 @pytest.mark.parametrize("result", ["data", "eof", "stop"])
-def test_read_stream_distinguishes_data_eof_and_cancellation(result):
-	read_fd, write_fd = os.pipe()
+def test_read_stream_distinguishes_data_eof_and_cancellation(serial_device, result):
+	serial_port, write_fd = serial_device
 	stop_event = threading.Event()
-	stream = JablotronReadStream(f"/proc/self/fd/{read_fd}", stop_event)
+	stream = JablotronReadStream(serial_port, stop_event)
 	try:
+		packet = bytes.fromhex("500101")
+		os.write(write_fd, packet)
 		if result == "eof":
-			os.close(write_fd)
-			write_fd = None
-			assert stream.read(64) == b""
+			# PTYs report a disconnect as EIO rather than EOF.
+			with patch.object(stream, "_stream", wraps=stream._stream) as raw_stream:
+				raw_stream.read.return_value = b""
+				assert stream.read(64) == b""
 		else:
-			packet = bytes.fromhex("500101")
-			os.write(write_fd, packet)
 			if result == "stop":
 				stop_event.set()
 				assert stream.read(64) is None
@@ -82,15 +81,12 @@ def test_read_stream_distinguishes_data_eof_and_cancellation(result):
 				assert stream.read(64) == packet
 	finally:
 		stream.close()
-		os.close(read_fd)
-		if write_fd is not None:
-			os.close(write_fd)
 
 
-def test_local_detection_stop_does_not_stop_running_instance():
-	read_fd, write_fd = os.pipe()
+def test_local_detection_stop_does_not_stop_running_instance(serial_device):
+	serial_port, _ = serial_device
 	jablotron = object.__new__(Jablotron)
-	jablotron._serial_port = f"/proc/self/fd/{read_fd}"
+	jablotron._serial_port = serial_port
 	jablotron._stream_stop_event = threading.Event()
 	detection_stop = threading.Event()
 	stream = jablotron._open_read_stream(detection_stop)
@@ -100,8 +96,6 @@ def test_local_detection_stop_does_not_stop_running_instance():
 		assert not jablotron._stream_stop_event.is_set()
 	finally:
 		stream.close()
-		os.close(read_fd)
-		os.close(write_fd)
 
 
 def test_shutdown_interrupts_diagnostics_without_late_writes():

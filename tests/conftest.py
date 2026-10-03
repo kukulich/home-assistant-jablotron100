@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+import os
 from pathlib import Path
 import sys
 from types import ModuleType
@@ -25,6 +26,21 @@ def pytest_ignore_collect(collection_path, config):
 	if collection_path.name == "integration" and not config.getoption("--ha-integration"):
 		return True
 	return None
+
+
+@pytest.fixture
+def serial_device():
+	if sys.platform != "linux":
+		pytest.skip("Uses Linux character devices like hidraw")
+	import tty
+
+	master_fd, slave_fd = os.openpty()
+	try:
+		tty.setraw(slave_fd)
+		yield os.ttyname(slave_fd), master_fd
+	finally:
+		os.close(slave_fd)
+		os.close(master_fd)
 
 
 try:

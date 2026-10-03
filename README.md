@@ -67,6 +67,21 @@ $ dmesg | grep hid
 
 The cable should be connected as `/dev/hidraw[x]`, `/dev/ttyUSB0` or similar.
 
+The integration only opens existing character devices. A missing USB device must
+not be replaced by a regular file, and regular files are rejected without being
+modified.
+
+#### Recovering a stale device path
+
+Older versions could create a regular file at the device path while the USB cable
+was unplugged. If the log reports that the serial port is not a character device,
+stop Home Assistant (or its container) and inspect the configured or detected path
+on the host with `ls -l`. A valid device starts with `c`; a regular file starts
+with `-`. Only if the path is confirmed to be the stale regular file, remove that
+file and reconnect the USB cable so the system recreates the character device.
+Then start Home Assistant again. Do not remove a valid device node. The integration
+does not delete or recreate device paths automatically.
+
 
 ### HACS
 
