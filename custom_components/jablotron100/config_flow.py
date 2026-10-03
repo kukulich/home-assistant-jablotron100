@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
 from collections import OrderedDict
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from copy import deepcopy
 
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
@@ -108,7 +108,8 @@ def check_serial_port(serial_port: str, stop_event: threading.Event | None = Non
 		reader = thread_pool_executor.submit(reader_thread)
 		writer = thread_pool_executor.submit(writer_thread)
 
-		done, _ = wait((reader, writer), timeout=STREAM_TIMEOUT, return_when=FIRST_COMPLETED)
+		futures: tuple[Future[Any], ...] = (reader, writer)
+		done, _ = wait(futures, timeout=STREAM_TIMEOUT, return_when=FIRST_COMPLETED)
 		if writer in done:
 			writer.result()
 		model = reader.result(0)
