@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from unittest.mock import Mock
 
 from homeassistant.const import CONF_PASSWORD
@@ -12,6 +13,7 @@ from custom_components.jablotron100.const import (
 	DeviceData,
 	DeviceType,
 	PACKET_DEVICES_SECTIONS,
+	PACKET_GET_DEVICES_SECTIONS,
 	SIGNAL_STRENGTH_STEP,
 )
 from custom_components.jablotron100.errors import ServiceUnavailable, ShouldNotHappen
@@ -419,3 +421,201 @@ def test_discovery_preserves_and_collects_identification(discovery, complete):
 	assert DeviceData.FIRMWARE_VERSION not in jablotron._devices_data["device_1"]
 	assert set(jablotron._devices_data) == {"device_1", "device_2"}
 	jablotron._store_devices_data.assert_called_once_with()
+
+
+# Captured JA-107K replies and F-Link references from upstream issue 174.
+JA107K_SECTIONS_1_122 = bytes.fromhex(
+	"3b3e0103000000000000000000002292222222222222222222220001110433333355550050004400000629222202000000007077a0aa00a000aa000000333323"
+)
+JA107K_SECTIONS_123_219 = bytes.fromhex(
+	"3b327b22090000000000000000000000000000000000000030949949040000000300000000000000000000000000000010111101"
+)
+JA107K_STATUS_PACKETS = [
+	bytes.fromhex("52078a0104000000f3"),
+	bytes.fromhex("52078aa604000000f3"),
+	bytes.fromhex("52078ac804200000f3"),
+	bytes.fromhex("52078ad64600fffffc"),
+	bytes.fromhex("52078adb04000000f2"),
+]
+JA107K_EXPECTED_SECTIONS = {1: 4, 166: 4, 200: 1, 214: 2, 219: 2}
+
+
+@pytest.mark.parametrize("maps", [
+	pytest.param([JA107K_SECTIONS_1_122, JA107K_SECTIONS_123_219], id="in-order"),
+	pytest.param([JA107K_SECTIONS_123_219, JA107K_SECTIONS_1_122], id="reversed"),
+	pytest.param([JA107K_SECTIONS_1_122, JA107K_SECTIONS_1_122, JA107K_SECTIONS_123_219], id="duplicate-prefix"),
+	pytest.param([JA107K_SECTIONS_123_219, JA107K_SECTIONS_123_219, JA107K_SECTIONS_1_122], id="duplicate-suffix"),
+	pytest.param(
+		[JA107K_SECTIONS_1_122, Jablotron.create_packet(PACKET_DEVICES_SECTIONS, b"\x7b\x22"), JA107K_SECTIONS_123_219],
+		id="short-suffix-then-full",
+	),
+])
+def test_discovery_combines_captured_section_map_ranges(discovery, caplog, maps):
+	jablotron, stream = discovery
+	jablotron._get_not_ignored_devices.return_value = list(JA107K_EXPECTED_SECTIONS)
+	stream.read.side_effect = [*JA107K_STATUS_PACKETS, *maps, None]
+
+	jablotron._detect_devices()
+
+	assert set(jablotron._devices_data) == {f"device_{number}" for number in JA107K_EXPECTED_SECTIONS}
+	assert {
+		number: jablotron._devices_data[f"device_{number}"][DeviceData.SECTION]
+		for number in JA107K_EXPECTED_SECTIONS
+	} == JA107K_EXPECTED_SECTIONS
+	assert caplog.messages == []
+	jablotron._store_devices_data.assert_called_once_with()
+	stream.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize("highest,expected_requests", [
+	pytest.param(1, ["3a020101"], id="single-odd-position"),
+	pytest.param(29, ["3a02011d"], id="small-odd-range"),
+	pytest.param(122, ["3a02017a"], id="last-single-packet-position"),
+	pytest.param(123, ["3a02017a", "3a027b7b"], id="first-two-packet-position"),
+	pytest.param(219, ["3a02017a", "3a027bdb"], id="reported-odd-end"),
+	pytest.param(220, ["3a02017a", "3a027bdc"], id="padding-becomes-requested-position"),
+	pytest.param(230, ["3a02017a", "3a027be6"], id="maximum-configured-position"),
+])
+def test_discovery_requests_bounded_inclusive_ranges(discovery, highest, expected_requests):
+	jablotron, stream = discovery
+	numbers = [highest] if highest == 1 else [1, highest]
+	jablotron._get_not_ignored_devices.return_value = numbers
+	sent = threading.Event()
+	jablotron._send_packets.side_effect = lambda packets: sent.set()
+	replies = [
+		Jablotron.create_packet(b"\x52", bytes((0x8a, number, 4, 0, 0, 0, 0xf2)))
+		for number in numbers
+	]
+	for request in expected_requests:
+		_, _, start, end = bytes.fromhex(request)
+		data = b"\x21" * ((end - start + 2) // 2)
+		replies.append(Jablotron.create_packet(PACKET_DEVICES_SECTIONS, bytes((start,)) + data))
+	pending = iter(replies)
+
+	def read(size):
+		assert size == 64
+		assert sent.wait(5), "Device discovery did not send its requests"
+		packet = next(pending, None)
+		assert packet is None or len(packet) <= size
+		return packet
+
+	stream.read.side_effect = read
+	jablotron._detect_devices()
+
+	jablotron._send_packets.assert_called_once()
+	requests = [packet for packet in jablotron._send_packets.call_args.args[0] if packet[:1] == PACKET_GET_DEVICES_SECTIONS]
+	assert requests == [bytes.fromhex(packet) for packet in expected_requests]
+	assert all(1 <= packet[2] <= packet[3] <= highest and packet[2] % 2 == 1 for packet in requests)
+	assert all(3 + (packet[3] - packet[2] + 2) // 2 <= 64 for packet in requests)
+	assert {position for packet in requests for position in range(packet[2], packet[3] + 1)} == set(range(1, highest + 1))
+	assert set(jablotron._devices_data) == {f"device_{number}" for number in numbers}
+	assert jablotron._devices_data[f"device_{highest}"][DeviceData.SECTION] == (2 if highest % 2 else 3)
+	jablotron._store_devices_data.assert_called_once_with()
+	stream.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize("missing", ["prefix", "suffix", "status"])
+def test_incomplete_multi_range_discovery_preserves_cache(discovery, missing):
+	jablotron, stream = discovery
+	jablotron._get_not_ignored_devices.return_value = list(JA107K_EXPECTED_SECTIONS)
+	previous_data = {"device_9": {DeviceData.SECTION: 4}}
+	jablotron._devices_data = previous_data.copy()
+	statuses = JA107K_STATUS_PACKETS[:-1] if missing == "status" else JA107K_STATUS_PACKETS
+	maps = {
+		"prefix": [JA107K_SECTIONS_123_219, JA107K_SECTIONS_123_219],
+		"suffix": [JA107K_SECTIONS_1_122, JA107K_SECTIONS_1_122],
+		"status": [JA107K_SECTIONS_1_122, JA107K_SECTIONS_123_219],
+	}[missing]
+	stream.read.side_effect = [*statuses, *maps, None]
+
+	with pytest.raises(ShouldNotHappen):
+		jablotron._detect_devices()
+
+	assert jablotron._devices_data == previous_data
+	jablotron._store_devices_data.assert_not_called()
+	stream.close.assert_called_once_with()
+
+
+@pytest.mark.parametrize("packet,reason", [
+	pytest.param(b"\x3b", "malformed", id="missing-length"),
+	pytest.param(b"\x3b\x00", "malformed", id="missing-start"),
+	pytest.param(JA107K_SECTIONS_123_219[:-1], "malformed", id="truncated"),
+	pytest.param(Jablotron.create_packet(PACKET_DEVICES_SECTIONS, b"\x7b" + b"\x11" * 62), "malformed", id="larger-than-hid-read"),
+	pytest.param(Jablotron.create_packet(PACKET_DEVICES_SECTIONS, b"\x00" + b"\x11" * 61), "unrequested", id="zero-start"),
+	pytest.param(Jablotron.create_packet(PACKET_DEVICES_SECTIONS, b"\x02" + b"\x11" * 61), "unrequested", id="even-start"),
+	pytest.param(bytes.fromhex("3b03792322"), "unrequested", id="overlapping-unrequested-start"),
+	pytest.param(bytes.fromhex("3b02ff11"), "unrequested", id="start-outside-configured-positions"),
+])
+def test_discovery_ignores_invalid_or_unrequested_map_ranges(discovery, caplog, packet, reason):
+	jablotron, stream = discovery
+	jablotron._get_not_ignored_devices.return_value = list(JA107K_EXPECTED_SECTIONS)
+	stream.read.side_effect = [*JA107K_STATUS_PACKETS, packet, JA107K_SECTIONS_123_219, JA107K_SECTIONS_1_122, None]
+	with caplog.at_level("DEBUG", logger="custom_components.jablotron100"):
+		jablotron._detect_devices()
+
+	assert any(f"Ignoring {reason} device section-map packet" in message for message in caplog.messages)
+	assert {
+		number: jablotron._devices_data[f"device_{number}"][DeviceData.SECTION]
+		for number in JA107K_EXPECTED_SECTIONS
+	} == JA107K_EXPECTED_SECTIONS
+	jablotron._store_devices_data.assert_called_once_with()
+	stream.close.assert_called_once_with()
+
+
+def test_discovery_accepts_longer_map_without_assigning_unrequested_positions(discovery):
+	jablotron, stream = discovery
+	jablotron._get_not_ignored_devices.return_value = [1, 3]
+	stream.read.side_effect = [DEVICE_ONE_STATUS, UNREQUESTED_DEVICE_STATUS, JA107K_SECTIONS_1_122, None]
+	jablotron._detect_devices()
+	assert set(jablotron._devices_data) == {"device_1", "device_3"}
+	assert jablotron._devices_data["device_1"][DeviceData.SECTION] == 4
+	assert jablotron._devices_data["device_3"][DeviceData.SECTION] == 1
+
+
+@pytest.mark.parametrize("map_packet,received_range,missing_sections", [
+	pytest.param(JA107K_SECTIONS_1_122, (1, 122), [166, 200, 214, 219], id="missing-second-range"),
+	pytest.param(JA107K_SECTIONS_123_219, (123, 219), [1], id="missing-first-range-and-ignore-padding-220"),
+])
+def test_discovery_timeout_reports_actual_map_ranges(blocking_discovery, caplog, map_packet, received_range, missing_sections):
+	jablotron, stream, pending = blocking_discovery
+	jablotron._get_not_ignored_devices.return_value = list(JA107K_EXPECTED_SECTIONS)
+	jablotron._config[CONF_PASSWORD] = "12*4826"
+	previous_data = {"device_9": {DeviceData.SECTION: 4}}
+	jablotron._devices_data = previous_data.copy()
+	pending.extend([*JA107K_STATUS_PACKETS, map_packet, map_packet])
+
+	with pytest.raises(ServiceUnavailable) as error:
+		jablotron._detect_devices()
+
+	message = str(error.value)
+	assert isinstance(error.value.__cause__, TimeoutError)
+	assert "Missing status replies for positions: none." in message
+	assert f"Section-map ranges received: {[received_range]}" in message
+	assert "requested ranges: [(1, 122), (123, 219)]" in message
+	assert f"Positions missing from section map: {missing_sections}." in message
+	assert "113 bytes" not in message
+	assert "220" not in message
+	assert caplog.messages == [f"Service unavailable: {message}"]
+	assert "12*4826" not in caplog.text
+	assert Jablotron.create_packet_authorisation_code("12*4826")[3:].hex() not in caplog.text
+	assert jablotron._devices_data == previous_data
+	jablotron._store_devices_data.assert_not_called()
+	stream.close.assert_called_once_with()
+
+
+def test_complete_multi_range_cache_skips_rediscovery(discovery):
+	jablotron, stream = discovery
+	jablotron._get_not_ignored_devices.return_value = list(JA107K_EXPECTED_SECTIONS)
+	stream.read.side_effect = [*JA107K_STATUS_PACKETS, JA107K_SECTIONS_123_219, JA107K_SECTIONS_1_122, None]
+	jablotron._detect_devices()
+	jablotron._open_read_stream.reset_mock()
+	jablotron._send_packet.reset_mock()
+	jablotron._send_packets.reset_mock()
+	jablotron._store_devices_data.reset_mock()
+
+	jablotron._detect_devices()
+
+	jablotron._open_read_stream.assert_not_called()
+	jablotron._send_packet.assert_not_called()
+	jablotron._send_packets.assert_not_called()
+	jablotron._store_devices_data.assert_not_called()
