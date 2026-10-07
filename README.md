@@ -102,7 +102,9 @@ does not delete or recreate device paths automatically.
 
 To change the serial port, code, number of devices or PG outputs without losing your existing configuration, open the integration on the *Devices & Services* page and choose *Reconfigure*. Leave the password field empty to keep the previously stored code. Per-device type assignments are preserved across reconfiguration.
 
-If device discovery times out, the error reports missing status replies and the received section-map coverage. If the map does not cover some configured positions, compare those positions with F-Link/J-Link and change only positions that are actually unoccupied to **Empty** using *Reconfigure*. The total number of positions can remain unchanged. There is no need to remove the integration or clear its cache to correct a position assignment.
+Device discovery requests section assignments in inclusive ranges of up to 122 positions, so installations with higher or non-sequential occupied positions do not need renumbering. It combines replies by their starting position and still requires a status reply and a section assignment for every configured, non-ignored device. A failed discovery does not replace the previous device cache.
+
+If device discovery times out, the error reports missing status replies, the received section-map coverage (or received/requested ranges for larger installations), and positions missing from the map. Compare those positions with F-Link/J-Link and change only positions that are actually unoccupied to **Empty** using *Reconfigure*. The total number of positions can remain unchanged. There is no need to remove the integration or clear its cache to correct a position assignment.
 
 
 ## Check

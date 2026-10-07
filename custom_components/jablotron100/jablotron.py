@@ -762,17 +762,19 @@ class Jablotron:
 		thread_pool_executor = ThreadPoolExecutor(max_workers=STREAM_MAX_WORKERS)
 
 		estimated_duration = math.ceil(not_ignored_devices_count / 10) + 1
-		expected_packets_count = not_ignored_devices_count + 1
 		highest_device_number = max(not_ignored_devices)
-		minimum_sections_packet_length = 3 + math.ceil(highest_device_number / 2)
+		positions_per_packet = (STREAM_PACKET_SIZE - 3) * 2
+		# Parameters are inclusive positions; odd starts keep both nibbles aligned.
+		section_map_ranges = {
+			start: min(start + positions_per_packet - 1, highest_device_number)
+			for start in range(1, highest_device_number + 1, positions_per_packet)
+		}
 		device_status_packets: Dict[int, bytes] = {}
-		received_sections_packet_length: int | None = None
+		device_sections: Dict[int, int] = {}
+		received_section_packet_lengths: Dict[int, int] = {}
 		device_identification: Dict[str, Dict[DeviceData, str]] = {}
 
-		def reader_thread() -> List[bytes]:
-			nonlocal received_sections_packet_length
-			devices_sections_packet = None
-
+		def reader_thread() -> None:
 			stream = self._open_read_stream(stop_event)
 
 			try:
@@ -796,26 +798,30 @@ class Jablotron:
 							if device_number in expected_device_numbers:
 								metadata = self._parse_device_identification_from_packet(parsed_packet)
 								device_identification.setdefault(self._get_device_id(device_number), {}).update(metadata)
-						elif (
-							self._is_devices_sections_packet(parsed_packet)
-							and len(parsed_packet) >= 3
-							and len(parsed_packet) == self.bytes_to_int(parsed_packet[1:2]) + 2
-						):
-							if received_sections_packet_length is None or len(parsed_packet) > received_sections_packet_length:
-								received_sections_packet_length = len(parsed_packet)
-							if len(parsed_packet) >= minimum_sections_packet_length:
-								devices_sections_packet = parsed_packet
+						elif self._is_devices_sections_packet(parsed_packet):
+							if not (3 <= len(parsed_packet) <= STREAM_PACKET_SIZE and len(parsed_packet) == parsed_packet[1] + 2):
+								self._log_debug_with_packet("Ignoring malformed device section-map packet", parsed_packet)
+								continue
+							start = parsed_packet[2]
+							end = section_map_ranges.get(start)
+							if end is None:
+								self._log_debug_with_packet("Ignoring unrequested device section-map packet", parsed_packet)
+								continue
+							received_section_packet_lengths[start] = max(
+								received_section_packet_lengths.get(start, 0), len(parsed_packet),
+							)
+							for offset, sections in enumerate(parsed_packet[3:]):
+								for nibble in (0, 1):
+									device_number = start + offset * 2 + nibble
+									# The final high nibble may be padding after an odd end.
+									if device_number <= end:
+										device_sections[device_number] = ((sections >> (nibble * 4)) & 0x0f) + 1
 
-					if set(device_status_packets) == expected_device_numbers and devices_sections_packet is not None:
+					if set(device_status_packets) == expected_device_numbers and expected_device_numbers <= device_sections.keys():
 						break
 
 			finally:
 				stream.close()
-
-			packets = list(device_status_packets.values())
-			if devices_sections_packet is not None:
-				packets.append(devices_sections_packet)
-			return packets
 
 		def writer_thread() -> None:
 			self._send_packet(self.create_packet_authorisation_code(self._config[CONF_PASSWORD]))
@@ -826,10 +832,10 @@ class Jablotron:
 				for number_of_not_ignored_device in not_ignored_devices:
 					packets_to_send.append(self.create_packet_device_info(number_of_not_ignored_device))
 
-				packets_to_send.append(self.create_packet(
+				packets_to_send.extend(self.create_packet(
 					PACKET_GET_DEVICES_SECTIONS,
-					self.int_to_bytes(1) + self.int_to_bytes(highest_device_number),
-				))
+					self.int_to_bytes(start) + self.int_to_bytes(end),
+				) for start, end in section_map_ranges.items())
 
 				self._send_packets(packets_to_send)
 				stop_event.wait(estimated_duration)
@@ -839,7 +845,7 @@ class Jablotron:
 				reader = thread_pool_executor.submit(reader_thread)
 				thread_pool_executor.submit(writer_thread)
 
-				packets = reader.result(estimated_duration * 2)
+				reader.result(estimated_duration * 2)
 
 			finally:
 				# Join workers before reading their progress for timeout diagnostics.
@@ -849,25 +855,36 @@ class Jablotron:
 		except TimeoutError as ex:
 			missing_status_positions = sorted(expected_device_numbers - device_status_packets.keys())
 			message = "Device discovery timed out. Missing status replies for positions: {}.".format(missing_status_positions or "none")
-			if received_sections_packet_length is None:
-				message += " No complete section map received; expected coverage through position {} (at least {} bytes).".format(
-					highest_device_number,
-					minimum_sections_packet_length,
-				)
+			if len(section_map_ranges) == 1:
+				minimum_sections_packet_length = 3 + math.ceil(highest_device_number / 2)
+				received_sections_packet_length = received_section_packet_lengths.get(1)
+				if received_sections_packet_length is None:
+					message += " No complete section map received; expected coverage through position {} (at least {} bytes).".format(
+						highest_device_number,
+						minimum_sections_packet_length,
+					)
+				else:
+					covered_positions = min(highest_device_number, (received_sections_packet_length - 3) * 2)
+					message += " Section map covers {} positions ({} bytes); expected coverage through position {} (at least {} bytes).".format(
+						covered_positions,
+						received_sections_packet_length,
+						highest_device_number,
+						minimum_sections_packet_length,
+					)
 			else:
-				covered_positions = (received_sections_packet_length - 3) * 2
-				message += " Section map covers {} positions ({} bytes); expected coverage through position {} (at least {} bytes).".format(
-					covered_positions,
-					received_sections_packet_length,
-					highest_device_number,
-					minimum_sections_packet_length,
+				received_ranges = [
+					(start, min(section_map_ranges[start], start + (length - 3) * 2 - 1))
+					for start, length in sorted(received_section_packet_lengths.items()) if length > 3
+				]
+				message += " Section-map ranges received: {}; requested ranges: {}.".format(
+					received_ranges or "none", list(section_map_ranges.items()),
 				)
-				missing_section_positions = sorted(number for number in expected_device_numbers if number > covered_positions)
-				if missing_section_positions:
-					message += (
-						" Positions missing from section map: {}."
-						" Check device positions against F-Link/J-Link and set unused positions to Empty using Reconfigure."
-					).format(missing_section_positions)
+			missing_section_positions = sorted(expected_device_numbers - device_sections.keys())
+			if missing_section_positions:
+				message += (
+					" Positions missing from section map: {}."
+					" Check device positions against F-Link/J-Link and set unused positions to Empty using Reconfigure."
+				).format(missing_section_positions)
 			LOGGER.exception("Service unavailable: %s", message)
 			raise ServiceUnavailable(message) from ex
 
@@ -875,38 +892,31 @@ class Jablotron:
 			LOGGER.exception("Service unavailable: %s", ex)
 			raise ServiceUnavailable
 
-		if len(packets) != expected_packets_count:
+		if set(device_status_packets) != expected_device_numbers or not expected_device_numbers <= device_sections.keys():
 			raise ShouldNotHappen
 
 		devices_data: Dict[str, Dict[DeviceData, Any]] = {}
-		devices_sections_packet = None
 
-		for packet in packets:
-			if self._is_device_status_packet(packet):
-				device_id = self._get_device_id(self._parse_device_number_from_device_status_packet(packet))
-				device_connection = self._parse_device_connection_type_from_device_status_packet(packet)
+		for device_number, packet in device_status_packets.items():
+			device_id = self._get_device_id(device_number)
+			device_connection = self._parse_device_connection_type_from_device_status_packet(packet)
 
-				devices_data[device_id] = {
-					DeviceData.CONNECTION: device_connection,
-					DeviceData.SIGNAL_STRENGTH: None,
-					DeviceData.BATTERY: False,
-					DeviceData.BATTERY_LEVEL: None,
-					DeviceData.SECTION: None,
-				}
+			devices_data[device_id] = {
+				DeviceData.CONNECTION: device_connection,
+				DeviceData.SIGNAL_STRENGTH: None,
+				DeviceData.BATTERY: False,
+				DeviceData.BATTERY_LEVEL: None,
+				DeviceData.SECTION: device_sections[device_number],
+			}
 
-				if device_connection == DeviceConnection.WIRELESS:
-					signal_strength = self._parse_device_signal_strength_from_device_status_packet(packet)
-					devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
+			if device_connection == DeviceConnection.WIRELESS:
+				signal_strength = self._parse_device_signal_strength_from_device_status_packet(packet)
+				devices_data[device_id][DeviceData.SIGNAL_STRENGTH] = signal_strength
 
-					battery_state = self._parse_device_battery_level_from_device_status_packet(packet)
-					if battery_state is not None:
-						devices_data[device_id][DeviceData.BATTERY] = True
-						devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
-			else:
-				devices_sections_packet = packet
-
-		if devices_sections_packet is None:
-			raise ShouldNotHappen
+				battery_state = self._parse_device_battery_level_from_device_status_packet(packet)
+				if battery_state is not None:
+					devices_data[device_id][DeviceData.BATTERY] = True
+					devices_data[device_id][DeviceData.BATTERY_LEVEL] = battery_state.level
 
 		for device_id, data in devices_data.items():
 			previous_data = self._devices_data.get(device_id, {})
@@ -914,17 +924,6 @@ class Jablotron:
 				if field in previous_data:
 					data[field] = previous_data[field]
 			data.update(device_identification.get(device_id, {}))
-
-		device_number = 0
-		for packet_offset in range(3, len(devices_sections_packet)):
-			sections_packet_binary = self._bytes_to_binary(devices_sections_packet[packet_offset:(packet_offset + 1)])
-
-			for device_offset in (4, 0):
-				device_number += 1
-				device_id = self._get_device_id(device_number)
-
-				if device_id in devices_data:
-					devices_data[device_id][DeviceData.SECTION] = self.binary_to_int(sections_packet_binary[device_offset:(device_offset + 4)]) + 1
 
 		self._devices_data = devices_data
 		self._store_devices_data()

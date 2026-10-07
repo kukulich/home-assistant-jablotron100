@@ -295,8 +295,14 @@ async def test_cancelled_config_flow_waits_for_probe_to_exit(hass):
 			await asyncio.wait_for(finished.wait(), 5)
 
 
-@pytest.mark.parametrize("stage", ["probe", "_detect_central_unit", "_detect_sections_and_pg_outputs", "_detect_devices"])
-async def test_detection_timeout_closes_stream_and_joins_workers(hass, jablotron, monkeypatch, serial_device, stage):
+@pytest.mark.parametrize("stage,highest_device_number", [
+	("probe", 1),
+	("_detect_central_unit", 1),
+	("_detect_sections_and_pg_outputs", 1),
+	("_detect_devices", 1),
+	pytest.param("_detect_devices", 219, id="multiple-section-map-ranges"),
+])
+async def test_detection_timeout_closes_stream_and_joins_workers(hass, jablotron, monkeypatch, serial_device, stage, highest_device_number):
 	serial_port, _ = serial_device
 	streams = []
 	threads = []
@@ -327,8 +333,8 @@ async def test_detection_timeout_closes_stream_and_joins_workers(hass, jablotron
 	else:
 		module = sys.modules[Jablotron.__module__]
 		jablotron._serial_port = serial_port
-		jablotron._config[CONF_NUMBER_OF_DEVICES] = 1
-		jablotron._config[CONF_DEVICES] = [DeviceType.MOTION_DETECTOR.value]
+		jablotron._config[CONF_NUMBER_OF_DEVICES] = highest_device_number
+		jablotron._config[CONF_DEVICES] = [DeviceType.EMPTY.value] * (highest_device_number - 1) + [DeviceType.MOTION_DETECTOR.value]
 		monkeypatch.setattr(jablotron, "_send_packet", Mock())
 		monkeypatch.setattr(jablotron, "_send_packets", Mock())
 		monkeypatch.setattr(jablotron, "_open_read_stream", lambda stop_event=None: open_reader(serial_port, jablotron._stream_stop_event, stop_event or jablotron._stream_stop_event))
