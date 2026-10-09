@@ -12,7 +12,7 @@ from homeassistant.helpers import selector
 import re
 import threading
 from typing import Any, Dict, List
-import voluptuous as vol
+import probatio as vol
 from .code import validate_authorisation_code
 from .const import (
 	AUTODETECT_SERIAL_PORT,

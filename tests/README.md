@@ -25,7 +25,7 @@ python -m pytest --ha-integration
 To pin the minimum version declared in `hacs.json`, replace the install command with:
 
 ```sh
-python -m pip install -r requirements_integration_test.txt "homeassistant==2026.9.1"
+python -m pip install -r requirements_integration_test.txt "homeassistant==2026.10.0"
 ```
 
 ## CI
