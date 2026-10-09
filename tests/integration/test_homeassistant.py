@@ -10,9 +10,7 @@ from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.const import CONF_PASSWORD, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.data_entry_flow import FlowResultType
 import pytest
-import voluptuous as vol
-
-from custom_components.jablotron100.config_flow import JablotronConfigFlow, get_devices_fields
+from custom_components.jablotron100.config_flow import JablotronConfigFlow, get_devices_fields, vol
 from custom_components.jablotron100.const import (
 	AUTODETECT_SERIAL_PORT,
 	CONF_DEVICES,
