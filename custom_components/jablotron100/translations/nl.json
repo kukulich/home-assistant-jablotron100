@@ -496,7 +496,8 @@
 			"service_unavailable": "Jablotron is niet gevonden",
 			"model_not_detected": "Jablotron model niet gedetecteerd",
 			"model_not_supported": "Jablotron model niet ondersteund",
-			"serial_port_not_detected": "Er is geen Jablotron USB-apparaat gedetecteerd. Controleer of het apparaat is aangesloten en zichtbaar is voor het besturingssysteem."
+			"serial_port_not_detected": "Er is geen Jablotron USB-apparaat gedetecteerd. Controleer of het apparaat is aangesloten en zichtbaar is voor het besturingssysteem.",
+			"invalid_code": "Ongeldige autorisatiecode"
 		},
 		"abort": {
 			"already_configured": "Jablotron is al geconfigureerd",

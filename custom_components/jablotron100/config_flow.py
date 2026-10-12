@@ -184,8 +184,24 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 
 	async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> ConfigFlowResult:
 		errors: Dict[str, str] = {}
+		data_schema = vol.Schema(
+			{
+				vol.Required(CONF_SERIAL_PORT, default=AUTODETECT_SERIAL_PORT): str,
+				vol.Required(CONF_PASSWORD): str,
+				vol.Optional(CONF_NUMBER_OF_DEVICES, default=0): create_range_validation(0, MAX_DEVICES),
+				vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=0): create_range_validation(0, MAX_PG_OUTPUTS),
+			}
+		)
 
 		if user_input is not None:
+			try:
+				validate_authorisation_code(user_input[CONF_PASSWORD])
+			except ValueError:
+				return self.async_show_form(
+					step_id="user",
+					data_schema=data_schema,
+					errors={CONF_PASSWORD: "invalid_code"},
+				)
 
 			try:
 				unique_id = user_input[CONF_SERIAL_PORT]
@@ -245,14 +261,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 
 		return self.async_show_form(
 			step_id="user",
-			data_schema=vol.Schema(
-				{
-					vol.Required(CONF_SERIAL_PORT, default=AUTODETECT_SERIAL_PORT): str,
-					vol.Required(CONF_PASSWORD): vol.All(str, validate_authorisation_code),
-					vol.Optional(CONF_NUMBER_OF_DEVICES, default=0): create_range_validation(0, MAX_DEVICES),
-					vol.Optional(CONF_NUMBER_OF_PG_OUTPUTS, default=0): create_range_validation(0, MAX_PG_OUTPUTS),
-				}
-			),
+			data_schema=data_schema,
 			errors=errors,
 		)
 
@@ -297,15 +306,21 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 		errors: Dict[str, str] = {}
 
 		if user_input is not None:
+			validation_failed = False
+			if user_input[CONF_PASSWORD] != "":
+				try:
+					validate_authorisation_code(user_input[CONF_PASSWORD])
+				except ValueError:
+					errors[CONF_PASSWORD] = "invalid_code"
+					validation_failed = True
+
 			previous_serial_port = self._config[CONF_SERIAL_PORT]
 			new_serial_port = user_input[CONF_SERIAL_PORT]
-
-			validation_failed = False
 
 			# Re-validate the serial port if the user changed it. Without this
 			# check a typo (or a path that no longer points to a Jablotron USB
 			# device) would only surface as a hard failure on the next restart.
-			if new_serial_port != previous_serial_port:
+			if not validation_failed and new_serial_port != previous_serial_port:
 				try:
 					if new_serial_port == AUTODETECT_SERIAL_PORT:
 						detected_serial_port = await self.hass.async_add_executor_job(
@@ -350,12 +365,12 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 
 				return self._finish_reconfigure()
 
-		fields = {
+		fields: Dict[Any, Any] = {
 			vol.Required(CONF_SERIAL_PORT, default=self._config[CONF_SERIAL_PORT]): str,
 			vol.Optional(
 				CONF_PASSWORD,
 				default="",
-			): vol.Any("", vol.All(str, validate_authorisation_code)),
+			): str,
 		}
 
 		number_of_devices_validation = create_range_validation(self._config[CONF_NUMBER_OF_DEVICES], MAX_DEVICES)
