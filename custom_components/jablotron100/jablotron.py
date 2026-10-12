@@ -3224,7 +3224,7 @@ class Jablotron:
 
 		try:
 			realpath = os.path.realpath("{}/{}".format(HIDRAW_PATH, device_name))
-			if "16D6:0008" not in realpath:
+			if "16D6:0008" not in realpath and not Jablotron._is_jablotron_hidraw_alias(serial_port):
 				return False
 			mode = os.stat(serial_port).st_mode
 		except OSError as ex:
@@ -3239,6 +3239,30 @@ class Jablotron:
 			return False
 
 		return True
+
+	@staticmethod
+	def _is_jablotron_hidraw_alias(serial_port: str) -> bool:
+		# The configured path may be an alias of a hidraw device whose name differs from the
+		# sysfs entry, e.g. a udev symlink or a device node created in an LXC container without
+		# /dev/hidrawN. Find the hidraw device with the same device number instead.
+		try:
+			rdev = os.stat(serial_port).st_rdev
+			hidraw_names = os.listdir(HIDRAW_PATH)
+		except OSError:
+			return False
+
+		device_number = "{}:{}".format(os.major(rdev), os.minor(rdev))
+		for hidraw_name in hidraw_names:
+			try:
+				with open("{}/{}/dev".format(HIDRAW_PATH, hidraw_name)) as dev_file:
+					if dev_file.read().strip() != device_number:
+						continue
+			except OSError:
+				continue
+
+			return "16D6:0008" in os.path.realpath("{}/{}".format(HIDRAW_PATH, hidraw_name))
+
+		return False
 
 
 class JablotronEntity(Entity):

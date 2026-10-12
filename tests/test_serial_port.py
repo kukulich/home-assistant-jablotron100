@@ -158,3 +158,44 @@ def test_autodetection_still_rejects_other_usb_devices():
 		return_value="0003:1234:5678.0001",
 	):
 		assert not Jablotron._is_jablotron_serial_port(os.devnull)
+
+
+def _create_hidraw_sysfs(tmp_path, usb_id, device_number):
+	device_dir = tmp_path / "devices" / "0003:{}.0001".format(usb_id) / "hidraw" / "hidraw0"
+	device_dir.mkdir(parents=True)
+	(device_dir / "dev").write_text("{}\n".format(device_number))
+	hidraw_path = tmp_path / "class"
+	hidraw_path.mkdir()
+	(hidraw_path / "hidraw0").symlink_to(device_dir)
+	return hidraw_path
+
+
+def _device_number(path):
+	rdev = os.stat(path).st_rdev
+	return "{}:{}".format(os.major(rdev), os.minor(rdev))
+
+
+@pytest.mark.parametrize(
+	("usb_id", "same_device_number", "expected"),
+	[
+		("16D6:0008", True, True),
+		("16D6:0008", False, False),
+		("1234:5678", True, False),
+	],
+)
+def test_alias_is_matched_to_hidraw_device_by_device_number(tmp_path, usb_id, same_device_number, expected):
+	# os.devnull stands in for an alias such as /dev/jablotron whose name has no sysfs entry
+	device_number = _device_number(os.devnull) if same_device_number else "999:999"
+	hidraw_path = _create_hidraw_sysfs(tmp_path, usb_id, device_number)
+
+	with patch("custom_components.jablotron100.jablotron.HIDRAW_PATH", str(hidraw_path)):
+		assert Jablotron._is_jablotron_serial_port(os.devnull) is expected
+
+
+def test_alias_check_rejects_regular_files(tmp_path):
+	serial_port = tmp_path / "jablotron"
+	serial_port.write_bytes(b"stale detection packet")
+	hidraw_path = _create_hidraw_sysfs(tmp_path, "16D6:0008", "0:0")
+
+	with patch("custom_components.jablotron100.jablotron.HIDRAW_PATH", str(hidraw_path)):
+		assert not Jablotron._is_jablotron_serial_port(str(serial_port))
