@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.data_entry_flow import FlowHandler, FlowManager, FlowResultType, InvalidData
+from homeassistant.helpers import config_validation as cv
 import pytest
 
 from custom_components.jablotron100.config_flow import JablotronConfigFlow, JablotronOptionsFlow, vol
@@ -30,18 +31,48 @@ async def test_code_form_uses_shared_validation(hass, jablotron, reconfigure):
 	flow = JablotronConfigFlow()
 	flow.hass = hass
 	flow._config = dict(jablotron._config)
-	result = await (flow.async_step_reconfigure_settings() if reconfigure else flow.async_step_user())
+	step = flow.async_step_reconfigure_settings if reconfigure else flow.async_step_user
+	result = await step()
 	schema = result["data_schema"]
-	for code in ("1234", "12345678", "12*3456", "123*345678"):
-		assert schema({CONF_PASSWORD: code})[CONF_PASSWORD] == code
+	fields = vol.to_field_list(schema, custom_serializer=cv.custom_serializer)
+	assert next(field for field in fields if field["name"] == CONF_PASSWORD)["type"] == "string"
+
 	for code in ("123", "123456789", "abcd", "1234abcd", "12**3456", "1234 "):
-		with pytest.raises(vol.Invalid):
-			schema({CONF_PASSWORD: code})
+		user_input = {CONF_PASSWORD: code}
+		if reconfigure:
+			user_input[CONF_SERIAL_PORT] = flow._config[CONF_SERIAL_PORT]
+		result = await step(user_input)
+		assert result["errors"][CONF_PASSWORD] == "invalid_code"
+		assert vol.to_field_list(result["data_schema"], custom_serializer=cv.custom_serializer)
+
 	if reconfigure:
 		assert schema({CONF_PASSWORD: ""})[CONF_PASSWORD] == ""
-	else:
-		with pytest.raises(vol.Invalid):
-			schema({CONF_PASSWORD: ""})
+
+
+@pytest.mark.parametrize("code", ["1234", "12345678", "12*3456", "123*345678"])
+async def test_user_form_accepts_valid_code(hass, monkeypatch, code):
+	flow = JablotronConfigFlow()
+	flow.hass = hass
+
+	async def set_unique_id(unique_id):
+		return None
+
+	async def check_serial_port(serial_port):
+		return None
+
+	monkeypatch.setattr(flow, "async_set_unique_id", set_unique_id)
+	monkeypatch.setattr(flow, "_abort_if_unique_id_configured", lambda: None)
+	monkeypatch.setattr(flow, "_async_check_serial_port", check_serial_port)
+
+	result = await flow.async_step_user({
+		CONF_SERIAL_PORT: "test-port",
+		CONF_PASSWORD: code,
+		CONF_NUMBER_OF_DEVICES: 0,
+		CONF_NUMBER_OF_PG_OUTPUTS: 0,
+	})
+
+	assert result["type"] == FlowResultType.CREATE_ENTRY
+	assert result["data"][CONF_PASSWORD] == code
 
 
 @pytest.fixture
@@ -66,11 +97,9 @@ def form_manager(hass):
 
 
 @pytest.mark.parametrize("step,invalid_input,valid_input,error_field", [
-	pytest.param("user", {CONF_PASSWORD: "abcd"}, {CONF_PASSWORD: "12*3456"}, CONF_PASSWORD, id="user-code"),
 	pytest.param("user", {CONF_PASSWORD: "1234", CONF_NUMBER_OF_DEVICES: MAX_DEVICES + 1}, {CONF_PASSWORD: "1234", CONF_NUMBER_OF_DEVICES: "2"}, CONF_NUMBER_OF_DEVICES, id="user-device-range"),
 	pytest.param("user", {CONF_PASSWORD: "1234", CONF_NUMBER_OF_PG_OUTPUTS: MAX_PG_OUTPUTS + 1}, {CONF_PASSWORD: "1234", CONF_NUMBER_OF_PG_OUTPUTS: "2"}, CONF_NUMBER_OF_PG_OUTPUTS, id="user-pg-range"),
 	pytest.param("devices", {"device_001": "invalid"}, {"device_001": "smoke_detector"}, "device_001", id="device-selector"),
-	pytest.param("reconfigure_settings", {CONF_PASSWORD: "123"}, {CONF_PASSWORD: ""}, CONF_PASSWORD, id="reconfigure-empty-code"),
 	pytest.param("reconfigure_settings", {CONF_NUMBER_OF_DEVICES: 1}, {CONF_NUMBER_OF_DEVICES: "3"}, CONF_NUMBER_OF_DEVICES, id="reconfigure-preserve-minimum"),
 	pytest.param("reconfigure_devices", {"device_002": "invalid"}, {}, "device_002", id="reconfigure-device-defaults"),
 	pytest.param("options", {CONF_PARTIALLY_ARMING_MODE: "invalid"}, {}, CONF_PARTIALLY_ARMING_MODE, id="options-selector-defaults"),

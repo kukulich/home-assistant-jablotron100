@@ -496,7 +496,8 @@
 			"service_unavailable": "Jablotron nie je dostupný",
 			"model_not_detected": "Typ ústredne Jablotron nebol rozpoznaný",
 			"model_not_supported": "Typ ústredne Jablotron nie je podporovaný",
-			"serial_port_not_detected": "Žiadne USB zariadenie Jablotron nebolo nájdené. Skontrolujte, či je zariadenie pripojené a viditelné pre operačný systém."
+			"serial_port_not_detected": "Žiadne USB zariadenie Jablotron nebolo nájdené. Skontrolujte, či je zariadenie pripojené a viditelné pre operačný systém.",
+			"invalid_code": "Neplatný autorizačný kód"
 		},
 		"abort": {
 			"already_configured": "Jablotron je už nakonfigurovaný",
