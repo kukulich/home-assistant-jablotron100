@@ -3,11 +3,11 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
-				"description": "To enable devices support insert administrator's code and total number of devices",
+				"description": "To include devices, enter an administrator code and the highest device position from F-Link/J-Link, not the number of physical devices. Set unused positions to Empty.",
 				"data": {
 					"serial_port": "Serial port",
 					"password": "Code",
-					"number_of_devices": "Number of devices",
+					"number_of_devices": "Highest device position",
 					"number_of_pg_outputs": "Number of programmable PG outputs"
 				}
 			},
@@ -249,10 +249,11 @@
 			},
 			"reconfigure_settings": {
 				"title": "Jablotron 100",
+				"description": "Enter the highest device position to include (0 disables devices). Reducing this value removes devices above that position. Set unused positions within the range to Empty.",
 				"data": {
 					"serial_port": "Serial port",
 					"password": "Code",
-					"number_of_devices": "Number of devices",
+					"number_of_devices": "Highest device position",
 					"number_of_pg_outputs": "Number of programmable PG outputs"
 				}
 			},

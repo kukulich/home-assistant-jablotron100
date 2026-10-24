@@ -3,11 +3,11 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
-				"description": "Per abilitare il supporto ai dispositivi, inserire il codice dell'amministratore e il numero totale di dispositivi",
+				"description": "Per includere i dispositivi, inserire il codice dell'amministratore e la posizione più alta dei dispositivi indicata in F-Link/J-Link, non il numero di dispositivi fisici. Impostare le posizioni non occupate su Empty.",
 				"data": {
 					"serial_port": "Porta seriale",
 					"password": "Codice",
-					"number_of_devices": "Numero di dispositivi",
+					"number_of_devices": "Posizione massima dei dispositivi",
 					"number_of_pg_outputs": "Numero di uscite programmabili PG"
 				}
 			},
@@ -249,10 +249,11 @@
 			},
 			"reconfigure_settings": {
 				"title": "Jablotron 100",
+				"description": "Inserire la posizione più alta dei dispositivi da includere (0 disabilita i dispositivi). Riducendo questo valore si rimuovono i dispositivi nelle posizioni superiori. Impostare le posizioni non occupate nell'intervallo su Empty.",
 				"data": {
 					"serial_port": "Porta seriale",
 					"password": "Codice",
-					"number_of_devices": "Numero di dispositivi",
+					"number_of_devices": "Posizione massima dei dispositivi",
 					"number_of_pg_outputs": "Numero di uscite programmabili PG"
 				}
 			},

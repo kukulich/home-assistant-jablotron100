@@ -83,6 +83,7 @@ from .const import (
 	EventLoginType,
 	HIDRAW_PATH,
 	LOGGER,
+	MAX_DEVICES,
 	MAX_SECTIONS,
 	PACKET_COMMAND,
 	PACKET_DEVICES_SECTIONS,
@@ -929,6 +930,37 @@ class Jablotron:
 		self._store_devices_data()
 
 	async def _create_devices(self) -> None:
+		device_registry = dr.async_get(self._hass)
+		registry = async_get_entity_registry(self._hass)
+		known_ids = {entity_id for controls in self.entities.values() for entity_id in controls} | set(self.hass_entities) | set(self.entities_states)
+		known_ids.update(self._stored_data.get(self._get_unique_id(), {}).get(STORAGE_STATES_KEY, {}))
+		unique_id_prefix = "{}.{}.".format(DOMAIN, self.central_unit().unique_id)
+		for registry_entry in async_entries_for_config_entry(registry, self._config_entry_id):
+			if registry_entry.platform == DOMAIN and registry_entry.unique_id.startswith(unique_id_prefix):
+				known_ids.add(registry_entry.unique_id.removeprefix(unique_id_prefix))
+
+		for device_number in range(self._config[CONF_NUMBER_OF_DEVICES] + 1, MAX_DEVICES + 1):
+			device_entity_ids = {
+				self._get_device_state_sensor_id(device_number),
+				self._get_device_problem_sensor_id(device_number),
+				self._get_device_signal_strength_sensor_id(device_number),
+				self._get_device_power_supply_sensor_id(device_number),
+				self._get_device_battery_problem_sensor_id(device_number),
+				self._get_device_battery_level_sensor_id(device_number),
+				self._get_device_temperature_sensor_id(device_number),
+				self._get_device_battery_standby_voltage_sensor_id(device_number),
+				self._get_device_battery_load_voltage_sensor_id(device_number),
+				self._get_device_pulse_sensor_id(device_number),
+				self._get_device_pulse_sensor_id(device_number, 1),
+			}
+			for entity_id in known_ids & device_entity_ids:
+				await self._remove_entity(None, entity_id)
+			device_id = self._get_device_id(device_number)
+			existing_device = device_registry.async_get_device_by_identifier((DOMAIN, device_id), self._config_entry_id)
+			if existing_device is not None:
+				device_registry.async_remove_device(existing_device.id)
+			self._device_hass_devices.pop(device_id, None)
+
 		for device_number in range(1, self._config[CONF_NUMBER_OF_DEVICES] + 1):
 			device_problem_sensor_id = self._get_device_problem_sensor_id(device_number)
 
@@ -936,7 +968,6 @@ class Jablotron:
 			device_type = self._get_device_type(device_number)
 
 			if self._is_device_ignored(device_number):
-				device_registry = dr.async_get(self._hass)
 				existing_device = device_registry.async_get_device_by_identifier((DOMAIN, device_id), self._config_entry_id)
 				if existing_device is not None:
 					device_registry.async_remove_device(existing_device.id)

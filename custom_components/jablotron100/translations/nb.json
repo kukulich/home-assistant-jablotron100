@@ -3,11 +3,11 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
-				"description": "For å legge til må du bruke en administratorkode og det totale antallet enheter",
+				"description": "For å inkludere enheter, angi en administratorkode og den høyeste enhetsposisjonen fra F-Link/J-Link, ikke antallet fysiske enheter. Sett ubrukte posisjoner til Empty.",
 				"data": {
 					"serial_port": "Serial port",
 					"password": "Kode",
-					"number_of_devices": "Antall enheter",
+					"number_of_devices": "Høyeste enhetsposisjon",
 					"number_of_pg_outputs": "Number of programmable PG outputs"
 				}
 			},
@@ -249,10 +249,11 @@
 			},
 			"reconfigure_settings": {
 				"title": "Jablotron 100",
+				"description": "Angi den høyeste enhetsposisjonen som skal inkluderes (0 deaktiverer enheter). En lavere verdi fjerner enheter over denne posisjonen. Sett ubrukte posisjoner innenfor området til Empty.",
 				"data": {
 					"serial_port": "Serial port",
 					"password": "Kode",
-					"number_of_devices": "Antall enheter",
+					"number_of_devices": "Høyeste enhetsposisjon",
 					"number_of_pg_outputs": "Number of programmable PG outputs"
 				}
 			},

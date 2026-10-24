@@ -19,10 +19,10 @@ def test_setup_registers_parent_before_platforms_and_scopes_lookup(tmp_path, sha
 	from homeassistant import loader
 	from homeassistant.config_entries import ConfigEntries, ConfigEntry
 	from homeassistant.core import HomeAssistant
-	from homeassistant.helpers import device_registry as dr, frame
+	from homeassistant.helpers import device_registry as dr, entity_registry as er, frame
 
 	from custom_components.jablotron100 import PLATFORMS, async_setup_entry
-	from custom_components.jablotron100.const import CONF_DEVICES, CONF_NUMBER_OF_DEVICES, DOMAIN, DeviceType
+	from custom_components.jablotron100.const import CONF_DEVICES, CONF_NUMBER_OF_DEVICES, CONF_UNIQUE_ID, DOMAIN, DeviceType
 	from custom_components.jablotron100.jablotron import (
 		Jablotron,
 		JablotronCentralUnit,
@@ -39,6 +39,7 @@ def test_setup_registers_parent_before_platforms_and_scopes_lookup(tmp_path, sha
 			hass.config_entries = ConfigEntries(hass, {})
 			hass.data[dr.DATA_REGISTRY] = dr.DeviceRegistry(hass)
 			await dr.async_load(hass)
+			await er.async_load(hass)
 			registry = dr.async_get(hass)
 			parents = []
 			peripherals = []
@@ -76,7 +77,7 @@ def test_setup_registers_parent_before_platforms_and_scopes_lookup(tmp_path, sha
 				for entry_id in ("panel-a", "panel-b"):
 					entry = ConfigEntry(
 						entry_id=entry_id, domain=DOMAIN, title=entry_id,
-						data={}, options={}, source="user", unique_id=entry_id,
+						data={CONF_UNIQUE_ID: entry_id}, options={}, source="user", unique_id=entry_id,
 						version=1, minor_version=1, discovery_keys=MappingProxyType({}), subentries_data=None,
 					)
 					hass.config_entries._entries[entry.entry_id] = entry

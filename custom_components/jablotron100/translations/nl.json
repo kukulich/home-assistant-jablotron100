@@ -3,11 +3,11 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
-				"description": "Vul de administrator code in en het aantal configureerde Jablotron apparaten",
+				"description": "Om apparaten op te nemen, vult u een beheerderscode en de hoogste apparaatpositie uit F-Link/J-Link in, niet het aantal fysieke apparaten. Stel ongebruikte posities in op Empty.",
 				"data": {
 					"serial_port": "Seriele port",
 					"password": "Code",
-					"number_of_devices": "Aantal apparaten",
+					"number_of_devices": "Hoogste apparaatpositie",
 					"number_of_pg_outputs": "Number of programmable PG outputs"
 				}
 			},
@@ -249,10 +249,11 @@
 			},
 			"reconfigure_settings": {
 				"title": "Jablotron 100",
+				"description": "Vul de hoogste apparaatpositie in die moet worden opgenomen (0 schakelt apparaten uit). Bij een lagere waarde worden apparaten boven die positie verwijderd. Stel ongebruikte posities binnen het bereik in op Empty.",
 				"data": {
 					"serial_port": "Seriele port",
 					"password": "Code",
-					"number_of_devices": "Aantal apparaten",
+					"number_of_devices": "Hoogste apparaatpositie",
 					"number_of_pg_outputs": "Number of programmable PG outputs"
 				}
 			},

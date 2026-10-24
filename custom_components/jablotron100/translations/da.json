@@ -3,11 +3,11 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
-				"description": "For sensor understøttelse skal der bruges en administratorkode og det samlet antal enheder",
+				"description": "For at medtage enheder skal du indtaste en administratorkode og den højeste enhedsposition fra F-Link/J-Link, ikke antallet af fysiske enheder. Sæt ledige positioner til Tom.",
 				"data": {
 					"serial_port": "Serielport",
 					"password": "Kode",
-					"number_of_devices": "Antal enheder",
+					"number_of_devices": "Højeste enhedsposition",
 					"number_of_pg_outputs": "Antal programmerbare udgange"
 				}
 			},
@@ -249,10 +249,11 @@
 			},
 			"reconfigure_settings": {
 				"title": "Jablotron 100",
+				"description": "Angiv den højeste enhedsposition, der skal medtages (0 deaktiverer enheder). En lavere værdi fjerner enheder over denne position. Sæt ledige positioner inden for området til Tom.",
 				"data": {
 					"serial_port": "Serielport",
 					"password": "Kode",
-					"number_of_devices": "Antal enheder",
+					"number_of_devices": "Højeste enhedsposition",
 					"number_of_pg_outputs": "Antal programmerbare udgange"
 				}
 			},
