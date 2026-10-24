@@ -51,8 +51,8 @@ Requires Home Assistant 2026.10.0 or newer.
 ## Installation
 
 - If you use code with a prefix, insert the code with the asterisk, e.g. `12*3456`.
-- Use code of administrator to make devices work. If you cannot use code of administrator, or you don't want to use devices, set the number of devices to 0.
-- You have to set devices in the same order as you see them in your J-Link/F-Link/mobile application. Ignore the central unit on position 0. The number of devices is the highest position to include, not the number of physical devices in use. Set unoccupied positions to **Empty** without renumbering the other devices.
+- Use code of administrator to make devices work. If you cannot use code of administrator, or you don't want to use devices, set the highest device position to 0.
+- Set the highest device position to the last position you want to include from your J-Link/F-Link/mobile application, not the number of physical devices in use. Keep the same position numbers and ignore the central unit on position 0. Set unoccupied positions to **Empty** without renumbering the other devices.
 - If you want to use PG outputs, the user of the code has to have rights to control the PG outputs. Set the number of PG outputs to 0 to ignore them.
 
 
@@ -100,7 +100,9 @@ does not delete or recreate device paths automatically.
 
 ### Reconfigure
 
-To change the serial port, code, number of devices or PG outputs without losing your existing configuration, open the integration on the *Devices & Services* page and choose *Reconfigure*. Leave the password field empty to keep the previously stored code. Per-device type assignments are preserved across reconfiguration.
+To change the serial port, code, highest device position or number of PG outputs, open the integration on the *Devices & Services* page and choose *Reconfigure*. Leave the password field empty to keep the previously stored code. Type assignments for retained device positions are preserved by default.
+
+The highest device position can be increased or reduced, including to 0 to disable peripheral devices. After device discovery succeeds, devices above the new limit and their entities and cached data are removed. Only reduce the limit if no device you want to keep uses a higher position. Gaps within the retained range should remain **Empty**.
 
 Device discovery requests section assignments in inclusive ranges of up to 122 positions, so installations with higher or non-sequential occupied positions do not need renumbering. It combines replies by their starting position and still requires a status reply and a section assignment for every configured, non-ignored device. A failed discovery does not replace the previous device cache.
 

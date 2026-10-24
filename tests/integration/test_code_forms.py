@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.data_entry_flow import FlowHandler, FlowManager, FlowResultType, InvalidData
 from homeassistant.helpers import config_validation as cv
@@ -17,6 +18,7 @@ from custom_components.jablotron100.const import (
 	CONF_REQUIRE_CODE_TO_ARM,
 	CONF_REQUIRE_CODE_TO_DISARM,
 	CONF_SERIAL_PORT,
+	DOMAIN,
 	DeviceType,
 	MAX_DEVICES,
 	MAX_PG_OUTPUTS,
@@ -100,7 +102,8 @@ def form_manager(hass):
 	pytest.param("user", {CONF_PASSWORD: "1234", CONF_NUMBER_OF_DEVICES: MAX_DEVICES + 1}, {CONF_PASSWORD: "1234", CONF_NUMBER_OF_DEVICES: "2"}, CONF_NUMBER_OF_DEVICES, id="user-device-range"),
 	pytest.param("user", {CONF_PASSWORD: "1234", CONF_NUMBER_OF_PG_OUTPUTS: MAX_PG_OUTPUTS + 1}, {CONF_PASSWORD: "1234", CONF_NUMBER_OF_PG_OUTPUTS: "2"}, CONF_NUMBER_OF_PG_OUTPUTS, id="user-pg-range"),
 	pytest.param("devices", {"device_001": "invalid"}, {"device_001": "smoke_detector"}, "device_001", id="device-selector"),
-	pytest.param("reconfigure_settings", {CONF_NUMBER_OF_DEVICES: 1}, {CONF_NUMBER_OF_DEVICES: "3"}, CONF_NUMBER_OF_DEVICES, id="reconfigure-preserve-minimum"),
+	pytest.param("reconfigure_settings", {CONF_NUMBER_OF_DEVICES: -1}, {CONF_NUMBER_OF_DEVICES: "1"}, CONF_NUMBER_OF_DEVICES, id="reconfigure-device-minimum"),
+	pytest.param("reconfigure_settings", {CONF_NUMBER_OF_DEVICES: MAX_DEVICES + 1}, {CONF_NUMBER_OF_DEVICES: str(MAX_DEVICES)}, CONF_NUMBER_OF_DEVICES, id="reconfigure-device-maximum"),
 	pytest.param("reconfigure_devices", {"device_002": "invalid"}, {}, "device_002", id="reconfigure-device-defaults"),
 	pytest.param("options", {CONF_PARTIALLY_ARMING_MODE: "invalid"}, {}, CONF_PARTIALLY_ARMING_MODE, id="options-selector-defaults"),
 	pytest.param("options", {CONF_REQUIRE_CODE_TO_ARM: "invalid"}, {CONF_REQUIRE_CODE_TO_ARM: True}, CONF_REQUIRE_CODE_TO_ARM, id="options-bool"),
@@ -142,3 +145,47 @@ async def test_all_form_schemas_use_homeassistant_validation(hass, jablotron, fo
 	if step == "options":
 		assert result["data"][CONF_PARTIALLY_ARMING_MODE] == "home_mode"
 		assert result["data"][CONF_REQUIRE_CODE_TO_DISARM] is False
+
+
+@pytest.mark.parametrize("device_count", [0, 36, 50, 51, MAX_DEVICES])
+async def test_reconfigure_resizes_device_positions(hass, jablotron, monkeypatch, device_count):
+	devices = [DeviceType.EMPTY.value] * 50
+	devices[0] = DeviceType.MOTION_DETECTOR.value
+	devices[35] = DeviceType.WINDOW_OPENING_DETECTOR.value
+	devices[49] = DeviceType.SMOKE_DETECTOR.value
+	config = {**jablotron._config, CONF_NUMBER_OF_DEVICES: 50, CONF_DEVICES: devices}
+	entry = ConfigEntry(
+		entry_id="test-entry", domain=DOMAIN, title="Test panel",
+		data=config, options={}, source="user", unique_id="test-panel",
+		version=1, minor_version=1, discovery_keys=MappingProxyType({}), subentries_data=None,
+	)
+	hass.config_entries._entries[entry.entry_id] = entry
+
+	async def reload(entry_id):
+		assert entry_id == entry.entry_id
+		return True
+
+	monkeypatch.setattr(hass.config_entries, "async_reload", reload)
+	flow = JablotronConfigFlow()
+	flow.hass = hass
+	flow.context = MappingProxyType({"entry_id": entry.entry_id})
+	form = await flow.async_step_reconfigure()
+	assert vol.to_field_list(form["data_schema"], custom_serializer=cv.custom_serializer)
+	user_input = form["data_schema"]({CONF_NUMBER_OF_DEVICES: str(device_count)})
+	result = await flow.async_step_reconfigure_settings(user_input)
+	expected_devices = devices[:device_count] + [DeviceType.EMPTY.value] * max(0, device_count - 50)
+	if device_count:
+		assert result["type"] == FlowResultType.FORM
+		assert result["step_id"] == "reconfigure_devices"
+		device_input = result["data_schema"]({
+			f"device_{number:03}": DeviceType.EMPTY.value for number in range(51, device_count + 1)
+		})
+		assert [device_input[key] for key in sorted(device_input)] == expected_devices
+		assert entry.data == config
+		result = await flow.async_step_reconfigure_devices(device_input)
+
+	await hass.async_block_till_done()
+	assert result["type"] == FlowResultType.ABORT
+	assert result["reason"] == "reconfigure_successful"
+	assert entry.data == {**config, CONF_NUMBER_OF_DEVICES: device_count, CONF_DEVICES: expected_devices}
+	assert devices[49] == DeviceType.SMOKE_DETECTOR.value

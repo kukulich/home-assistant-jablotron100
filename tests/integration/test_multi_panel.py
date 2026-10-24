@@ -6,12 +6,13 @@ import json
 import logging
 from pathlib import Path
 from types import MappingProxyType
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, EVENT_STATE_CHANGED, STATE_OFF, STATE_ON
 from homeassistant.core import callback
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.storage import Store
@@ -364,3 +365,161 @@ async def test_matching_unique_id_in_another_config_entry_is_not_removed(hass, p
 	)
 	await first_panel._remove_entity(EntityType.TEMPERATURE, "temperature")
 	assert registry.async_get(foreign.entity_id) == foreign
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("device_count", [0, 36])
+async def test_reduced_device_range_cleans_only_own_panel(hass, panels, device_count):
+	registry = er.async_get(hass)
+	device_registry = dr.async_get(hass)
+	numbers = (1, 36, 37, 50)
+	registered = {}
+	registered_devices = {}
+	central_ids = {"device_power_supply_sensor_0", "section_1", "pulses_50_status"}
+	for entry, instance in panels:
+		await instance._load_stored_data()
+		instance._config[CONF_NUMBER_OF_DEVICES] = 50
+		instance._config[CONF_DEVICES] = [DeviceType.EMPTY] * 50
+		parent = device_registry.async_get_or_create(
+			config_entry_id=entry.entry_id, identifiers={(DOMAIN, instance.central_unit().unique_id)},
+		)
+		for number in numbers:
+			instance._config[CONF_DEVICES][number - 1] = DeviceType.MOTION_DETECTOR
+			instance._devices_data[instance._get_device_id(number)] = {
+				DeviceData.CONNECTION: DeviceConnection.WIRED,
+				DeviceData.SIGNAL_STRENGTH: None,
+				DeviceData.BATTERY: False,
+				DeviceData.BATTERY_LEVEL: None,
+				DeviceData.SECTION: 1,
+				DeviceData.MODEL: "JA-test",
+			}
+			device = device_registry.async_get_or_create(
+				config_entry_id=entry.entry_id, identifiers={(DOMAIN, instance._get_device_id(number))},
+				via_device_id=parent.id,
+			)
+			registered_devices[entry.entry_id, number] = device
+			control_ids = {instance._get_device_problem_sensor_id(number), instance._get_device_state_sensor_id(number)}
+			if number > 36:
+				control_ids.update({
+					instance._get_device_signal_strength_sensor_id(number),
+					instance._get_device_power_supply_sensor_id(number),
+					instance._get_device_battery_problem_sensor_id(number),
+					instance._get_device_battery_level_sensor_id(number),
+					instance._get_device_temperature_sensor_id(number),
+					instance._get_device_battery_standby_voltage_sensor_id(number),
+					instance._get_device_battery_load_voltage_sensor_id(number),
+					instance._get_device_pulse_sensor_id(number),
+					instance._get_device_pulse_sensor_id(number, 1),
+				})
+			for control_id in control_ids:
+				instance.entities_states[control_id] = STATE_ON
+				instance._store_state(control_id, STATE_ON)
+				registered[entry.entry_id, control_id] = registry.async_get_or_create(
+					"sensor", DOMAIN, f"{DOMAIN}.{instance.central_unit().unique_id}.{control_id}",
+					config_entry=entry, device_id=device.id,
+					suggested_object_id=f"renamed_{entry.entry_id.replace('-', '_')}_{control_id}",
+					disabled_by=er.RegistryEntryDisabler.USER if number == 50 else None,
+				)
+		for control_id in central_ids:
+			instance.entities_states[control_id] = STATE_ON
+			instance._store_state(control_id, STATE_ON)
+		instance._store_devices_data()
+
+	first_entry, first_panel = panels[0]
+	second_entry, second_panel = panels[1]
+	other_data = copy.deepcopy(second_panel._stored_data[second_entry.entry_id])
+	first_panel._config[CONF_NUMBER_OF_DEVICES] = device_count
+	first_panel._config[CONF_DEVICES] = first_panel._config[CONF_DEVICES][:device_count]
+	first_panel.entities_states["device_temperature_sensor_47"] = 21
+	first_panel._store_state("device_temperature_sensor_47", 21)
+	first_panel._store_state("device_temperature_sensor_48", 22)
+	registry_only = registry.async_get_or_create(
+		"sensor", DOMAIN, f"{DOMAIN}.{first_panel.central_unit().unique_id}.pulses_49_1",
+		config_entry=first_entry,
+	)
+	device_only = device_registry.async_get_or_create(
+		config_entry_id=first_entry.entry_id, identifiers={(DOMAIN, "device_45")},
+	)
+	kept_numbers = [number for number in numbers if number <= device_count]
+	stream = Mock()
+	stream.read.side_effect = [
+		*(Jablotron.create_packet(b"\x52", bytes((0x8a, number, 4, 0, 0, 0, 0xf2))) for number in kept_numbers),
+		Jablotron.create_packet(b"\x3b", b"\x01" + b"\x00" * ((device_count + 1) // 2)),
+		None,
+	]
+	with (
+		patch.object(first_panel, "_open_read_stream", return_value=stream) as open_stream,
+		patch.object(first_panel, "_send_packet"),
+		patch.object(first_panel, "_send_packets"),
+		patch.object(first_panel, "_detect_sections_and_pg_outputs", return_value=[]),
+	):
+		await first_panel._detect_and_create_devices_and_sections_and_pg_outputs()
+		await first_panel._detect_and_create_devices_and_sections_and_pg_outputs()
+		assert open_stream.call_count == (1 if kept_numbers else 0)
+
+	kept_ids = central_ids | {
+		control_id for number in kept_numbers
+		for control_id in (first_panel._get_device_problem_sensor_id(number), first_panel._get_device_state_sensor_id(number))
+	}
+	for (entry_id, control_id), registered_entity in registered.items():
+		keep = entry_id == second_entry.entry_id or control_id in kept_ids
+		assert registry.async_get(registered_entity.entity_id) == (registered_entity if keep else None)
+	for (entry_id, number), device in registered_devices.items():
+		keep = entry_id == second_entry.entry_id or number <= device_count
+		assert device_registry.async_get(device.id) == (device if keep else None)
+	assert registry.async_get(registry_only.entity_id) is None
+	assert device_registry.async_get(device_only.id) is None
+	assert set(first_panel.entities_states) == kept_ids
+	assert set(first_panel._devices_data) == {first_panel._get_device_id(number) for number in kept_numbers}
+	assert all(data[DeviceData.MODEL] == "JA-test" for data in first_panel._devices_data.values())
+	await first_panel._store.async_save(first_panel._data_to_store())
+	stored = await read_stored_data(hass)
+	assert set(stored[first_entry.entry_id][STORAGE_STATES_KEY]) == kept_ids
+	assert stored[first_entry.entry_id][STORAGE_DEVICES_KEY] == first_panel._devices_data
+	assert stored[second_entry.entry_id] == other_data
+
+
+@pytest.mark.asyncio
+async def test_device_reduction_removes_loaded_entities(hass, panels):
+	entry, instance = panels[0]
+	instance._config[CONF_NUMBER_OF_DEVICES] = 50
+	instance._config[CONF_DEVICES] = [DeviceType.MOTION_DETECTOR] + [DeviceType.EMPTY] * 48 + [DeviceType.MOTION_DETECTOR]
+	instance._devices_data = {
+		instance._get_device_id(number): {
+			DeviceData.CONNECTION: DeviceConnection.WIRED,
+			DeviceData.BATTERY: False,
+			DeviceData.SECTION: 1,
+		}
+		for number in (1, 50)
+	}
+	device_registry = dr.async_get(hass)
+	parent = device_registry.async_get_or_create(
+		config_entry_id=entry.entry_id, identifiers={(DOMAIN, instance.central_unit().unique_id)},
+	)
+	await instance._create_devices()
+	component = EntityComponent(logging.getLogger(__name__), "binary_sensor", hass)
+	platform = component._async_init_entity_platform(DOMAIN, None)
+	platform.config_entry = entry
+	entities = [
+		binary_sensor.JablotronBinarySensor(instance, instance.entities[EntityType.PROBLEM][instance._get_device_problem_sensor_id(number)], binary_sensor.BINARY_SENSOR_TYPES[EntityType.PROBLEM])
+		for number in (1, 50)
+	]
+	try:
+		await platform.async_add_entities(entities)
+		kept, removed = entities
+		removed_device = device_registry.async_get_device_by_identifier((DOMAIN, "device_50"), entry.entry_id)
+		assert removed_device is not None
+		instance._config[CONF_NUMBER_OF_DEVICES] = 36
+		instance._config[CONF_DEVICES] = instance._config[CONF_DEVICES][:36]
+		await instance._create_devices()
+		await hass.async_block_till_done()
+		assert instance.hass_entities == {instance._get_device_problem_sensor_id(1): kept}
+		assert removed.entity_id not in platform.entities
+		assert er.async_get(hass).async_get(removed.entity_id) is None
+		assert er.async_get(hass).async_get(kept.entity_id).unique_id == kept.unique_id
+		assert device_registry.async_get(removed_device.id) is None
+		assert device_registry.async_get(parent.id) is not None
+		assert "device_50" not in instance._device_hass_devices
+		assert instance._get_device_state_sensor_id(50) not in instance.entities[EntityType.DEVICE_STATE_MOTION]
+	finally:
+		await platform.async_reset()

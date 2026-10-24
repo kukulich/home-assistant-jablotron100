@@ -358,6 +358,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 					self._config[CONF_PASSWORD] = user_input[CONF_PASSWORD]
 
 				self._config[CONF_NUMBER_OF_DEVICES] = user_input[CONF_NUMBER_OF_DEVICES]
+				self._config[CONF_DEVICES] = self._config[CONF_DEVICES][:user_input[CONF_NUMBER_OF_DEVICES]]
 				self._config[CONF_NUMBER_OF_PG_OUTPUTS] = user_input[CONF_NUMBER_OF_PG_OUTPUTS]
 
 				if user_input[CONF_NUMBER_OF_DEVICES] > 0:
@@ -373,7 +374,7 @@ class JablotronConfigFlow(ConfigFlow, domain=DOMAIN):
 			): str,
 		}
 
-		number_of_devices_validation = create_range_validation(self._config[CONF_NUMBER_OF_DEVICES], MAX_DEVICES)
+		number_of_devices_validation = create_range_validation(0, MAX_DEVICES)
 
 		if self._config[CONF_NUMBER_OF_DEVICES] > 0:
 			fields[vol.Required(CONF_NUMBER_OF_DEVICES, default=self._config[CONF_NUMBER_OF_DEVICES])] = number_of_devices_validation

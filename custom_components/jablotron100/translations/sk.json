@@ -3,11 +3,11 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
-				"description": "Pre sledovanie stavu periferií je potrebné kód administrátora a zadanie počtu periferií",
+				"description": "Pre sledovanie periférií zadajte kód administrátora a najvyššiu pozíciu periférie podľa F-Link/J-Link, nie počet fyzických periférií. Neobsadené pozície nastavte na Empty.",
 				"data": {
 					"serial_port": "Sériový port",
 					"password": "Kód",
-					"number_of_devices": "Počet periferií",
+					"number_of_devices": "Najvyššia pozícia periférie",
 					"number_of_pg_outputs": "Počet programovateľných výstupů PG"
 				}
 			},
@@ -249,10 +249,11 @@
 			},
 			"reconfigure_settings": {
 				"title": "Jablotron 100",
+				"description": "Zadajte najvyššiu pozíciu periférie, ktorú chcete zahrnúť (0 vypne sledovanie periférií). Znížením hodnoty odstránite periférie nad touto pozíciou. Neobsadené pozície v rozsahu nastavte na Empty.",
 				"data": {
 					"serial_port": "Sériový port",
 					"password": "Kód",
-					"number_of_devices": "Počet periferií",
+					"number_of_devices": "Najvyššia pozícia periférie",
 					"number_of_pg_outputs": "Počet programovateľných výstupů PG"
 				}
 			},

@@ -3,11 +3,11 @@
 		"step": {
 			"user": {
 				"title": "Jablotron 100",
-				"description": "Um die Geräteunterstützung zu aktivieren, geben Sie den Pin-Code des Administrators und die Gesamtzahl der Geräte ein",
+				"description": "Geben Sie für die Geräteunterstützung den Administratorcode und die höchste Geräteposition aus F-Link/J-Link ein, nicht die Anzahl der physischen Geräte. Stellen Sie unbelegte Positionen auf Empty.",
 				"data": {
 					"serial_port": "Serielle Schnittstelle",
 					"password": "Pin-Code",
-					"number_of_devices": "Anzahl der Komponenten (Geräte)",
+					"number_of_devices": "Höchste Geräteposition",
 					"number_of_pg_outputs": "Anzahl programmierbarer PG Ausgänge"
 				}
 			},
@@ -249,10 +249,11 @@
 			},
 			"reconfigure_settings": {
 				"title": "Jablotron 100",
+				"description": "Geben Sie die höchste einzubeziehende Geräteposition ein (0 deaktiviert Geräte). Ein niedrigerer Wert entfernt Geräte oberhalb dieser Position. Stellen Sie unbelegte Positionen innerhalb des Bereichs auf Empty.",
 				"data": {
 					"serial_port": "Serielle Schnittstelle",
 					"password": "Pin-Code",
-					"number_of_devices": "Anzahl der Komponenten (Geräte)",
+					"number_of_devices": "Höchste Geräteposition",
 					"number_of_pg_outputs": "Anzahl programmierbarer PG Ausgänge"
 				}
 			},
