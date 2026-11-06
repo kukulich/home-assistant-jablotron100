@@ -32,3 +32,8 @@ python -m pip install -r requirements_integration_test.txt "homeassistant==2026.
 
 CI runs packet tests, mypy, and the full suite on Linux with the minimum
 Home Assistant version from `hacs.json` and the latest stable release.
+
+Home Assistant test contexts initialize config entries before loading
+registries, matching the startup order required by Home Assistant.
+Entity-platform test setup uses `EntityPlatform` directly rather than private
+`EntityComponent` methods.
