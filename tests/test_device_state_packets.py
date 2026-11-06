@@ -246,6 +246,27 @@ def test_parse_captured_device_state_packet(
 		assert Jablotron.bytes_to_int(packet[10:11]) * SIGNAL_STRENGTH_STEP == expected_signal_strength
 
 
+@pytest.mark.parametrize(
+	("packet_hex", "expected_state"),
+	[
+		pytest.param("5508070c443a20b1ef18", "off", id="failure-a"),
+		pytest.param("5508070c443a80bf2f1b", "off", id="failure-b"),
+		pytest.param("5508070e443aa0b68f19", "on", id="recovery-a"),
+		pytest.param("5508070e443aa0c80f1c", "on", id="recovery-b"),
+	],
+)
+def test_parse_captured_lan_device_state(packet_hex: str, expected_state: str) -> None:
+	jablotron = object.__new__(Jablotron)
+	jablotron._get_central_unit_lan_connection_device_number = Mock(return_value=233)
+	jablotron._update_entity_state = Mock()
+	jablotron._log_error_with_packet = Mock()
+
+	jablotron._parse_lan_connection_device_state_packet(bytes.fromhex(packet_hex))
+
+	jablotron._update_entity_state.assert_called_once_with("lan", expected_state)
+	jablotron._log_error_with_packet.assert_not_called()
+
+
 @pytest.mark.parametrize("device_number", [0, 1, 37, 38, 101, 102, 165, 166, 229, 230, 251, 254])
 def test_parse_device_number(device_number: int) -> None:
 	packet = create_device_state_packet(device_number)
