@@ -2073,11 +2073,11 @@ class Jablotron:
 			state_binary = Jablotron._bytes_to_binary(info_packet.packet[1:2])
 
 			lan_ok = state_binary[0:1] == "1"
-			dhcp_ok = state_binary[6:7] == "1"
+			connection_ok = state_binary[3:4] == "1" or state_binary[6:7] == "1"
 
 			self._update_entity_state(
 				self._get_lan_connection_id(),
-				STATE_ON if lan_ok and dhcp_ok else STATE_OFF,
+				STATE_ON if lan_ok and connection_ok else STATE_OFF,
 			)
 
 			self._parse_lan_connection_ip_packet(info_packet.packet[2:6])

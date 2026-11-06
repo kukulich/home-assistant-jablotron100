@@ -39,6 +39,8 @@ CAPTURED_DEVICE_INFO_PACKETS = [
 	captured_packet("90051d9c020a1e", 29, 100, True, (), "perimeter-device-29"),
 	captured_packet("90051e9c020a1e", 30, 100, True, (), "perimeter-device-30"),
 	captured_packet("900be90a080f00a683c0a844e3", 233, None, None, (DeviceInfoType.LAN,), "lan"),
+	captured_packet("900be90a080f85a690ac1e0a28", 233, None, None, (DeviceInfoType.LAN,), "lan-static-ip"),
+	captured_packet("900be90a080f86a680ac1e0a28", 233, None, None, (DeviceInfoType.LAN,), "lan-static-ip-disconnected"),
 	captured_packet("900bea0a080f00a45023000001", 234, None, None, (DeviceInfoType.GSM,), "gsm"),
 	captured_packet("900aeb0a070f008500000000", 235, None, None, (), "system-device-235"),
 	captured_packet(
@@ -335,8 +337,18 @@ def test_parse_captured_smoke_temperature(
 	)
 
 
-def test_parse_captured_lan_info() -> None:
-	packet = bytes.fromhex("900be90a080f00a683c0a844e3")
+@pytest.mark.parametrize(
+	("packet_hex", "expected_state", "expected_ip"),
+	[
+		pytest.param("900be90a080f00a683c0a844e3", "on", "192.168.68.227", id="captured-dhcp-connected"),
+		pytest.param("900be90a080f85a690ac1e0a28", "on", "172.30.10.40", id="captured-static-ip-connected"),
+		pytest.param("900be90a080f86a680ac1e0a28", "off", "172.30.10.40", id="captured-static-ip-disconnected"),
+		pytest.param("900be90a080f00a603c0a844e3", "off", "192.168.68.227", id="synthetic-dhcp-disconnected"),
+		pytest.param("900be90a080f85a610ac1e0a28", "off", "172.30.10.40", id="synthetic-static-ip-disconnected"),
+	],
+)
+def test_parse_lan_info(packet_hex: str, expected_state: str, expected_ip: str) -> None:
+	packet = bytes.fromhex(packet_hex)
 	jablotron = object.__new__(Jablotron)
 	jablotron._add_lan_connection_ip = Mock()
 	jablotron._update_entity_state = Mock()
@@ -344,8 +356,8 @@ def test_parse_captured_lan_info() -> None:
 	jablotron._parse_lan_connection_info_packet(parse_info_subpacket(packet), packet)
 
 	assert jablotron._update_entity_state.call_args_list == [
-		call("lan", "on"),
-		call("lan_ip", "192.168.68.227"),
+		call("lan", expected_state),
+		call("lan_ip", expected_ip),
 	]
 	jablotron._add_lan_connection_ip.assert_called_once_with()
 
