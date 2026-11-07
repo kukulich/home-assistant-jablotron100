@@ -30,6 +30,9 @@ async def hass(tmp_path):
 		loader.async_setup(instance)
 		frame.async_setup(instance)
 		instance.config_entries = ConfigEntries(instance, {})
+		# Home Assistant 2026.11+ waits for config entries to be initialized
+		# before loading the entity registry.
+		await instance.config_entries.async_initialize()
 		instance.data[device_registry.DATA_REGISTRY] = device_registry.DeviceRegistry(instance)
 		await device_registry.async_load(instance)
 		await entity_registry.async_load(instance)
