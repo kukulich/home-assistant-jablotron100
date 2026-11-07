@@ -37,6 +37,7 @@ def test_setup_registers_parent_before_platforms_and_scopes_lookup(tmp_path, sha
 			loader.async_setup(hass)
 			frame.async_setup(hass)
 			hass.config_entries = ConfigEntries(hass, {})
+			await hass.config_entries.async_initialize()
 			hass.data[dr.DATA_REGISTRY] = dr.DeviceRegistry(hass)
 			await dr.async_load(hass)
 			await er.async_load(hass)
