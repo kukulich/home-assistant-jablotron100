@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigEntries, ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry, entity_registry, frame
 from homeassistant.helpers.entity_component import EntityComponent
+from homeassistant.helpers.entity_platform import EntityPlatform
 import pytest
 import pytest_asyncio
 
@@ -40,6 +41,29 @@ async def hass(tmp_path):
 	finally:
 		await instance.async_block_till_done()
 		await instance.async_stop(force=True)
+
+
+@pytest.fixture
+def create_entity_platform():
+	"""Create a prepared EntityPlatform without EntityComponent's private API.
+
+	``EntityComponent._async_init_entity_platform`` changed its signature in
+	Home Assistant 2026.11, so build the platform the same way it does.
+	"""
+	def create(component: EntityComponent, platform_name: str) -> EntityPlatform:
+		platform = EntityPlatform(
+			hass=component.hass,
+			logger=component.logger,
+			domain=component.domain,
+			platform_name=platform_name,
+			platform=None,
+			scan_interval=component.scan_interval,
+			entity_namespace=None,
+		)
+		platform.async_prepare()
+		return platform
+
+	return create
 
 
 @pytest.fixture
