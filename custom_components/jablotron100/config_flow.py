@@ -117,7 +117,7 @@ def check_serial_port(serial_port: str, stop_event: threading.Event | None = Non
 		if model is None:
 			raise ModelNotDetected
 
-		if not re.match(r"^JA-1((0[01367])|4)", model):
+		if not re.match(r"^JA-1((0[013678])|4)", model):
 			LOGGER.debug("Unsupported model: {}", model)
 			raise ModelNotSupported("Model {} not supported".format(model))
 
