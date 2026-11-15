@@ -83,6 +83,22 @@ Then start Home Assistant again. Do not remove a valid device node. The integrat
 does not delete or recreate device paths automatically.
 
 
+#### USB cable on another machine (`tcp://`)
+
+If the USB cable cannot be connected to the Home Assistant host (for example a
+Home Assistant VM that has to stay live-migratable, which a USB passthrough
+prevents), connect it to another Linux machine such as a Raspberry Pi and run
+[`hidraw-tcp-proxy`](contrib/hidraw-tcp-proxy) there. Then set the serial port
+to `tcp://<host>:8765` (IPv6: `tcp://[<address>]:8765`). The proxy forwards the
+HID reports themselves, so it works with the USB HID cable, unlike serial
+proxies such as ser2net.
+
+The traffic between Home Assistant and the proxy is **not encrypted or
+authenticated**. Anyone who can reach the proxy port can read the alarm state
+and send commands to the control panel. Restrict it with the proxy's `--allow`
+option and a host firewall, or run it only over a VPN. See the
+[proxy README](contrib/hidraw-tcp-proxy/README.md).
+
 ### HACS
 
 1. Install the integration via [HACS](https://hacs.xyz/) (Home Assistant Community Store)  

@@ -22,7 +22,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.entity_registry import EntityRegistry, async_entries_for_config_entry, async_get as async_get_entity_registry
 from .storage import async_get_store
-from .stream import JablotronReadStream, open_serial_port
+from .stream import JablotronReadStream, is_tcp_serial_port, open_serial_port
 import math
 import os
 import stat
@@ -329,7 +329,10 @@ class Jablotron:
 			# when the configured device node is missing — custom paths (e.g.
 			# Docker bind-mounts like /dev/jablotron or udev symlinks) cannot be
 			# verified via sysfs and must be trusted as long as they exist.
-			if not await self._hass.async_add_executor_job(os.path.exists, self._serial_port):
+			if (
+				not is_tcp_serial_port(self._serial_port)
+				and not await self._hass.async_add_executor_job(os.path.exists, self._serial_port)
+			):
 				LOGGER.warning(
 					"Configured serial port %s does not exist, attempting autodetection",
 					self._serial_port,
@@ -3249,6 +3252,9 @@ class Jablotron:
 
 	@staticmethod
 	def _is_jablotron_serial_port(serial_port: str) -> bool:
+		if is_tcp_serial_port(serial_port):
+			return True
+
 		device_name = os.path.basename(serial_port)
 		if not device_name:
 			return False
