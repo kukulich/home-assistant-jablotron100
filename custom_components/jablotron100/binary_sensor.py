@@ -148,6 +148,7 @@ class JablotronBinarySensor(JablotronEntity, BinarySensorEntity):
 	) -> None:
 		self.entity_description = description
 		self._attr_translation_key = description.key
+		self._available_in_service_mode = description.key == EntityType.DEVICE_STATE_MOTION
 
 		super().__init__(jablotron, control)
 
