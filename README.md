@@ -19,6 +19,7 @@ Tested with JA-100K, JA-101K, JA-101K-LAN, JA-103K, JA-103KRY, JA-106K-3G, JA-10
 ### Devices
 
 - Devices with two states (on/off, active/inactive, open/closed etc.) are supported.
+- Motion detector states remain available in service mode while the integration is connected and their state is known. All other entity types remain unavailable in service mode.
 - Sabotage or problem of the device is supported in specific "problem" sensor.
 - Temperature is reported for thermostats, thermometers and smoke detectors.
 - Pulses are reported for electricity meters with pulse output.

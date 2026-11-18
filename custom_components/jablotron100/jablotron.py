@@ -3300,6 +3300,7 @@ class JablotronEntity(Entity):
 
 	_attr_should_poll = False
 	_attr_has_entity_name = True
+	_available_in_service_mode = False
 
 	def __init__(
 		self,
@@ -3345,7 +3346,7 @@ class JablotronEntity(Entity):
 
 	@property
 	def available(self) -> bool:
-		if self._jablotron.in_service_mode:
+		if self._jablotron.in_service_mode and not self._available_in_service_mode:
 			return False
 
 		if self._get_state() is None:
